@@ -26,7 +26,7 @@ export function AccountComparisonChart({ data }: AccountComparisonChartProps) {
           <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+            <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(value: number) => formatCurrency(value)} />
             <Legend />
             <Bar dataKey="Income" fill="#22C55E" radius={[2, 2, 0, 0]} />

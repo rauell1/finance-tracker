@@ -3,13 +3,8 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-export function formatCurrency(amount: number, currency: string = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+export function formatCurrency(amount: number, currency = "KES"): string {
+  return `KES ${Math.abs(amount).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 export function formatPercentage(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;

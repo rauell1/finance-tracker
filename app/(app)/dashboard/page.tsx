@@ -1,31 +1,68 @@
-import { getKPIData, getMonthlyTrend, getRecentTransactions, getBudgets, generateInsights } from "@/lib/queries";
+import {
+  getKPIData, getMonthlyTrend, getCategoryBreakdown, getAccountComparison,
+  getRecentTransactions, getBudgets, generateInsights
+} from "@/lib/queries";
 import { KPICards } from "@/components/dashboard/kpi-cards";
+import { AccountBalanceCards } from "@/components/dashboard/account-balance-cards";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
 import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
+import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [kpi, trend, recent, budgets, insights] = await Promise.all([
+  const [kpi, trend, categoryBreakdown, accountComparison, recentTxns, budgets, insights] = await Promise.all([
     getKPIData(),
     getMonthlyTrend(6),
-    getRecentTransactions(5),
+    getCategoryBreakdown(),
+    getAccountComparison(),
+    getRecentTransactions(8),
     getBudgets(),
     generateInsights(),
   ]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Your financial overview</p>
+      {/* Row 1: heading */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
+          <p className="text-sm text-slate-400 mt-0.5">Your financial overview</p>
+        </div>
       </div>
+
+      {/* Row 2: KPI cards */}
       <KPICards data={kpi} />
-      <MonthlyTrendChart data={trend} />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentTransactions transactions={recent} />
-        <BudgetOverview budgets={budgets} />
+
+      {/* Row 3: Account balance cards */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Account Balances</h2>
+        <AccountBalanceCards accounts={accountComparison} />
       </div>
+
+      {/* Row 4: Trend chart + Category donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-3">
+          <MonthlyTrendChart data={trend} defaultMonths={6} />
+        </div>
+        <div className="lg:col-span-2">
+          <CategoryBreakdownChart data={categoryBreakdown} />
+        </div>
+      </div>
+
+      {/* Row 5: Recent transactions + Budget overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-3">
+          <RecentTransactions transactions={recentTxns} />
+        </div>
+        <div className="lg:col-span-2">
+          <BudgetOverview budgets={budgets} />
+        </div>
+      </div>
+
+      {/* Row 6: Insights */}
       <InsightsPanel insights={insights} />
     </div>
   );
