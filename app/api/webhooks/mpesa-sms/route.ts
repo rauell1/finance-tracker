@@ -281,5 +281,8 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
   const { data: accounts } = await supabase.from("accounts").select("account_code, name, opening_balance, currency_code").order("account_code");
   const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true });
-  return NextResponse.json({ status: "ok", accounts, transaction_count: count });
+  // Confirm which Supabase project the running app is bound to
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/^["']|["']$/g, "").trim();
+  const projectRef = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/i)?.[1] ?? "unknown";
+  return NextResponse.json({ status: "ok", project_ref: projectRef, accounts, transaction_count: count });
 }
