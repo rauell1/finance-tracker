@@ -130,23 +130,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. Extract SMS text from whatever format the app sends
+  // 2. Log raw request for debugging (content-type + first 300 chars of body)
+  const debugCt = request.headers.get("content-type") ?? "none";
+  let rawBodyPreview = "";
   let smsText = "";
+
   try {
+    // Clone so we can read the body twice if needed
+    const cloned = request.clone();
+    rawBodyPreview = (await cloned.text().catch(() => "")).slice(0, 300);
+    console.log(`[mpesa-webhook] content-type=${debugCt} body_preview=${rawBodyPreview}`);
     smsText = await extractSmsText(request);
-  } catch {
+    console.log(`[mpesa-webhook] extracted_sms=${smsText.slice(0, 200)}`);
+  } catch (e) {
+    console.error("[mpesa-webhook] body read error:", e);
     return NextResponse.json({ error: "Could not read request body" }, { status: 400 });
   }
 
   if (!smsText) {
-    return NextResponse.json({ error: "Empty SMS body", hint: "Set body field to your app's message placeholder (e.g. %body% or {message})" }, { status: 400 });
+    console.log(`[mpesa-webhook] empty sms. raw=${rawBodyPreview}`);
+    return NextResponse.json({
+      error: "Empty SMS body",
+      raw_received: rawBodyPreview,
+      hint: "Update Message Template in the app to just: {Message Body}",
+    }, { status: 400 });
   }
 
   // 3. Parse M-Pesa SMS
   const parsed = parseMpesaSMS(smsText);
   if (!parsed) {
-    // Return 200 so the app doesn't retry — just not an M-Pesa transaction SMS
-    return NextResponse.json({ status: "ignored", reason: "not_mpesa_transaction", preview: smsText.slice(0, 80) });
+    console.log(`[mpesa-webhook] not recognised as mpesa. sms=${smsText.slice(0, 120)}`);
+    return NextResponse.json({ status: "ignored", reason: "not_mpesa_transaction", preview: smsText.slice(0, 120) });
   }
 
   if (parsed.amount <= 0) {
