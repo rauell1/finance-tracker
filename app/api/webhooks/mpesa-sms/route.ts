@@ -4,12 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 // ─── M-Pesa SMS patterns ────────────────────────────────────────────────────
 const PATTERNS = {
   received: /you have received ksh([\d,]+\.?\d*) from (.+?)(?:\d{10}|\d{9}|on \d)/i,
-  sent:     /ksh([\d,]+\.?\d*) (?:sent|paid) to (.+?)(?:\.|on \d)/i,
+  sent:     /ksh([\d,]+\.?\d*) (?:sent|paid) to (.+?)(?:\.|on \d|transaction)/i,
   withdraw: /give ksh([\d,]+\.?\d*) cash to (.+?)(?:\.|new)/i,
   airtime:  /airtime purchase of ksh([\d,]+\.?\d*)/i,
-  receipt:  /(?:^|\n)([A-Z0-9]{10,12})\s/m,
+  receipt:  /(?:^|\n|\s)([A-Z0-9]{10,12})\s+confirmed/im,
   date:     /on (\d{1,2}\/\d{1,2}\/\d{2,4}) at (\d{1,2}:\d{2} [AP]M)/i,
+  // Balance line is present in classic SMS but absent in RCS/push notifications — optional
   balance:  /new m-?pesa balance is ksh/i,
+  // Confirmed + Ksh = M-Pesa transaction (works with or without balance line)
+  isMpesa:  /confirmed[.\s]+ksh[\d,]/i,
 };
 
 // ─── Auto-categorisation ────────────────────────────────────────────────────
@@ -60,9 +63,14 @@ function cleanSmsText(raw: string): string {
 
 function parseMpesaSMS(rawText: string): ParsedSMS | null {
   const text = cleanSmsText(rawText);
-  if (!PATTERNS.balance.test(text)) return null;
 
-  const receipt    = text.match(PATTERNS.receipt)?.[1] ?? "UNKNOWN";
+  // Accept if either the balance line OR the "Confirmed. KshX" pattern is present
+  // RCS/push notifications omit the balance line but still have "Confirmed. Ksh"
+  const isMpesa = PATTERNS.balance.test(text) || PATTERNS.isMpesa.test(text);
+  if (!isMpesa) return null;
+
+  const receiptMatch = text.match(PATTERNS.receipt);
+  const receipt    = receiptMatch?.[1] ?? "UNKNOWN";
   const dateMatch  = text.match(PATTERNS.date);
   const occurredOn = dateMatch ? parseDate(dateMatch[1]) : new Date().toISOString().split("T")[0];
 
