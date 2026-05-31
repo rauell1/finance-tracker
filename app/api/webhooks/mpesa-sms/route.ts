@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@supabase/supabase-js";
 
 // ─── M-Pesa SMS patterns ────────────────────────────────────────────────────
 const PATTERNS = {
@@ -265,7 +266,19 @@ export async function GET(request: NextRequest) {
   }
 
   const serviceRolePresent = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabase = createAdminClient();
+  const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const cleanedKey = rawKey.replace(/^["']|["']$/g, "").trim();
+  
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    cleanedKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
 
   const { data: profiles, error: profError } = await supabase
     .from("profiles")
@@ -284,6 +297,10 @@ export async function GET(request: NextRequest) {
     message: "M-Pesa webhook is live",
     diagnostics: {
       service_role_key_defined: serviceRolePresent,
+      service_role_key_length: rawKey.length,
+      service_role_key_prefix: rawKey.slice(0, 10),
+      cleaned_key_length: cleanedKey.length,
+      cleaned_key_prefix: cleanedKey.slice(0, 10),
       profiles_count: profiles?.length ?? 0,
       profiles_list: profiles,
       profiles_error: profError?.message ?? null,
