@@ -314,6 +314,15 @@ export async function GET(request: NextRequest) {
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/^["']|["']$/g, "").trim();
   const projectRef = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/i)?.[1] ?? "unknown";
 
+  // ?cleardebug=1 → delete all webhook_debug placeholder rows
+  if (request.nextUrl.searchParams.get("cleardebug") === "1") {
+    const { count: deleted } = await supabase
+      .from("transactions")
+      .delete({ count: "exact" })
+      .contains("metadata", { source: "webhook_debug" });
+    return NextResponse.json({ status: "cleared", deleted });
+  }
+
   // ?debug=1 → return recent raw captures from failed parses
   if (request.nextUrl.searchParams.get("debug") === "1") {
     const { data: debug } = await supabase
