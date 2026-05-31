@@ -7,7 +7,7 @@ const PATTERNS = {
   sent:     /ksh([\d,]+\.?\d*) (?:sent|paid) to (.+?)(?:\.|on \d)/i,
   withdraw: /give ksh([\d,]+\.?\d*) cash to (.+?)(?:\.|new)/i,
   airtime:  /airtime purchase of ksh([\d,]+\.?\d*)/i,
-  receipt:  /^([A-Z0-9]{10,12})\s/,
+  receipt:  /(?:^|\n)([A-Z0-9]{10,12})\s/m,
   date:     /on (\d{1,2}\/\d{1,2}\/\d{2,4}) at (\d{1,2}:\d{2} [AP]M)/i,
   balance:  /new m-?pesa balance is ksh/i,
 };
@@ -53,7 +53,13 @@ interface ParsedSMS {
   occurredOn: string;
 }
 
-function parseMpesaSMS(text: string): ParsedSMS | null {
+function cleanSmsText(raw: string): string {
+  // Strip "From : SENDER\n" prefix added by SMS Forwarder app templates
+  return raw.replace(/^From\s*:\s*.+\n/i, "").trim();
+}
+
+function parseMpesaSMS(rawText: string): ParsedSMS | null {
+  const text = cleanSmsText(rawText);
   if (!PATTERNS.balance.test(text)) return null;
 
   const receipt    = text.match(PATTERNS.receipt)?.[1] ?? "UNKNOWN";
