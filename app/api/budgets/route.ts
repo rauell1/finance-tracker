@@ -1,0 +1,30 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getBudgets, createBudget } from "@/lib/queries";
+import { budgetSchema } from "@/lib/validators/budget";
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get("month") ?? undefined;
+    const result = await getBudgets(month);
+    return NextResponse.json(result);
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch budgets" }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const body = await request.json();
+    const parsed = budgetSchema.safeParse(body);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const result = await createBudget({ user_id: user.id, ...parsed.data });
+    return NextResponse.json(result, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: "Failed to create budget" }, { status: 500 });
+  }
+}
