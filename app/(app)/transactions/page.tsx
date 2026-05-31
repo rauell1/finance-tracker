@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ImportTrigger } from "@/components/forms/import-trigger";
 
 interface PageProps {
   searchParams: Promise<Record<string, string>>;
@@ -24,6 +25,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           <h1 className="text-2xl font-bold">Transactions</h1>
           <p className="text-muted-foreground">{total} total transactions</p>
         </div>
+        <ImportTrigger accounts={accounts} />
       </div>
 
       <Card>
