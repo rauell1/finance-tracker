@@ -16,12 +16,28 @@ const accountStyles: Record<string, { bg: string; border: string; glow: string; 
     label: "M-Pesa / Primary Wallet",
     badge: "bg-emerald-50 border-emerald-100 text-emerald-650",
   },
+  kcb_mpesa: {
+    bg: "from-white via-green-50/[0.04] to-green-50/30",
+    border: "border-slate-200/80 hover:border-green-300",
+    glow: "shadow-sm hover:shadow-md hover:shadow-green-100/50",
+    text: "text-green-700",
+    label: "KCB M-PESA Savings",
+    badge: "bg-green-50 border-green-100 text-green-700",
+  },
+  mshwari: {
+    bg: "from-white via-teal-50/[0.04] to-teal-50/30",
+    border: "border-slate-200/80 hover:border-teal-300",
+    glow: "shadow-sm hover:shadow-md hover:shadow-teal-100/50",
+    text: "text-teal-700",
+    label: "M-Shwari Savings",
+    badge: "bg-teal-50 border-teal-100 text-teal-700",
+  },
   bank_a: {
     bg: "from-white via-blue-50/[0.04] to-blue-50/30",
     border: "border-slate-200/80 hover:border-blue-300",
     glow: "shadow-sm hover:shadow-md hover:shadow-blue-100/50",
     text: "text-blue-600",
-    label: "Bank Account A",
+    label: "DTB Bank",
     badge: "bg-blue-50 border-blue-100 text-blue-650",
   },
   bank_b: {
@@ -29,7 +45,7 @@ const accountStyles: Record<string, { bg: string; border: string; glow: string; 
     border: "border-slate-200/80 hover:border-violet-300",
     glow: "shadow-sm hover:shadow-md hover:shadow-violet-100/50",
     text: "text-violet-650",
-    label: "Bank Account B",
+    label: "I&M Bank",
     badge: "bg-violet-50 border-violet-100 text-violet-650",
   },
   bank_c: {
@@ -37,7 +53,7 @@ const accountStyles: Record<string, { bg: string; border: string; glow: string; 
     border: "border-slate-200/80 hover:border-amber-300",
     glow: "shadow-sm hover:shadow-md hover:shadow-amber-100/50",
     text: "text-amber-600",
-    label: "Bank Account C",
+    label: "SBM Bank",
     badge: "bg-amber-50 border-amber-100 text-amber-650",
   },
 };

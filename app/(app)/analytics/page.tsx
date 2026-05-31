@@ -1,4 +1,4 @@
-import { getMonthlyTrend, getCategoryBreakdown, getAccountComparison, getKPIData, getMerchantSpend, getAccountSpend } from "@/lib/queries";
+import { getMonthlyTrend, getCategoryBreakdown, getAccountComparison, getKPIData, getMerchantSpend, getAccountSpend, getIncomeSources } from "@/lib/queries";
 import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
 import { AccountComparisonChart } from "@/components/charts/account-comparison-chart";
@@ -11,16 +11,18 @@ const ACCOUNT_COLORS: Record<string, string> = {
 };
 
 export default async function AnalyticsPage() {
-  const [trend, breakdown, accounts, kpi, merchants, accountSpend] = await Promise.all([
+  const [trend, breakdown, accounts, kpi, merchants, accountSpend, incomeSources] = await Promise.all([
     getMonthlyTrend(12),
     getCategoryBreakdown(),
     getAccountComparison(),
     getKPIData(),
     getMerchantSpend(),
     getAccountSpend(),
+    getIncomeSources(),
   ]);
 
   const maxMerchant = merchants[0]?.total ?? 1;
+  const maxIncome = incomeSources[0]?.total ?? 1;
 
   // Last month KPI for comparison
   const now = new Date();
@@ -130,6 +132,39 @@ export default async function AnalyticsPage() {
                     </div>
                   </div>
                   <span className="text-sm font-semibold text-slate-700 w-28 text-right">
+                    {formatCurrency(m.total)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Income sources — where money comes from */}
+      {incomeSources.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h2 className="font-semibold text-slate-800">Top Income Sources</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Who pays you the most this month</p>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {incomeSources.map((m, idx) => (
+              <div key={m.merchant} className={`px-5 py-3.5 ${idx % 2 === 1 ? "bg-slate-50/50" : ""}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-400 w-5">{idx + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-700 truncate">{m.merchant}</p>
+                    <p className="text-xs text-slate-400">
+                      {m.category_name ?? "Income"} · {m.count} {m.count === 1 ? "payment" : "payments"} · avg {formatCurrency(m.avg)}
+                    </p>
+                  </div>
+                  <div className="w-24 hidden sm:block">
+                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-400" style={{ width: `${(m.total / maxIncome) * 100}%` }} />
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-emerald-600 w-28 text-right">
                     {formatCurrency(m.total)}
                   </span>
                 </div>

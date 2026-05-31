@@ -10,8 +10,8 @@ export interface Database {
         Update: { full_name?: string | null; preferred_currency?: string; timezone?: string };
       };
       accounts: {
-        Row: { id: string; user_id: string; account_code: "main"|"bank_a"|"bank_b"|"bank_c"; name: string; currency_code: string; opening_balance: number; is_archived: boolean; created_at: string; updated_at: string };
-        Insert: { id?: string; user_id: string; account_code: "main"|"bank_a"|"bank_b"|"bank_c"; name: string; currency_code?: string; opening_balance?: number; is_archived?: boolean };
+        Row: { id: string; user_id: string; account_code: "main"|"kcb_mpesa"|"mshwari"|"bank_a"|"bank_b"|"bank_c"; name: string; currency_code: string; opening_balance: number; is_archived: boolean; created_at: string; updated_at: string };
+        Insert: { id?: string; user_id: string; account_code: "main"|"kcb_mpesa"|"mshwari"|"bank_a"|"bank_b"|"bank_c"; name: string; currency_code?: string; opening_balance?: number; is_archived?: boolean };
         Update: { name?: string; currency_code?: string; opening_balance?: number; is_archived?: boolean };
       };
       categories: {

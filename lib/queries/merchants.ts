@@ -50,8 +50,9 @@ function normaliseMerchant(raw: string): string {
     .slice(0, 40) || "UNKNOWN";
 }
 
-/** Top establishments by spend for a given month (defaults to current). */
-export async function getMerchantSpend(
+/** Top counterparties by amount for a given month + direction. */
+async function getCounterpartyTotals(
+  txnType: "income" | "expense",
   month?: string,
   limit = 15
 ): Promise<MerchantSpend[]> {
@@ -63,7 +64,7 @@ export async function getMerchantSpend(
   const { data, error } = await supabase
     .from("transactions")
     .select("amount, description, metadata, category:categories!category_id(name, color)")
-    .eq("txn_type", "expense")
+    .eq("txn_type", txnType)
     .gte("occurred_on", targetMonth)
     .lt("occurred_on", end.toISOString().split("T")[0]);
 
@@ -84,19 +85,23 @@ export async function getMerchantSpend(
       existing.avg = existing.total / existing.count;
     } else {
       map.set(merchant, {
-        merchant,
-        total: amt,
-        count: 1,
-        avg: amt,
+        merchant, total: amt, count: 1, avg: amt,
         category_name: cat?.name ?? null,
         category_color: cat?.color ?? null,
       });
     }
   }
+  return Array.from(map.values()).sort((a, b) => b.total - a.total).slice(0, limit);
+}
 
-  return Array.from(map.values())
-    .sort((a, b) => b.total - a.total)
-    .slice(0, limit);
+/** Top establishments by spend (expense). */
+export async function getMerchantSpend(month?: string, limit = 15): Promise<MerchantSpend[]> {
+  return getCounterpartyTotals("expense", month, limit);
+}
+
+/** Top income sources (who pays you the most). */
+export async function getIncomeSources(month?: string, limit = 15): Promise<MerchantSpend[]> {
+  return getCounterpartyTotals("income", month, limit);
 }
 
 /** Spend + income grouped per account for a given month. */
