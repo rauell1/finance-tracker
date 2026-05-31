@@ -8,6 +8,24 @@ export interface ParsedRow {
   txn_type: "income" | "expense";
   category_name: string;
   raw_index: number;
+  counterparty?: string;   // establishment / merchant / person
+  receipt?: string;        // M-Pesa receipt code
+  balance_after?: number | null;
+}
+
+// Extract the establishment/merchant from an M-Pesa "Details" string.
+// e.g. "Pay Bill to KPLC PREPAID" → "KPLC PREPAID"
+//      "Customer Transfer to JOHN DOE" → "JOHN DOE"
+//      "Merchant Payment to NAIVAS" → "NAIVAS"
+function extractCounterparty(details: string): string {
+  if (!details) return "Unknown";
+  const cleaned = details
+    .replace(/^(pay bill (online )?to|merchant payment (online )?to|customer (transfer|payment) (of funds )?(to|from)|funds received from|business payment from|buy goods (and services )?to|withdrawal (charge|at)|airtime purchase|m-?shwari|kcb m-?pesa)\s*/i, "")
+    .replace(/\b\d{9,12}\b/g, "")
+    .replace(/-\s*\d+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || details.trim();
 }
 
 const MAX_ROWS = 500;
@@ -79,6 +97,8 @@ function parseMpesa(headers: string[], rows: string[][]): ParsedRow[] {
   const iStatus = hi("Transaction Status");
   const iPaidIn = hi("Paid In");
   const iWithdrawn = hi("Withdrawn");
+  const iReceipt = hi("Receipt No.");
+  const iBalance = hi("Balance");
 
   const parsed: ParsedRow[] = [];
   rows.forEach((row, idx) => {
@@ -91,7 +111,19 @@ function parseMpesa(headers: string[], rows: string[][]): ParsedRow[] {
     if (paidIn === 0 && withdrawn === 0) return;
     const txn_type: "income" | "expense" = paidIn > 0 ? "income" : "expense";
     const amount = txn_type === "income" ? paidIn : withdrawn;
-    parsed.push({ date, description, amount, txn_type, category_name: categorise(description, txn_type), raw_index: idx });
+    const counterparty = extractCounterparty(description);
+    const balanceRaw = iBalance >= 0 ? parseFloat((row[iBalance] ?? "").replace(/,/g, "")) : NaN;
+    parsed.push({
+      date,
+      description: txn_type === "income" ? `Received from ${counterparty}` : `Paid to ${counterparty}`,
+      amount,
+      txn_type,
+      category_name: categorise(description, txn_type),
+      raw_index: idx,
+      counterparty,
+      receipt: iReceipt >= 0 ? row[iReceipt]?.trim() : undefined,
+      balance_after: Number.isNaN(balanceRaw) ? null : balanceRaw,
+    });
   });
   return parsed.slice(0, MAX_ROWS);
 }

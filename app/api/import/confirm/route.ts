@@ -40,12 +40,31 @@ export async function POST(request: NextRequest) {
   const fallbackIncome = (categories ?? []).find((c) => c.type === "income");
   const fallbackExpense = (categories ?? []).find((c) => c.type === "expense");
 
+  // Existing M-Pesa receipts for this user — to skip duplicates on re-import
+  const { data: existing } = await supabase
+    .from("transactions")
+    .select("metadata")
+    .eq("user_id", user.id)
+    .not("metadata->>mpesa_receipt", "is", null);
+  const existingReceipts = new Set(
+    (existing ?? [])
+      .map((t) => (t.metadata as Record<string, unknown>)?.mpesa_receipt as string | undefined)
+      .filter(Boolean)
+  );
+
   const inserts: object[] = [];
   const errors: string[] = [];
+  let duplicates = 0;
 
   for (const row of rows) {
     if (!row.date || !row.amount || row.amount <= 0) {
       errors.push(`Row ${row.raw_index}: invalid date or amount`);
+      continue;
+    }
+
+    // Skip if this receipt already exists (webhook or earlier import)
+    if (row.receipt && existingReceipts.has(row.receipt)) {
+      duplicates++;
       continue;
     }
 
@@ -65,15 +84,21 @@ export async function POST(request: NextRequest) {
       category_id: cat.id,
       txn_type: row.txn_type,
       amount: row.amount,
-      currency_code: account.currency_code ?? "USD",
+      currency_code: account.currency_code ?? "KES",
       occurred_on: row.date,
       description: row.description || null,
-      metadata: {},
+      metadata: {
+        source: "csv_import",
+        counterparty: row.counterparty ?? null,
+        mpesa_receipt: row.receipt ?? null,
+        balance_after: row.balance_after ?? null,
+      },
     });
+    if (row.receipt) existingReceipts.add(row.receipt);
   }
 
   if (inserts.length === 0) {
-    return NextResponse.json({ imported: 0, skipped: rows.length, errors });
+    return NextResponse.json({ imported: 0, skipped: rows.length, duplicates, errors });
   }
 
   const { error: insertError } = await supabase.from("transactions").insert(inserts);
@@ -83,7 +108,8 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     imported: inserts.length,
-    skipped: rows.length - inserts.length - errors.length,
+    duplicates,
+    skipped: rows.length - inserts.length - errors.length - duplicates,
     errors,
   });
 }
