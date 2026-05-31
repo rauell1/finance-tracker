@@ -34,7 +34,7 @@ export default function LoginPage() {
   }
 
   return (
-    <Card>
+    <Card className="border-slate-200/70 shadow-2xl shadow-indigo-500/10 bg-white/95 backdrop-blur">
       <CardHeader className="text-center">
         <div className="flex justify-center mb-2">
           <TrendingUp className="h-8 w-8 text-primary" />
