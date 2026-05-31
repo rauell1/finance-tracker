@@ -257,11 +257,40 @@ export async function POST(request: NextRequest) {
   });
 }
 
-// Health-check so you can test the URL is reachable
+// Health-check & Diagnostics
 export async function GET(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret");
   if (secret !== process.env.MPESA_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return NextResponse.json({ status: "ok", message: "M-Pesa webhook is live" });
+
+  const serviceRolePresent = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabase = createAdminClient();
+
+  const { data: profiles, error: profError } = await supabase
+    .from("profiles")
+    .select("id, full_name, created_at");
+
+  const { data: accounts, error: accError } = await supabase
+    .from("accounts")
+    .select("id, user_id, account_code, name");
+
+  const { data: transactionsCount } = await supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true });
+
+  return NextResponse.json({
+    status: "ok",
+    message: "M-Pesa webhook is live",
+    diagnostics: {
+      service_role_key_defined: serviceRolePresent,
+      profiles_count: profiles?.length ?? 0,
+      profiles_list: profiles,
+      profiles_error: profError?.message ?? null,
+      accounts_count: accounts?.length ?? 0,
+      accounts_list: accounts,
+      accounts_error: accError?.message ?? null,
+      transactions_total: transactionsCount ?? 0,
+    }
+  });
 }

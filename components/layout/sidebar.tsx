@@ -28,17 +28,17 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-slate-950/95 border-r border-slate-800/60 h-screen sticky top-0 shrink-0 backdrop-blur-md">
+    <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200/80 h-screen sticky top-0 shrink-0">
       {/* Premium Logo */}
-      <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-900/50">
-        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/25 transition-transform duration-300 hover:rotate-6">
+      <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-100">
+        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20 transition-transform duration-300 hover:rotate-6">
           <TrendingUp className="h-5 w-5 text-white" />
         </div>
         <div className="flex flex-col">
-          <span className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-300 tracking-tight leading-none">
+          <span className="font-extrabold text-lg text-slate-800 tracking-tight leading-none">
             FinTrack
           </span>
-          <span className="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase mt-0.5">
+          <span className="text-[10px] text-indigo-600 font-bold tracking-wider uppercase mt-0.5">
             Personal Wealth
           </span>
         </div>
@@ -54,18 +54,18 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                "group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 relative overflow-hidden",
                 active
-                  ? "bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-md shadow-indigo-600/20"
-                  : "text-slate-400 hover:bg-slate-900/60 hover:text-slate-100 border border-transparent hover:border-slate-800/40"
+                  ? "bg-indigo-50/80 border border-indigo-100 text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-850 border border-transparent hover:border-slate-100"
               )}
             >
               {active && (
-                <span className="absolute left-0 top-1/4 bottom-1/4 w-1 rounded-r-md bg-white animate-pulse" />
+                <span className="absolute left-0 top-1/4 bottom-1/4 w-1 rounded-r-md bg-indigo-600" />
               )}
               <Icon className={cn(
                 "h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110",
-                active ? "text-white" : "text-slate-400 group-hover:text-indigo-400"
+                active ? "text-indigo-600" : "text-slate-400 group-hover:text-indigo-500"
               )} />
               {item.label}
             </Link>
@@ -74,10 +74,10 @@ export function Sidebar() {
       </nav>
 
       {/* User area */}
-      <div className="p-4 border-t border-slate-900/80 bg-slate-950/40">
+      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
         <button
           onClick={handleSignOut}
-          className="group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-rose-950/20 hover:text-rose-400 w-full transition-all duration-200 border border-transparent hover:border-rose-900/20"
+          className="group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-500 hover:bg-rose-50 hover:text-rose-600 w-full transition-all duration-200 border border-transparent hover:border-rose-100"
         >
           <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
           Sign Out

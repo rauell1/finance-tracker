@@ -14,20 +14,20 @@ export function KPICards({ data }: KPICardsProps) {
       value: formatCurrency(data.totalBalance),
       icon: Wallet,
       change: null as number | null,
-      bgStyle: "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-indigo-500/20",
-      glowColor: "group-hover:bg-indigo-500/5",
-      iconBg: "bg-indigo-950/40 border-indigo-800/30 text-indigo-400",
-      valueColor: "text-slate-100",
+      bgStyle: "bg-white border-slate-250/60 hover:border-indigo-500/20 shadow-sm",
+      glowColor: "group-hover:bg-indigo-500/[0.02]",
+      iconBg: "bg-indigo-50 border-indigo-100 text-indigo-600",
+      valueColor: "text-slate-800",
     },
     {
       title: "Monthly Income",
       value: formatCurrency(data.monthlyIncome),
       icon: TrendingUp,
       change: data.incomeChange,
-      bgStyle: "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-emerald-500/20",
-      glowColor: "group-hover:bg-emerald-500/5",
-      iconBg: "bg-emerald-950/40 border-emerald-800/30 text-emerald-400",
-      valueColor: "text-emerald-400",
+      bgStyle: "bg-white border-slate-250/60 hover:border-emerald-500/20 shadow-sm",
+      glowColor: "group-hover:bg-emerald-500/[0.02]",
+      iconBg: "bg-emerald-50 border-emerald-100 text-emerald-600",
+      valueColor: "text-emerald-600",
       invertChange: false,
     },
     {
@@ -35,10 +35,10 @@ export function KPICards({ data }: KPICardsProps) {
       value: formatCurrency(data.monthlyExpense),
       icon: TrendingDown,
       change: data.expenseChange,
-      bgStyle: "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-rose-500/20",
-      glowColor: "group-hover:bg-rose-500/5",
-      iconBg: "bg-rose-950/40 border-rose-800/30 text-rose-400",
-      valueColor: "text-rose-400",
+      bgStyle: "bg-white border-slate-250/60 hover:border-rose-500/20 shadow-sm",
+      glowColor: "group-hover:bg-rose-500/[0.02]",
+      iconBg: "bg-rose-50 border-rose-100 text-rose-650",
+      valueColor: "text-rose-600",
       invertChange: true,
     },
     {
@@ -47,13 +47,13 @@ export function KPICards({ data }: KPICardsProps) {
       icon: ArrowUpDown,
       change: null as number | null,
       bgStyle: data.netCashflow >= 0
-        ? "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-teal-500/20"
-        : "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-rose-500/20",
-      glowColor: data.netCashflow >= 0 ? "group-hover:bg-teal-500/5" : "group-hover:bg-rose-500/5",
+        ? "bg-white border-slate-250/60 hover:border-teal-500/20 shadow-sm"
+        : "bg-white border-slate-250/60 hover:border-rose-500/20 shadow-sm",
+      glowColor: data.netCashflow >= 0 ? "group-hover:bg-teal-500/[0.02]" : "group-hover:bg-rose-500/[0.02]",
       iconBg: data.netCashflow >= 0
-        ? "bg-teal-950/40 border-teal-800/30 text-teal-400"
-        : "bg-rose-950/40 border-rose-800/30 text-rose-400",
-      valueColor: data.netCashflow >= 0 ? "text-teal-400" : "text-rose-400",
+        ? "bg-teal-50 border-teal-100 text-teal-600"
+        : "bg-rose-50 border-rose-100 text-rose-650",
+      valueColor: data.netCashflow >= 0 ? "text-teal-600" : "text-rose-650",
     },
   ];
 
@@ -66,7 +66,7 @@ export function KPICards({ data }: KPICardsProps) {
           <div
             key={card.title}
             className={cn(
-              "group relative overflow-hidden bg-gradient-to-br rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-950/20",
+              "group relative overflow-hidden rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/50",
               card.bgStyle
             )}
           >
@@ -74,23 +74,23 @@ export function KPICards({ data }: KPICardsProps) {
             <div className={cn("absolute inset-0 transition-colors duration-300 pointer-events-none", card.glowColor)} />
 
             <div className="flex items-center justify-between mb-4 relative z-10">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{card.title}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-450">{card.title}</p>
               <div className={cn("h-10 w-10 rounded-xl border flex items-center justify-center transition-transform duration-300 group-hover:scale-105", card.iconBg)}>
                 <Icon className="h-5 w-5" />
               </div>
             </div>
             
-            <p className={cn("text-2xl font-bold tracking-tight relative z-10", card.valueColor)}>
+            <p className={cn("text-2xl font-extrabold tracking-tight relative z-10", card.valueColor)}>
               {card.value}
             </p>
 
             {card.change !== null && (
               <div className="mt-3 flex items-center gap-1.5 relative z-10">
                 <div className={cn(
-                  "flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold",
+                  "flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold",
                   (invertChange ? card.change <= 0 : card.change >= 0)
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "bg-rose-500/10 text-rose-400"
+                    ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                    : "bg-rose-50 text-rose-600 border border-rose-100"
                 )}>
                   {(invertChange ? card.change <= 0 : card.change >= 0) ? (
                     <TrendingUp className="h-3 w-3" />
@@ -99,7 +99,7 @@ export function KPICards({ data }: KPICardsProps) {
                   )}
                   <span>{formatPercentage(card.change)}</span>
                 </div>
-                <span className="text-[11px] text-slate-400">vs last month</span>
+                <span className="text-[10px] font-medium text-slate-400">vs last month</span>
               </div>
             )}
           </div>
