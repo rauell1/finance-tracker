@@ -5,7 +5,7 @@ export async function getBudgets(month?: string): Promise<Budget[]> {
   const supabase = await createClient();
   const targetMonth = month ?? getMonthStart(new Date());
   const { data: budgets, error } = await supabase.from("budgets")
-    .select("*, category:categories(id, name, color)").eq("month_start", targetMonth).order("amount", { ascending: false });
+    .select("*, category:categories!category_id(id, name, color)").eq("month_start", targetMonth).order("amount", { ascending: false });
   if (error) throw error;
   const ids = budgets.map((b) => b.category_id);
   const spendMap: Record<string, number> = {};
@@ -25,7 +25,7 @@ export async function getBudgets(month?: string): Promise<Budget[]> {
 }
 export async function createBudget(input: { user_id?: string; category_id: string; month_start: string; amount: number; currency_code: string; alert_threshold_pct: number }): Promise<Budget> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("budgets").insert(input).select("*, category:categories(id, name, color)").single();
+  const { data, error } = await supabase.from("budgets").insert(input).select("*, category:categories!category_id(id, name, color)").single();
   if (error) throw error;
   return { ...data, spent: 0, remaining: data.amount, pct_used: 0, status: "safe" } as Budget;
 }

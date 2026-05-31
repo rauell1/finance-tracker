@@ -20,11 +20,13 @@ export async function getKPIData(month?: string): Promise<KPIData> {
   let totalBalance = (accounts ?? []).reduce((s, a) => s + Number(a.opening_balance), 0);
   const ids = (accounts ?? []).map((a) => a.id);
   if (ids.length > 0) {
-    const { data: all } = await supabase.from("transactions").select("account_id, transfer_account_id, amount").or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`);
-    for (const t of all ?? []) {
-      if (t.account_id && ids.includes(t.account_id)) totalBalance -= Number(t.amount);
-      if (t.transfer_account_id && ids.includes(t.transfer_account_id)) totalBalance += Number(t.amount);
-    }
+    // Two separate queries — OR+IN is not valid PostgREST syntax
+    const [{ data: outflows }, { data: inflows }] = await Promise.all([
+      supabase.from("transactions").select("account_id, amount").in("account_id", ids),
+      supabase.from("transactions").select("transfer_account_id, amount").in("transfer_account_id", ids).not("transfer_account_id", "is", null),
+    ]);
+    for (const t of outflows ?? []) totalBalance -= Number(t.amount);
+    for (const t of inflows ?? []) totalBalance += Number(t.amount);
   }
   return {
     totalBalance, monthlyIncome, monthlyExpense, netCashflow: monthlyIncome - monthlyExpense,
@@ -51,7 +53,7 @@ export async function getCategoryBreakdown(month?: string): Promise<CategoryBrea
   const supabase = await createClient();
   const targetMonth = month ?? getMonthStart(new Date());
   const end = new Date(targetMonth + "T00:00:00"); end.setMonth(end.getMonth() + 1);
-  const { data } = await supabase.from("transactions").select("category_id, amount, category:categories(name, color)").eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", end.toISOString().split("T")[0]);
+  const { data } = await supabase.from("transactions").select("category_id, amount, category:categories!category_id(name, color)").eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", end.toISOString().split("T")[0]);
   const map = new Map<string, { name: string; color: string; amount: number }>();
   let total = 0;
   for (const r of data ?? []) {
@@ -109,7 +111,7 @@ export async function detectSpendingSpikes() {
   const curMonth = getMonthStart(now);
   const end = new Date(curMonth + "T00:00:00"); end.setMonth(end.getMonth() + 1);
   const [{ data: cur }, { data: hist }] = await Promise.all([
-    supabase.from("transactions").select("category_id, amount, category:categories(name)").eq("txn_type", "expense").gte("occurred_on", curMonth).lt("occurred_on", end.toISOString().split("T")[0]),
+    supabase.from("transactions").select("category_id, amount, category:categories!category_id(name)").eq("txn_type", "expense").gte("occurred_on", curMonth).lt("occurred_on", end.toISOString().split("T")[0]),
     supabase.from("transactions").select("category_id, amount").eq("txn_type", "expense").gte("occurred_on", (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return getMonthStart(d); })()).lt("occurred_on", curMonth),
   ]);
   const curByCat = new Map<string, { name: string; amount: number }>();
@@ -126,7 +128,7 @@ export async function detectSpendingSpikes() {
 export async function detectBudgetLeaks() {
   const supabase = await createClient();
   const months = [0, 1, 2].map((i) => { const d = new Date(); d.setMonth(d.getMonth() - i); return getMonthStart(d); });
-  const { data: budgets } = await supabase.from("budgets").select("id, category_id, month_start, amount, category:categories(name)").in("month_start", months);
+  const { data: budgets } = await supabase.from("budgets").select("id, category_id, month_start, amount, category:categories!category_id(name)").in("month_start", months);
   if (!budgets?.length) return [];
   const byCat = new Map<string, { name: string; months: { budget: number; month: string }[] }>();
   for (const b of budgets) {
