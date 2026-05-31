@@ -100,14 +100,21 @@ async function extractSmsText(request: NextRequest): Promise<string> {
   const ct = request.headers.get("content-type") ?? "";
   const aliases = ["body", "message", "sms", "text", "msg", "content", "sms_body"];
 
+  function extractFromJson(json: Record<string, unknown>): string {
+    for (const key of aliases) {
+      if (typeof json[key] === "string" && (json[key] as string).length > 0) {
+        return json[key] as string;
+      }
+    }
+    const first = Object.values(json).find(
+      (v) => typeof v === "string" && (v as string).length > 10
+    );
+    return (first as string) ?? "";
+  }
+
   if (ct.includes("application/json")) {
     const json = await request.json().catch(() => ({}));
-    for (const key of aliases) {
-      if (typeof json[key] === "string" && json[key]) return json[key];
-    }
-    // Some apps put the whole payload as a stringified value
-    const first = Object.values(json).find((v) => typeof v === "string" && (v as string).length > 20);
-    return (first as string) ?? "";
+    return extractFromJson(json);
   }
 
   if (ct.includes("application/x-www-form-urlencoded") || ct.includes("multipart/form-data")) {
@@ -116,15 +123,23 @@ async function extractSmsText(request: NextRequest): Promise<string> {
       const val = form.get(key);
       if (typeof val === "string" && val) return val;
     }
-    // Try any field that contains M-Pesa balance text
     for (const [, val] of form.entries()) {
       if (typeof val === "string" && PATTERNS.balance.test(val)) return val;
     }
     return "";
   }
 
-  // Plain text / unknown — read raw body
-  return await request.text().catch(() => "");
+  // Plain text / unknown — read raw body, but ALSO try JSON parsing
+  // because many SMS forwarder apps send JSON bodies with Content-Type: text/plain
+  const raw = await request.text().catch(() => "");
+  if (raw.trimStart().startsWith("{")) {
+    try {
+      const json = JSON.parse(raw) as Record<string, unknown>;
+      const fromJson = extractFromJson(json);
+      if (fromJson) return fromJson;
+    } catch { /* not valid JSON, fall through */ }
+  }
+  return raw;
 }
 
 // ─── Webhook handler ─────────────────────────────────────────────────────────
