@@ -15,13 +15,15 @@ export function createAdminClient() {
     );
   }
 
-  if (!supabaseUrl || (!serviceRoleKey && !anonKey)) {
+  const apiKey = serviceRoleKey ?? anonKey;
+
+  if (!supabaseUrl || !apiKey) {
     throw new Error(
       "Missing NEXT_PUBLIC_SUPABASE_URL or Supabase API key for admin client."
     );
   }
 
-  return createClient(supabaseUrl, serviceRoleKey || anonKey!, {
+  return createClient(supabaseUrl, apiKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
