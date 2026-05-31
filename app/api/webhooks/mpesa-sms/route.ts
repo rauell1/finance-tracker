@@ -198,16 +198,45 @@ async function setBalance(supabase: AdminClient, accountId: string, stated: numb
 }
 
 // ─── POST ───────────────────────────────────────────────────────────────────
+// Persist a raw payload for diagnosis (recoverable via GET ?debug=1). Best-effort.
+async function captureDebug(rawBody: string, contentType: string, extracted: string, reason: string) {
+  try {
+    const supabase = createAdminClient();
+    const { data: mpesa } = await supabase.from("accounts").select("id, user_id").eq("account_code", "main").single();
+    if (!mpesa) return;
+    const { data: cat } = await supabase.from("categories").select("id").eq("user_id", mpesa.user_id).eq("type", "expense").limit(1).single();
+    if (!cat) return;
+    await supabase.from("transactions").insert({
+      user_id: mpesa.user_id, account_id: mpesa.id, category_id: cat.id,
+      txn_type: "expense", amount: 0.01, currency_code: "KES",
+      occurred_on: new Date().toISOString().split("T")[0],
+      description: `DEBUG ${reason}`,
+      metadata: { source: "webhook_debug", reason, content_type: contentType, raw_body: rawBody.slice(0, 500), extracted: extracted.slice(0, 300) },
+    });
+  } catch { /* best effort */ }
+}
+
 export async function POST(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret") ?? request.headers.get("x-webhook-secret") ?? request.headers.get("authorization")?.replace("Bearer ", "");
   if (secret !== process.env.MPESA_WEBHOOK_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Capture raw body up-front (clone so extractSmsText can still read the stream)
+  const contentType = request.headers.get("content-type") ?? "none";
+  let rawBody = "";
+  try { rawBody = await request.clone().text(); } catch { /* */ }
+
   let smsText = "";
   try { smsText = await extractSmsText(request); } catch { return NextResponse.json({ error: "Could not read body" }, { status: 400 }); }
-  if (!smsText) return NextResponse.json({ error: "Empty SMS body" }, { status: 400 });
+  if (!smsText) {
+    await captureDebug(rawBody, contentType, "", "empty_body");
+    return NextResponse.json({ status: "ignored", reason: "empty_body", content_type: contentType, raw_preview: rawBody.slice(0, 120) });
+  }
 
   const p = parse(smsText);
-  if (!p) return NextResponse.json({ status: "ignored", reason: "not_mpesa", preview: smsText.slice(0, 120) });
+  if (!p) {
+    await captureDebug(rawBody, contentType, smsText, "not_mpesa");
+    return NextResponse.json({ status: "ignored", reason: "not_mpesa", preview: smsText.slice(0, 120) });
+  }
   if (p.kind === "fuliza") return NextResponse.json({ status: "ignored", reason: "fuliza_financing", receipt: p.receipt });
   if (p.amount <= 0) return NextResponse.json({ status: "ignored", reason: "zero_amount" });
 
@@ -284,5 +313,17 @@ export async function GET(request: NextRequest) {
   // Confirm which Supabase project the running app is bound to
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/^["']|["']$/g, "").trim();
   const projectRef = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/i)?.[1] ?? "unknown";
+
+  // ?debug=1 → return recent raw captures from failed parses
+  if (request.nextUrl.searchParams.get("debug") === "1") {
+    const { data: debug } = await supabase
+      .from("transactions")
+      .select("created_at, description, metadata")
+      .contains("metadata", { source: "webhook_debug" })
+      .order("created_at", { ascending: false })
+      .limit(10);
+    return NextResponse.json({ project_ref: projectRef, debug });
+  }
+
   return NextResponse.json({ status: "ok", project_ref: projectRef, accounts, transaction_count: count });
 }
