@@ -2,71 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 // ─── M-Pesa SMS patterns ────────────────────────────────────────────────────
-// All patterns tested against Safaricom production SMS formats.
-
 const PATTERNS = {
-  // Received money: "You have received Ksh50,000.00 from ABC Ltd 0700000000"
-  received: /you have received ksh([\d,]+\.?\d*) from (.+?) [\d+]/i,
-
-  // Sent / Pay Bill / Buy Goods: "Ksh2,400.00 sent to ..." or "Ksh850.00 paid to ..."
-  sent: /ksh([\d,]+\.?\d*) (?:sent|paid) to (.+?)(?:\.|on \d)/i,
-
-  // Withdraw (agent): "Give Ksh5,000.00 cash to"
+  received: /you have received ksh([\d,]+\.?\d*) from (.+?)(?:\d{10}|\d{9}|on \d)/i,
+  sent:     /ksh([\d,]+\.?\d*) (?:sent|paid) to (.+?)(?:\.|on \d)/i,
   withdraw: /give ksh([\d,]+\.?\d*) cash to (.+?)(?:\.|new)/i,
-
-  // Airtime: "Your airtime purchase of Ksh100.00"
-  airtime: /airtime purchase of ksh([\d,]+\.?\d*)/i,
-
-  // Receipt number (all M-Pesa SMS start with this)
-  receipt: /^([A-Z0-9]{10,12})\s/,
-
-  // Date: "on 31/5/26 at 11:00 AM" or "on 31/05/2026 at 11:00 AM"
-  date: /on (\d{1,2}\/\d{1,2}\/\d{2,4}) at (\d{1,2}:\d{2} [AP]M)/i,
-
-  // Balance (used to verify it's an M-Pesa SMS)
-  balance: /new m-?pesa balance is ksh/i,
+  airtime:  /airtime purchase of ksh([\d,]+\.?\d*)/i,
+  receipt:  /^([A-Z0-9]{10,12})\s/,
+  date:     /on (\d{1,2}\/\d{1,2}\/\d{2,4}) at (\d{1,2}:\d{2} [AP]M)/i,
+  balance:  /new m-?pesa balance is ksh/i,
 };
 
-// ─── Auto-categorisation ───────────────────────────────────────────────────
+// ─── Auto-categorisation ────────────────────────────────────────────────────
 const CATEGORY_RULES: { pattern: RegExp; category: string; type: "income" | "expense" }[] = [
-  { pattern: /kplc|kenya power|umeme|power token/i,          category: "Utilities",     type: "expense" },
-  { pattern: /safaricom|airtel|telkom|faiba/i,               category: "Utilities",     type: "expense" },
-  { pattern: /naivas|carrefour|quickmart|chandarana|tuskys|uchumi|shoprite/i, category: "Food & Dining", type: "expense" },
-  { pattern: /uber|bolt|faras|little cab|indriver/i,         category: "Transport",     type: "expense" },
-  { pattern: /netflix|spotify|showmax|dstv|youtube premium/i,category: "Subscriptions",type: "expense" },
-  { pattern: /nhif|hospital|clinic|pharmacy|chemist|medical/i,category: "Healthcare",   type: "expense" },
-  { pattern: /school|fees|university|college|tuition|kcse|knec/i, category: "Education", type: "expense" },
-  { pattern: /airbnb|hotel|b&b|kenya airways|jambojet|flysax|flight/i, category: "Travel", type: "expense" },
-  { pattern: /airtime/i,                                      category: "Utilities",     type: "expense" },
-  { pattern: /salary|payroll|wages|pay slip/i,               category: "Salary",        type: "income" },
-  { pattern: /freelance|upwork|fiverr|toptal/i,              category: "Freelance",     type: "income" },
-  { pattern: /dividend|interest|investment|returns/i,        category: "Investment",    type: "income" },
+  { pattern: /kplc|kenya power|umeme|power token/i,                            category: "Utilities",     type: "expense" },
+  { pattern: /safaricom|airtel|telkom|faiba/i,                                 category: "Utilities",     type: "expense" },
+  { pattern: /naivas|carrefour|quickmart|chandarana|tuskys|uchumi|shoprite/i,  category: "Food & Dining", type: "expense" },
+  { pattern: /uber|bolt|faras|little cab|indriver/i,                           category: "Transport",     type: "expense" },
+  { pattern: /netflix|spotify|showmax|dstv|youtube premium/i,                  category: "Subscriptions", type: "expense" },
+  { pattern: /nhif|hospital|clinic|pharmacy|chemist|medical/i,                 category: "Healthcare",    type: "expense" },
+  { pattern: /school|fees|university|college|tuition|kcse|knec/i,             category: "Education",     type: "expense" },
+  { pattern: /airbnb|hotel|kenya airways|jambojet|flysax|flight/i,            category: "Travel",        type: "expense" },
+  { pattern: /airtime/i,                                                        category: "Utilities",     type: "expense" },
+  { pattern: /salary|payroll|wages|pay slip/i,                                 category: "Salary",        type: "income"  },
+  { pattern: /freelance|upwork|fiverr|toptal/i,                               category: "Freelance",     type: "income"  },
+  { pattern: /dividend|interest|investment|returns/i,                          category: "Investment",    type: "income"  },
 ];
 
 function guessCategory(description: string, txnType: "income" | "expense"): string {
   for (const rule of CATEGORY_RULES) {
-    if (rule.type === txnType && rule.pattern.test(description)) {
-      return rule.category;
-    }
+    if (rule.type === txnType && rule.pattern.test(description)) return rule.category;
   }
   return txnType === "income" ? "Other Income" : "Other Expense";
 }
 
-// ─── Amount parser ─────────────────────────────────────────────────────────
 function parseAmount(raw: string): number {
   return parseFloat(raw.replace(/,/g, ""));
 }
 
-// ─── Date parser ───────────────────────────────────────────────────────────
-function parseDate(dateStr: string, timeStr: string): string {
-  // dateStr: "31/5/26" or "31/05/2026"
+function parseDate(dateStr: string): string {
   const [d, m, y] = dateStr.split("/").map(Number);
   const fullYear = y < 100 ? 2000 + y : y;
-  const iso = `${fullYear}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  return iso;
+  return `${fullYear}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-// ─── SMS parser ────────────────────────────────────────────────────────────
 interface ParsedSMS {
   receipt: string;
   amount: number;
@@ -75,126 +53,103 @@ interface ParsedSMS {
   occurredOn: string;
 }
 
-function parseMpesaSMS(body: string): ParsedSMS | null {
-  const text = body.trim();
-
-  // Must contain M-Pesa balance line — confirms it's a real M-Pesa SMS
+function parseMpesaSMS(text: string): ParsedSMS | null {
   if (!PATTERNS.balance.test(text)) return null;
 
-  const receiptMatch = text.match(PATTERNS.receipt);
-  const receipt = receiptMatch?.[1] ?? "UNKNOWN";
+  const receipt    = text.match(PATTERNS.receipt)?.[1] ?? "UNKNOWN";
+  const dateMatch  = text.match(PATTERNS.date);
+  const occurredOn = dateMatch ? parseDate(dateMatch[1]) : new Date().toISOString().split("T")[0];
 
-  const dateMatch = text.match(PATTERNS.date);
-  const occurredOn = dateMatch ? parseDate(dateMatch[1], dateMatch[2]) : new Date().toISOString().split("T")[0];
-
-  // Try each transaction pattern
   const receivedMatch = text.match(PATTERNS.received);
-  if (receivedMatch) {
-    return {
-      receipt,
-      amount: parseAmount(receivedMatch[1]),
-      txnType: "income",
-      description: `Received from ${receivedMatch[2].trim()}`,
-      occurredOn,
-    };
-  }
+  if (receivedMatch) return { receipt, amount: parseAmount(receivedMatch[1]), txnType: "income",  description: `Received from ${receivedMatch[2].trim()}`, occurredOn };
 
   const sentMatch = text.match(PATTERNS.sent);
-  if (sentMatch) {
-    return {
-      receipt,
-      amount: parseAmount(sentMatch[1]),
-      txnType: "expense",
-      description: `Paid to ${sentMatch[2].trim()}`,
-      occurredOn,
-    };
-  }
+  if (sentMatch)     return { receipt, amount: parseAmount(sentMatch[1]),     txnType: "expense", description: `Paid to ${sentMatch[2].trim()}`, occurredOn };
 
   const withdrawMatch = text.match(PATTERNS.withdraw);
-  if (withdrawMatch) {
-    return {
-      receipt,
-      amount: parseAmount(withdrawMatch[1]),
-      txnType: "expense",
-      description: `Withdrawal - ${withdrawMatch[2].trim()}`,
-      occurredOn,
-    };
-  }
+  if (withdrawMatch) return { receipt, amount: parseAmount(withdrawMatch[1]), txnType: "expense", description: `Withdrawal - ${withdrawMatch[2].trim()}`, occurredOn };
 
   const airtimeMatch = text.match(PATTERNS.airtime);
-  if (airtimeMatch) {
-    return {
-      receipt,
-      amount: parseAmount(airtimeMatch[1]),
-      txnType: "expense",
-      description: "Airtime purchase",
-      occurredOn,
-    };
-  }
+  if (airtimeMatch)  return { receipt, amount: parseAmount(airtimeMatch[1]),  txnType: "expense", description: "Airtime purchase", occurredOn };
 
   return null;
 }
 
-// ─── Webhook handler ───────────────────────────────────────────────────────
+// ─── Flexible body extraction ────────────────────────────────────────────────
+// Supports every format SMS Forwarder apps typically send:
+//   JSON:           { "body": "...", "from": "MPESA" }
+//   Form-encoded:   body=...&from=MPESA
+//   Raw text:       the SMS text itself
+// Field name aliases tried: body, message, sms, text, msg, content, sms_body, %body%
+async function extractSmsText(request: NextRequest): Promise<string> {
+  const ct = request.headers.get("content-type") ?? "";
+  const aliases = ["body", "message", "sms", "text", "msg", "content", "sms_body"];
+
+  if (ct.includes("application/json")) {
+    const json = await request.json().catch(() => ({}));
+    for (const key of aliases) {
+      if (typeof json[key] === "string" && json[key]) return json[key];
+    }
+    // Some apps put the whole payload as a stringified value
+    const first = Object.values(json).find((v) => typeof v === "string" && (v as string).length > 20);
+    return (first as string) ?? "";
+  }
+
+  if (ct.includes("application/x-www-form-urlencoded") || ct.includes("multipart/form-data")) {
+    const form = await request.formData().catch(() => new FormData());
+    for (const key of aliases) {
+      const val = form.get(key);
+      if (typeof val === "string" && val) return val;
+    }
+    // Try any field that contains M-Pesa balance text
+    for (const [, val] of form.entries()) {
+      if (typeof val === "string" && PATTERNS.balance.test(val)) return val;
+    }
+    return "";
+  }
+
+  // Plain text / unknown — read raw body
+  return await request.text().catch(() => "");
+}
+
+// ─── Webhook handler ─────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
-  // 1. Verify secret
-  const secret = request.nextUrl.searchParams.get("secret") ??
-    request.headers.get("x-webhook-secret");
+  // 1. Verify secret (query param or header)
+  const secret =
+    request.nextUrl.searchParams.get("secret") ??
+    request.headers.get("x-webhook-secret") ??
+    request.headers.get("authorization")?.replace("Bearer ", "");
+
   if (secret !== process.env.MPESA_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. Parse body — support JSON and form-data (SMS Forwarder sends both)
-  let smsBody = "";
-  let smsSender = "";
-  const contentType = request.headers.get("content-type") ?? "";
-
+  // 2. Extract SMS text from whatever format the app sends
+  let smsText = "";
   try {
-    if (contentType.includes("application/json")) {
-      const json = await request.json();
-      smsBody = json.body ?? json.message ?? json.sms ?? json.text ?? "";
-      smsSender = json.from ?? json.sender ?? "";
-    } else {
-      const form = await request.formData();
-      smsBody = String(form.get("body") ?? form.get("message") ?? form.get("sms") ?? "");
-      smsSender = String(form.get("from") ?? form.get("sender") ?? "");
-    }
+    smsText = await extractSmsText(request);
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json({ error: "Could not read request body" }, { status: 400 });
   }
 
-  if (!smsBody) {
-    return NextResponse.json({ error: "Missing SMS body" }, { status: 400 });
+  if (!smsText) {
+    return NextResponse.json({ error: "Empty SMS body", hint: "Set body field to your app's message placeholder (e.g. %body% or {message})" }, { status: 400 });
   }
 
-  // 3. Only process SMS from Safaricom M-Pesa shortcode
-  const isMpesa =
-    /^MPESA$/i.test(smsSender.trim()) ||
-    smsSender === "MPESA" ||
-    smsSender === "21714" || // Safaricom M-Pesa shortcode
-    smsBody.toLowerCase().includes("m-pesa balance");
-
-  if (!isMpesa) {
-    return NextResponse.json({ status: "ignored", reason: "not_mpesa" });
-  }
-
-  // 4. Parse the SMS
-  const parsed = parseMpesaSMS(smsBody);
+  // 3. Parse M-Pesa SMS
+  const parsed = parseMpesaSMS(smsText);
   if (!parsed) {
-    return NextResponse.json({ status: "ignored", reason: "unrecognised_format", body: smsBody });
+    // Return 200 so the app doesn't retry — just not an M-Pesa transaction SMS
+    return NextResponse.json({ status: "ignored", reason: "not_mpesa_transaction", preview: smsText.slice(0, 80) });
   }
 
   if (parsed.amount <= 0) {
     return NextResponse.json({ status: "ignored", reason: "zero_amount" });
   }
 
-  // 5. Find the user's MPESA account
+  // 4. Find MPESA account
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
-  // Webhook calls are unauthenticated — find user via service-level query
-  // We use a special single-user lookup via the MPESA account (account_code = 'main')
-  // This is safe because the secret guards the endpoint
   const { data: account } = await supabase
     .from("accounts")
     .select("id, user_id")
@@ -204,6 +159,19 @@ export async function POST(request: NextRequest) {
 
   if (!account) {
     return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
+  }
+
+  // 5. Deduplicate by receipt number
+  if (parsed.receipt !== "UNKNOWN") {
+    const { count } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", account.user_id)
+      .contains("metadata", { mpesa_receipt: parsed.receipt });
+
+    if (count && count > 0) {
+      return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: parsed.receipt });
+    }
   }
 
   // 6. Look up category
@@ -216,7 +184,6 @@ export async function POST(request: NextRequest) {
     .eq("type", parsed.txnType)
     .single();
 
-  // Fallback to first category of correct type
   let categoryId = category?.id;
   if (!categoryId) {
     const { data: fallback } = await supabase
@@ -233,32 +200,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No category found" }, { status: 500 });
   }
 
-  // 7. Deduplicate — skip if receipt already imported
-  const { count } = await supabase
-    .from("transactions")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", account.user_id)
-    .contains("metadata", { mpesa_receipt: parsed.receipt });
-
-  if (count && count > 0) {
-    return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: parsed.receipt });
-  }
-
-  // 8. Insert transaction
+  // 7. Insert transaction
   const { data: txn, error } = await supabase
     .from("transactions")
     .insert({
-      user_id: account.user_id,
-      account_id: account.id,
-      category_id: categoryId,
-      txn_type: parsed.txnType,
-      amount: parsed.amount,
+      user_id:       account.user_id,
+      account_id:    account.id,
+      category_id:   categoryId,
+      txn_type:      parsed.txnType,
+      amount:        parsed.amount,
       currency_code: "KES",
-      occurred_on: parsed.occurredOn,
-      description: parsed.description,
+      occurred_on:   parsed.occurredOn,
+      description:   parsed.description,
       metadata: {
         mpesa_receipt: parsed.receipt,
-        source: "sms_webhook",
+        source:        "sms_webhook",
       },
     })
     .select("id")
@@ -269,12 +225,22 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({
-    status: "created",
+    status:         "created",
     transaction_id: txn.id,
-    receipt: parsed.receipt,
-    amount: parsed.amount,
-    type: parsed.txnType,
-    category: categoryName,
-    occurred_on: parsed.occurredOn,
+    receipt:        parsed.receipt,
+    amount:         parsed.amount,
+    type:           parsed.txnType,
+    category:       categoryName,
+    occurred_on:    parsed.occurredOn,
+    description:    parsed.description,
   });
+}
+
+// Health-check so you can test the URL is reachable
+export async function GET(request: NextRequest) {
+  const secret = request.nextUrl.searchParams.get("secret");
+  if (secret !== process.env.MPESA_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json({ status: "ok", message: "M-Pesa webhook is live" });
 }
