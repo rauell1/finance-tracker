@@ -2,14 +2,16 @@ import { getTransactions, getAccounts, getCategories } from "@/lib/queries";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ImportTrigger } from "@/components/forms/import-trigger";
+import { TransactionsClient } from "@/components/forms/transactions-client";
+import { Smartphone } from "lucide-react";
 
 interface PageProps {
   searchParams: Promise<Record<string, string>>;
 }
 
 const typeConfig = {
-  income: "bg-emerald-100 text-emerald-700",
-  expense: "bg-rose-100 text-rose-700",
+  income:   "bg-emerald-100 text-emerald-700",
+  expense:  "bg-rose-100 text-rose-700",
   transfer: "bg-slate-100 text-slate-600",
 };
 
@@ -21,7 +23,6 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
     getCategories(),
   ]);
 
-  // Build filter URL helper
   function filterUrl(overrides: Record<string, string | undefined>) {
     const next = { ...params, ...overrides };
     const qs = new URLSearchParams(
@@ -115,98 +116,15 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
         </div>
       </form>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {transactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <span className="text-5xl mb-4">🔍</span>
-            <p className="text-base font-medium text-slate-600">No transactions found</p>
-            <p className="text-sm mt-1">Try adjusting your filters or add a transaction</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Category</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
-                  <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {transactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3.5 text-sm text-slate-500 whitespace-nowrap">
-                      {formatDate(txn.occurred_on)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <p className="text-sm font-medium text-slate-800 truncate max-w-[200px]">
-                        {txn.description ?? "—"}
-                      </p>
-                      <p className="text-xs text-slate-400">{txn.account?.name ?? "—"}</p>
-                    </td>
-                    <td className="px-5 py-3.5 hidden md:table-cell">
-                      {txn.category ? (
-                        <span className="flex items-center gap-1.5 text-sm text-slate-600">
-                          <span
-                            className="h-2 w-2 rounded-full shrink-0"
-                            style={{ backgroundColor: txn.category.color }}
-                          />
-                          {txn.category.name}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300 text-sm">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={cn(
-                        "text-xs px-2 py-0.5 rounded-full font-medium",
-                        typeConfig[txn.txn_type]
-                      )}>
-                        {txn.txn_type}
-                      </span>
-                    </td>
-                    <td className={cn(
-                      "px-5 py-3.5 text-right font-semibold text-sm whitespace-nowrap",
-                      txn.txn_type === "income" ? "text-emerald-600" : txn.txn_type === "expense" ? "text-rose-600" : "text-slate-600"
-                    )}>
-                      {txn.txn_type === "income" ? "+" : txn.txn_type === "expense" ? "−" : ""}
-                      {formatCurrency(txn.amount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50">
-            <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>
-            <div className="flex gap-2">
-              {page > 1 && (
-                <a
-                  href={filterUrl({ page: String(page - 1) })}
-                  className="px-3 py-1.5 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-white transition-colors"
-                >
-                  ← Prev
-                </a>
-              )}
-              {page < totalPages && (
-                <a
-                  href={filterUrl({ page: String(page + 1) })}
-                  className="px-3 py-1.5 text-sm text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
-                >
-                  Next →
-                </a>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Table — clickable rows open detail sheet (client wrapper) */}
+      <TransactionsClient
+        transactions={transactions}
+        categories={categories}
+        total={total}
+        page={page}
+        totalPages={totalPages}
+        filterUrl={filterUrl}
+      />
     </div>
   );
 }
