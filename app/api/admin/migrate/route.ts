@@ -12,14 +12,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const connStr =
+  // Supabase direct host presents a cert chain Node flags as self-signed — disable for this one-time call
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+  const rawConn =
     process.env.POSTGRES_URL_NON_POOLING ||
     process.env.POSTGRES_URL ||
     process.env.POSTGRES_PRISMA_URL;
 
-  if (!connStr) {
+  if (!rawConn) {
     return NextResponse.json({ error: "No Postgres connection string in env" }, { status: 500 });
   }
+  // Strip sslmode so our explicit ssl config wins
+  const connStr = rawConn.replace(/[?&]sslmode=[^&]*/g, "");
 
   const client = new Client({ connectionString: connStr, ssl: { rejectUnauthorized: false } });
   const log: string[] = [];
