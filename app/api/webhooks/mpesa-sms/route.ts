@@ -57,8 +57,8 @@ interface ParsedSMS {
 }
 
 function cleanSmsText(raw: string): string {
-  // Strip "From : SENDER\n" prefix added by SMS Forwarder app templates
-  return raw.replace(/^From\s*:\s*.+\n/i, "").trim();
+  // Strip "From : SENDER\n" prefix added by SMS Forwarder app templates (supports Windows CRLF as well)
+  return raw.replace(/^From\s*:\s*.+[\r\n]+/i, "").trim();
 }
 
 function parseMpesaSMS(rawText: string): ParsedSMS | null {
@@ -138,28 +138,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. Log raw request for debugging (content-type + first 300 chars of body)
+  // 2. Log request details and extract SMS body (stream-safe, no cloning)
   const debugCt = request.headers.get("content-type") ?? "none";
-  let rawBodyPreview = "";
   let smsText = "";
 
   try {
-    // Clone so we can read the body twice if needed
-    const cloned = request.clone();
-    rawBodyPreview = (await cloned.text().catch(() => "")).slice(0, 300);
-    console.log(`[mpesa-webhook] content-type=${debugCt} body_preview=${rawBodyPreview}`);
     smsText = await extractSmsText(request);
-    console.log(`[mpesa-webhook] extracted_sms=${smsText.slice(0, 200)}`);
+    console.log(`[mpesa-webhook] content-type=${debugCt} extracted_sms=${smsText.slice(0, 200)}`);
   } catch (e) {
     console.error("[mpesa-webhook] body read error:", e);
     return NextResponse.json({ error: "Could not read request body" }, { status: 400 });
   }
 
   if (!smsText) {
-    console.log(`[mpesa-webhook] empty sms. raw=${rawBodyPreview}`);
+    console.log(`[mpesa-webhook] empty sms text extracted from content-type=${debugCt}`);
     return NextResponse.json({
       error: "Empty SMS body",
-      raw_received: rawBodyPreview,
       hint: "Update Message Template in the app to just: {Message Body}",
     }, { status: 400 });
   }
@@ -175,14 +169,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "ignored", reason: "zero_amount" });
   }
 
-  // 4. Find MPESA account
+  // 4. Find MPESA account (search only by account_code since name is 'Main Wallet' in DB)
   const supabase = await createClient();
 
   const { data: account } = await supabase
     .from("accounts")
     .select("id, user_id")
     .eq("account_code", "main")
-    .eq("name", "MPESA")
     .single();
 
   if (!account) {
