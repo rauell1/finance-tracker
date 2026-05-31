@@ -28,8 +28,8 @@ export default async function DashboardPage() {
       {/* Row 1: heading */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Your financial overview</p>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-0.5 font-medium">Your financial overview</p>
         </div>
       </div>
 
