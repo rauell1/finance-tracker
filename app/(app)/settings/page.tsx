@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { Account } from "@/types/domain";
 import { cn } from "@/lib/utils";
 import { Save } from "lucide-react";
+import { MpesaIntegrationGuide } from "@/components/dashboard/mpesa-integration-guide";
 
 const accountColors: Record<string, string> = {
   main: "bg-emerald-100 text-emerald-700",
@@ -169,6 +170,9 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Interactive Integration Guide */}
+      <MpesaIntegrationGuide />
     </div>
   );
 }
