@@ -14,20 +14,20 @@ export function KPICards({ data }: KPICardsProps) {
       value: formatCurrency(data.totalBalance),
       icon: Wallet,
       change: null as number | null,
-      badgeColor: "bg-slate-100 text-slate-600",
-      iconBg: "bg-slate-100",
-      iconColor: "text-slate-600",
-      valueColor: "text-slate-800",
+      bgStyle: "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-indigo-500/20",
+      glowColor: "group-hover:bg-indigo-500/5",
+      iconBg: "bg-indigo-950/40 border-indigo-800/30 text-indigo-400",
+      valueColor: "text-slate-100",
     },
     {
       title: "Monthly Income",
       value: formatCurrency(data.monthlyIncome),
       icon: TrendingUp,
       change: data.incomeChange,
-      badgeColor: "bg-emerald-100 text-emerald-700",
-      iconBg: "bg-emerald-100",
-      iconColor: "text-emerald-600",
-      valueColor: "text-emerald-700",
+      bgStyle: "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-emerald-500/20",
+      glowColor: "group-hover:bg-emerald-500/5",
+      iconBg: "bg-emerald-950/40 border-emerald-800/30 text-emerald-400",
+      valueColor: "text-emerald-400",
       invertChange: false,
     },
     {
@@ -35,10 +35,10 @@ export function KPICards({ data }: KPICardsProps) {
       value: formatCurrency(data.monthlyExpense),
       icon: TrendingDown,
       change: data.expenseChange,
-      badgeColor: "bg-rose-100 text-rose-700",
-      iconBg: "bg-rose-100",
-      iconColor: "text-rose-600",
-      valueColor: "text-rose-700",
+      bgStyle: "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-rose-500/20",
+      glowColor: "group-hover:bg-rose-500/5",
+      iconBg: "bg-rose-950/40 border-rose-800/30 text-rose-400",
+      valueColor: "text-rose-400",
       invertChange: true,
     },
     {
@@ -46,42 +46,60 @@ export function KPICards({ data }: KPICardsProps) {
       value: formatCurrency(Math.abs(data.netCashflow)),
       icon: ArrowUpDown,
       change: null as number | null,
-      badgeColor: data.netCashflow >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700",
-      iconBg: data.netCashflow >= 0 ? "bg-emerald-100" : "bg-rose-100",
-      iconColor: data.netCashflow >= 0 ? "text-emerald-600" : "text-rose-600",
-      valueColor: data.netCashflow >= 0 ? "text-emerald-700" : "text-rose-700",
+      bgStyle: data.netCashflow >= 0
+        ? "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-teal-500/20"
+        : "from-slate-900/60 to-slate-950/60 border-slate-800/40 hover:border-rose-500/20",
+      glowColor: data.netCashflow >= 0 ? "group-hover:bg-teal-500/5" : "group-hover:bg-rose-500/5",
+      iconBg: data.netCashflow >= 0
+        ? "bg-teal-950/40 border-teal-800/30 text-teal-400"
+        : "bg-rose-950/40 border-rose-800/30 text-rose-400",
+      valueColor: data.netCashflow >= 0 ? "text-teal-400" : "text-rose-400",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {cards.map((card) => {
         const Icon = card.icon;
         const invertChange = "invertChange" in card ? card.invertChange : false;
         return (
-          <div key={card.title} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-slate-500">{card.title}</p>
-              <div className={cn("h-9 w-9 rounded-full flex items-center justify-center", card.iconBg)}>
-                <Icon className={cn("h-4 w-4", card.iconColor)} />
+          <div
+            key={card.title}
+            className={cn(
+              "group relative overflow-hidden bg-gradient-to-br rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-950/20",
+              card.bgStyle
+            )}
+          >
+            {/* Background Glow element */}
+            <div className={cn("absolute inset-0 transition-colors duration-300 pointer-events-none", card.glowColor)} />
+
+            <div className="flex items-center justify-between mb-4 relative z-10">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{card.title}</p>
+              <div className={cn("h-10 w-10 rounded-xl border flex items-center justify-center transition-transform duration-300 group-hover:scale-105", card.iconBg)}>
+                <Icon className="h-5 w-5" />
               </div>
             </div>
-            <p className={cn("text-2xl font-bold tracking-tight", card.valueColor)}>{card.value}</p>
+            
+            <p className={cn("text-2xl font-bold tracking-tight relative z-10", card.valueColor)}>
+              {card.value}
+            </p>
+
             {card.change !== null && (
-              <div className="mt-2 flex items-center gap-1">
-                {(invertChange ? card.change <= 0 : card.change >= 0) ? (
-                  <TrendingUp className="h-3 w-3 text-emerald-500" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-rose-500" />
-                )}
-                <span className={cn("text-xs font-medium",
+              <div className="mt-3 flex items-center gap-1.5 relative z-10">
+                <div className={cn(
+                  "flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold",
                   (invertChange ? card.change <= 0 : card.change >= 0)
-                    ? "text-emerald-600"
-                    : "text-rose-600"
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : "bg-rose-500/10 text-rose-400"
                 )}>
-                  {formatPercentage(card.change)}
-                </span>
-                <span className="text-xs text-slate-400">vs last month</span>
+                  {(invertChange ? card.change <= 0 : card.change >= 0) ? (
+                    <TrendingUp className="h-3 w-3" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" />
+                  )}
+                  <span>{formatPercentage(card.change)}</span>
+                </div>
+                <span className="text-[11px] text-slate-400">vs last month</span>
               </div>
             )}
           </div>

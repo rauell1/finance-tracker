@@ -28,7 +28,7 @@ export default async function DashboardPage() {
       {/* Row 1: heading */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
           <p className="text-sm text-slate-400 mt-0.5">Your financial overview</p>
         </div>
       </div>
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
 
       {/* Row 3: Account balance cards */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Account Balances</h2>
+        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Account Balances</h2>
         <AccountBalanceCards accounts={accountComparison} />
       </div>
 

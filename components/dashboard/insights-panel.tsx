@@ -11,58 +11,58 @@ interface InsightsPanelProps {
 
 const severityConfig = {
   info: {
-    border: "border-l-sky-400",
+    border: "border-l-sky-400 border-slate-800/40",
     icon: Info,
-    iconColor: "text-sky-500",
-    bg: "bg-white",
+    iconColor: "text-sky-400",
+    glow: "shadow-sky-950/5",
   },
   warning: {
-    border: "border-l-amber-400",
+    border: "border-l-amber-400 border-slate-800/40",
     icon: AlertTriangle,
-    iconColor: "text-amber-500",
-    bg: "bg-white",
+    iconColor: "text-amber-400",
+    glow: "shadow-amber-950/5",
   },
   critical: {
-    border: "border-l-rose-400",
+    border: "border-l-rose-400 border-slate-800/40",
     icon: AlertCircle,
-    iconColor: "text-rose-500",
-    bg: "bg-white",
+    iconColor: "text-rose-400",
+    glow: "shadow-rose-950/5",
   },
 };
 
 function InsightCard({ insight }: { insight: InsightItem }) {
   const [open, setOpen] = useState(false);
-  const { border, icon: Icon, iconColor } = severityConfig[insight.severity];
+  const { border, icon: Icon, iconColor, glow } = severityConfig[insight.severity];
 
   return (
-    <div className={cn("rounded-xl border border-slate-200 border-l-4 shadow-sm overflow-hidden", border)}>
+    <div className={cn("rounded-2xl border border-l-4 overflow-hidden bg-slate-950/30 transition-all duration-200 hover:bg-slate-950/50", border, glow)}>
       <button
-        className="w-full flex items-start gap-3 p-4 text-left hover:bg-slate-50 transition-colors"
+        className="w-full flex items-start gap-3 p-4.5 text-left transition-colors"
         onClick={() => setOpen(!open)}
       >
         <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", iconColor)} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-slate-800">{insight.title}</p>
+            <p className="text-sm font-semibold text-slate-200">{insight.title}</p>
             {(insight.potential_savings ?? 0) > 0 && (
-              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
                 Save {formatCurrency(insight.potential_savings!)}
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">{insight.message}</p>
+          <p className="text-xs text-slate-400 mt-1">{insight.message}</p>
         </div>
         {open ? (
-          <ChevronUp className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+          <ChevronUp className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+          <ChevronDown className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
         )}
       </button>
       {open && (
-        <div className="px-4 pb-4">
-          <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2.5">
-            <p className="text-xs font-semibold text-emerald-700 mb-1">Recommendation</p>
-            <p className="text-xs text-emerald-600">{insight.recommendation}</p>
+        <div className="px-4.5 pb-4.5">
+          <div className="bg-emerald-950/30 border border-emerald-800/20 rounded-xl px-4 py-3">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 mb-1">Recommendation</p>
+            <p className="text-xs text-slate-300 leading-relaxed">{insight.recommendation}</p>
           </div>
         </div>
       )}
@@ -72,19 +72,19 @@ function InsightCard({ insight }: { insight: InsightItem }) {
 
 export function InsightsPanel({ insights }: InsightsPanelProps) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-100">
-        <h2 className="font-semibold text-slate-800">Smart Insights</h2>
-        <p className="text-xs text-slate-400 mt-0.5">Personalized recommendations</p>
+    <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-lg shadow-black/20 overflow-hidden">
+      <div className="px-6 py-5 border-b border-slate-800/50 bg-slate-900/20">
+        <h2 className="font-bold text-slate-100 tracking-tight text-base">Smart Finance Insights</h2>
+        <p className="text-xs text-slate-400 mt-1">Personalized wealth-optimization tips</p>
       </div>
       {insights.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-          <span className="text-4xl mb-3">✨</span>
-          <p className="text-sm">No insights available yet</p>
-          <p className="text-xs mt-1">Keep tracking to unlock recommendations</p>
+        <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+          <span className="text-4xl mb-3 animate-pulse">💡</span>
+          <p className="text-sm font-semibold text-slate-400">All caught up</p>
+          <p className="text-xs mt-1 text-slate-500">Insights will populate as you track expenses</p>
         </div>
       ) : (
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
           {insights.map((insight) => (
             <InsightCard key={insight.id} insight={insight} />
           ))}

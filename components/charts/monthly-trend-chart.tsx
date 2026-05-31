@@ -21,10 +21,10 @@ const PERIOD_OPTIONS = [
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-xs">
-      <p className="font-semibold text-slate-700 mb-1">{label}</p>
+    <div className="bg-slate-950/90 border border-slate-800 rounded-xl shadow-xl px-3.5 py-2.5 text-xs backdrop-blur-md">
+      <p className="font-bold text-slate-200 mb-1.5">{label}</p>
       {payload.map((entry: { name: string; value: number; color: string }) => (
-        <p key={entry.name} style={{ color: entry.color }}>
+        <p key={entry.name} className="font-semibold" style={{ color: entry.color }}>
           {entry.name}: {formatCurrency(entry.value)}
         </p>
       ))}
@@ -43,21 +43,21 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
   }));
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+    <div className="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-lg shadow-black/20 overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800/50 bg-slate-900/20">
         <div>
-          <h2 className="font-semibold text-slate-800">Cash Flow Trend</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Income vs Expenses over time</p>
+          <h2 className="font-bold text-slate-100 tracking-tight text-base">Cash Flow Analytics</h2>
+          <p className="text-xs text-slate-400 mt-1">Monthly comparison of inflows vs outflows</p>
         </div>
-        <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+        <div className="flex rounded-lg border border-slate-800 overflow-hidden bg-slate-950/40 p-[2px]">
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setMonths(opt.value)}
               className={
                 months === opt.value
-                  ? "px-3 py-1 text-xs font-semibold bg-emerald-600 text-white"
-                  : "px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50"
+                  ? "px-3 py-1 text-xs font-semibold bg-indigo-600/90 text-white rounded-md shadow-sm transition-all"
+                  : "px-3 py-1 text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors"
               }
             >
               {opt.label}
@@ -65,23 +65,23 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
           ))}
         </div>
       </div>
-      <div className="p-4">
+      <div className="p-5">
         <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#059669" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#e11d48" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#e11d48" stopOpacity={0} />
+                <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.15} />
+            <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#64748B", fontWeight: 600 }} axisLine={false} tickLine={false} />
             <YAxis
-              tick={{ fontSize: 11, fill: "#94a3b8" }}
+              tick={{ fontSize: 10, fill: "#64748B", fontWeight: 600 }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
@@ -90,7 +90,7 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
             <Area
               type="monotone"
               dataKey="Income"
-              stroke="#059669"
+              stroke="#10B981"
               strokeWidth={2}
               fill="url(#incomeGradient)"
               dot={false}
@@ -98,21 +98,21 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
             <Area
               type="monotone"
               dataKey="Expenses"
-              stroke="#e11d48"
+              stroke="#F43F5E"
               strokeWidth={2}
               fill="url(#expenseGradient)"
               dot={false}
             />
           </AreaChart>
         </ResponsiveContainer>
-        <div className="flex items-center gap-4 justify-center mt-2">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <div className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
-            Income
+        <div className="flex items-center gap-4 justify-center mt-3 border-t border-slate-800/40 pt-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+            <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/30" />
+            Inflows
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <div className="h-2.5 w-2.5 rounded-full bg-rose-500" />
-            Expenses
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+            <div className="h-2.5 w-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500/30" />
+            Outflows
           </div>
         </div>
       </div>
