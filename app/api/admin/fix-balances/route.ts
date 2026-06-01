@@ -32,6 +32,12 @@ export async function POST(request: NextRequest) {
 
   if (!kcb || !mshwari) return NextResponse.json({ error: "Accounts not found" }, { status: 404 });
 
+  // SBM: statement opening 3751.60, all 39 txns imported → direct set
+  const sbm = accounts?.find(a => a.account_code === "bank_c");
+  if (sbm) {
+    await supabase.from("accounts").update({ opening_balance: 3751.60 }).eq("id", sbm.id);
+  }
+
   const kcbResult     = await setBalance(kcb.id,     3001.00);
   const mshwariResult = await setBalance(mshwari.id, 3000.00);
 
@@ -39,6 +45,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     status: "done",
+    sbm_opening: 3751.60,
     kcb_mpesa: kcbResult,
     mshwari: mshwariResult,
     accounts: final,
