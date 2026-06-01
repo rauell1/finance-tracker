@@ -51,7 +51,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                     {txn.description ?? txn.category?.name ?? "Transaction"}
                   </p>
                   <p className="text-xs text-[#33375C]/50 mt-0.5 flex items-center gap-2 font-bold">
-                    <span className="truncate max-w-[120px]">{txn.account?.name ?? "—"}</span>
+                    <span className="truncate max-w-[120px]">{txn.account?.name ?? "-"}</span>
                     {txn.metadata?.source === "sms_webhook" && (
                       <span className="text-[8px] bg-[#F0F0FF] border border-[#E2E2FF] text-[#524CF2] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0 select-none">
                         Webhook

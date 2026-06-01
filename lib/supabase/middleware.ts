@@ -31,7 +31,7 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Use getUser() — never getSession() in middleware (avoids stale JWT)
+  // Use getUser() - never getSession() in middleware (avoids stale JWT)
   const {
     data: { user },
   } = await supabase.auth.getUser();

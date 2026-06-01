@@ -268,7 +268,7 @@ export function TransactionDetailSheet({
                     <Building2 className="h-3 w-3" /> Account
                   </p>
                   <p className="text-sm font-medium text-slate-800 mt-0.5">
-                    {transaction.account?.name ?? "—"}
+                    {transaction.account?.name ?? "-"}
                   </p>
                 </div>
                 <div>

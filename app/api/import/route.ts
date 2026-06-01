@@ -149,6 +149,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ rows: parsed, format: "mpesa", headers });
   }
 
-  // Generic — return headers so the client can map them
+  // Generic - return headers so the client can map them
   return NextResponse.json({ rows: [], format: "generic", headers, rawRows: rows.slice(0, MAX_ROWS) });
 }

@@ -140,7 +140,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
         total={total}
         page={page}
         totalPages={totalPages}
-        filterUrl={filterUrl}
+        params={params}
       />
     </div>
   );

@@ -89,7 +89,7 @@ function parse(rawText: string): Parsed | null {
   const text = cleanSms(rawText);
   if (!looksLikeMpesa(text)) return null;
 
-  // Fuliza financing line — skip (the paired send carries the real expense)
+  // Fuliza financing line - skip (the paired send carries the real expense)
   if (P.fulizaInfo.test(text) && !P.sentPaid.test(text)) {
     return { kind: "fuliza", receipt: text.match(P.receipt)?.[1] ?? "UNKNOWN", amount: 0, description: "", counterparty: "", occurredOn: "", txnType: "expense", mpesaBal: null, savingsBal: null, txnCost: null, needsReview: false, raw: text.slice(0, 400) };
   }
@@ -129,27 +129,27 @@ function parse(rawText: string): Parsed | null {
     return { ...base, kind: "income", amount: num(recv[1]), txnType: "income", savingsBal: null, counterparty: cp, description: `Received from ${cp}` };
   }
 
-  // Expense — sent/paid
+  // Expense - sent/paid
   const sp = text.match(P.sentPaid);
   if (sp) {
     const cp = cleanName(sp[2]);
     return { ...base, kind: "expense", amount: num(sp[1]), txnType: "expense", savingsBal: null, counterparty: cp, description: `Paid to ${cp}` };
   }
 
-  // Expense — withdrawal
+  // Expense - withdrawal
   const wd = text.match(P.withdrawn) ?? text.match(P.giveCash);
   if (wd) {
     const cp = cleanName(wd[2]);
     return { ...base, kind: "expense", amount: num(wd[1]), txnType: "expense", savingsBal: null, counterparty: cp, description: `Withdrawal at ${cp}` };
   }
 
-  // Expense — airtime
+  // Expense - airtime
   const air = text.match(P.airtime);
   if (air) {
     return { ...base, kind: "expense", amount: num(air[1] ?? air[2]), txnType: "expense", savingsBal: null, counterparty: "Safaricom", description: "Airtime purchase" };
   }
 
-  // Fallback — capture, flag for review
+  // Fallback - capture, flag for review
   const any = text.match(P.anyAmount);
   if (any) {
     const isInc = /received|deposit|refund|reversal|credited/i.test(text);

@@ -20,7 +20,7 @@ export async function getKPIData(month?: string): Promise<KPIData> {
   let totalBalance = (accounts ?? []).reduce((s, a) => s + Number(a.opening_balance), 0);
   const ids = (accounts ?? []).map((a) => a.id);
   if (ids.length > 0) {
-    // Two separate queries — OR+IN is not valid PostgREST syntax
+    // Two separate queries - OR+IN is not valid PostgREST syntax
     const [{ data: outflows }, { data: inflows }] = await Promise.all([
       supabase.from("transactions").select("account_id, amount").in("account_id", ids),
       supabase.from("transactions").select("transfer_account_id, amount").in("transfer_account_id", ids).not("transfer_account_id", "is", null),

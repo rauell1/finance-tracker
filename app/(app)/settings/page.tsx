@@ -108,7 +108,7 @@ export default function SettingsPage() {
                     {initials}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-[#0A0D27] truncate">{fullName || "—"}</p>
+                    <p className="font-semibold text-[#0A0D27] truncate">{fullName || "-"}</p>
                     <p className="text-sm text-[#33375C]/60 truncate">{user?.email}</p>
                   </div>
                 </div>
@@ -135,10 +135,10 @@ export default function SettingsPage() {
                     onChange={(e) => setCurrency(e.target.value)}
                     className="w-full h-10 px-3 text-sm border border-[#E2E2FF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 bg-white"
                   >
-                    <option value="KES">KES — Kenyan Shilling</option>
-                    <option value="USD">USD — US Dollar</option>
-                    <option value="EUR">EUR — Euro</option>
-                    <option value="GBP">GBP — British Pound</option>
+                    <option value="KES">KES - Kenyan Shilling</option>
+                    <option value="USD">USD - US Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                    <option value="GBP">GBP - British Pound</option>
                   </select>
                 </div>
               </div>

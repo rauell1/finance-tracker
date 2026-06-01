@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Echo endpoint — dumps every detail of the incoming request.
+ * Echo endpoint - dumps every detail of the incoming request.
  * Used to diagnose exactly what the SMS Forwarder app sends.
  * No auth required intentionally.
  */
@@ -42,5 +42,5 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ status: "echo endpoint ready — send POST to see request details" });
+  return NextResponse.json({ status: "echo endpoint ready - send POST to see request details" });
 }

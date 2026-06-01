@@ -72,11 +72,11 @@ export function LandingContent() {
       <section className="max-w-7xl mx-auto px-6 pt-20 pb-24 text-center relative z-10">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] text-[#524CF2] text-xs font-bold mb-8">
           <Star className="h-3.5 w-3.5 fill-current" />
-          <span>Value &amp; Trust — FinanSiap Design Standard</span>
+          <span>Value &amp; Trust - FinanSiap Design Standard</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl lg:text-[4.25rem] font-black text-[#0A0D27] tracking-tight leading-[1.08] mb-8 max-w-5xl mx-auto">
-          Gain total control of your money — <span className="text-[#524CF2]">no fluff, just results</span>
+          Gain total control of your money - <span className="text-[#524CF2]">no fluff, just results</span>
         </h1>
 
         <p className="text-lg sm:text-xl text-[#33375C] max-w-3xl mx-auto mb-10 leading-relaxed font-normal">
@@ -175,7 +175,7 @@ export function LandingContent() {
             {
               icon: Smartphone,
               title: "M-Pesa Auto-Sync",
-              desc: "Forward M-Pesa SMS notifications from your Android phone. Our webhook parses and logs every transaction in real time — no manual entry.",
+              desc: "Forward M-Pesa SMS notifications from your Android phone. Our webhook parses and logs every transaction in real time - no manual entry.",
               iconBg: "bg-[#F0F0FF] text-[#524CF2] border-[#E2E2FF]",
             },
             {

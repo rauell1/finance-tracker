@@ -12,7 +12,15 @@ interface TransactionsClientProps {
   total: number;
   page: number;
   totalPages: number;
-  filterUrl: (overrides: Record<string, string | undefined>) => string;
+  params: Record<string, string>;
+}
+
+function buildFilterUrl(params: Record<string, string>, overrides: Record<string, string | undefined>) {
+  const next = { ...params, ...overrides };
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(next).filter(([, v]) => v != null && v !== "")) as Record<string, string>
+  );
+  return `/transactions?${qs.toString()}`;
 }
 
 const typeConfig: Record<string, string> = {
@@ -27,8 +35,9 @@ export function TransactionsClient({
   total,
   page,
   totalPages,
-  filterUrl,
+  params,
 }: TransactionsClientProps) {
+  const filterUrl = (overrides: Record<string, string | undefined>) => buildFilterUrl(params, overrides);
   const [selected, setSelected] = useState<Transaction | null>(null);
 
   return (
@@ -59,10 +68,10 @@ export function TransactionsClient({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           {isWebhook && <Smartphone className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
-                          <p className="text-sm font-semibold text-[#0A0D27] truncate">{txn.description ?? "—"}</p>
+                          <p className="text-sm font-semibold text-[#0A0D27] truncate">{txn.description ?? "-"}</p>
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-xs text-[#33375C]/60">{txn.account?.name ?? "—"}</span>
+                          <span className="text-xs text-[#33375C]/60">{txn.account?.name ?? "-"}</span>
                           {txn.category && (
                             <span className="text-xs text-[#33375C]/60 flex items-center gap-1">
                               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: txn.category.color }} />
@@ -122,10 +131,10 @@ export function TransactionsClient({
                             )}
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-[#0A0D27] truncate max-w-[240px] group-hover:text-[#524CF2] transition-colors">
-                                {txn.description ?? "—"}
+                                {txn.description ?? "-"}
                               </p>
                               <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                                <p className="text-xs text-[#33375C]/60">{txn.account?.name ?? "—"}</p>
+                                <p className="text-xs text-[#33375C]/60">{txn.account?.name ?? "-"}</p>
                                 {balanceAfter != null && (
                                   <p className="text-xs text-[#33375C]/40">
                                     bal: {formatCurrency(balanceAfter)}
@@ -145,7 +154,7 @@ export function TransactionsClient({
                               {txn.category.name}
                             </span>
                           ) : (
-                            <span className="text-[#33375C]/30 text-sm">—</span>
+                            <span className="text-[#33375C]/30 text-sm">-</span>
                           )}
                         </td>
                         <td className="px-5 py-3.5">

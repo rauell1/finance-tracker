@@ -144,7 +144,7 @@ export default async function AnalyticsPage() {
         </div>
       )}
 
-      {/* Income sources — where money comes from */}
+      {/* Income sources - where money comes from */}
       {incomeSources.length > 0 && (
         <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-[#E2E2FF]">

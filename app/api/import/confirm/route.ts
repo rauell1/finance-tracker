@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   const fallbackIncome = (categories ?? []).find((c) => c.type === "income");
   const fallbackExpense = (categories ?? []).find((c) => c.type === "expense");
 
-  // Existing M-Pesa receipts for this user — to skip duplicates on re-import
+  // Existing M-Pesa receipts for this user - to skip duplicates on re-import
   const { data: existing } = await supabase
     .from("transactions")
     .select("metadata")
