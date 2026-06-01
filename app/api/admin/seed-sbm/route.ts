@@ -103,6 +103,14 @@ export async function POST(request: NextRequest) {
       ?? null;
   }
 
+  // 2b. Clear any previously-imported SBM transactions to avoid duplicates
+  const { count: cleared } = await supabase
+    .from("transactions")
+    .delete({ count: "exact" })
+    .eq("account_id", sbm.id)
+    .contains("metadata", { bank: "sbm" });
+  log.push(`Cleared existing SBM imports: ${cleared}`);
+
   // 3. Insert SBM transactions
   const rows = SBM_TRANSACTIONS.map(t => ({
     user_id:       userId,
@@ -120,14 +128,25 @@ export async function POST(request: NextRequest) {
   if (insertErr) return NextResponse.json({ error: insertErr.message, log }, { status: 500 });
   log.push(`SBM transactions inserted: ${inserted}`);
 
-  // 4. Set all account balances to stated current values
-  await setBalance(supabase, sbm.id,   13.46);    log.push("SBM balance → 13.46");
-  await setBalance(supabase, dtb.id,   52.20);    log.push("DTB balance → 52.20");
-  await setBalance(supabase, im.id,    0.20);     log.push("I&M balance → 0.20");
-  await setBalance(supabase, mpesa.id, 0.00);     log.push("MPESA balance → 0.00");
+  // 4. Set account balances
+  // SBM: statement opening was 3751.60; all statement txns now in DB so opening_balance = 3751.60
+  // gives computed = 3751.60 + (101950 - 105688.14) = 13.46 ✓
+  await supabase.from("accounts").update({ opening_balance: 3751.60 }).eq("id", sbm.id);
+  log.push("SBM opening_balance → 3751.60 (computed current = 13.46)");
 
-  // 5. Upsert Fuliza debt (1,375.32 outstanding of 1,500 limit)
-  const { error: debtErr } = await supabase.from("debts").upsert({
+  // DTB/I&M: no transactions in DB → opening_balance = stated current balance
+  await supabase.from("accounts").update({ opening_balance: 52.20 }).eq("id", dtb.id);
+  log.push("DTB balance → 52.20");
+  await supabase.from("accounts").update({ opening_balance: 0.20 }).eq("id", im.id);
+  log.push("I&M balance → 0.20");
+
+  // MPESA: use setBalance so it accounts for 78 existing webhook transactions
+  await setBalance(supabase, mpesa.id, 0.00);
+  log.push("MPESA balance → 0.00 (via setBalance)");
+
+  // 5. Fuliza debt — delete existing and re-insert cleanly
+  await supabase.from("debts").delete().eq("user_id", userId).eq("source_identifier", "fuliza");
+  const { error: debtErr } = await supabase.from("debts").insert({
     user_id:           userId,
     creditor:          "Safaricom Fuliza",
     debt_type:         "fuliza",
@@ -137,10 +156,10 @@ export async function POST(request: NextRequest) {
     is_active:         true,
     auto_tracked:      true,
     source_identifier: "fuliza",
-    notes:             "Fuliza M-PESA overdraft. Limit: KES 1,500. Auto-updated from SMS.",
-  }, { onConflict: "user_id,source_identifier" });
-  if (debtErr) log.push("Fuliza upsert error: " + debtErr.message);
-  else log.push("Fuliza debt upserted: 1375.32 / 1500");
+    notes:             "Fuliza M-PESA overdraft. Limit KES 1,500. Auto-updated from SMS.",
+  });
+  if (debtErr) log.push("Fuliza insert error: " + debtErr.message);
+  else log.push("Fuliza debt created: KES 1375.32 / 1500");
 
   // 6. Verify final state
   const { data: finalAccts } = await supabase
