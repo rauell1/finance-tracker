@@ -3,6 +3,7 @@ import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
 import { AccountComparisonChart } from "@/components/charts/account-comparison-chart";
 import { formatCurrency } from "@/lib/utils";
+import { BarChart2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -63,16 +64,18 @@ export default async function AnalyticsPage() {
   const maxAmount = topCategories[0]?.amount ?? 1;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Analytics</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Deep dive into your financial patterns</p>
+    <div className="space-y-5 sm:space-y-6">
+      <div className="flex items-center gap-2">
+        <BarChart2 className="h-5 w-5 text-[#524CF2]" />
+        <div>
+          <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Analytics</h1>
+        </div>
       </div>
 
       {/* Stat comparison cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card) => (
-          <div key={card.label} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <div key={card.label} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5">
             <p className="text-xs font-medium text-slate-500 mb-2">{card.label}</p>
             <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
             <p className="text-xs text-slate-400 mt-1">{card.sub}</p>
@@ -81,12 +84,12 @@ export default async function AnalyticsPage() {
       </div>
 
       {/* Spending by account this month */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-800">Spending by Account</h2>
-          <p className="text-xs text-slate-400 mt-0.5">This month, per account</p>
+      <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#E2E2FF]">
+          <h2 className="font-semibold text-[#0A0D27]">Spending by Account</h2>
+          <p className="text-xs text-[#33375C]/60 mt-0.5">This month, per account</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E2E2FF]">
           {accountSpend.map((a) => (
             <div key={a.account_id} className="p-5">
               <div className="flex items-center gap-2 mb-2">
@@ -94,7 +97,7 @@ export default async function AnalyticsPage() {
                 <span className="text-sm font-semibold text-slate-700">{a.account_name}</span>
               </div>
               <p className="text-lg font-bold text-rose-600">{formatCurrency(a.expense)}</p>
-              <p className="text-xs text-slate-400 mt-0.5">spent · {a.txn_count} txns</p>
+              <p className="text-xs text-[#33375C]/60 mt-0.5">spent · {a.txn_count} txns</p>
               {a.income > 0 && (
                 <p className="text-xs text-emerald-600 mt-1">+{formatCurrency(a.income)} in</p>
               )}
@@ -105,14 +108,14 @@ export default async function AnalyticsPage() {
 
       {/* Spending by establishment / merchant */}
       {merchants.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-800">Spending by Establishment</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Where your money went this month</p>
+        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E2E2FF]">
+            <h2 className="font-semibold text-[#0A0D27]">Spending by Establishment</h2>
+            <p className="text-xs text-[#33375C]/60 mt-0.5">Where your money went this month</p>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-[#E2E2FF]">
             {merchants.map((m, idx) => (
-              <div key={m.merchant} className={`px-5 py-3.5 ${idx % 2 === 1 ? "bg-slate-50/50" : ""}`}>
+              <div key={m.merchant} className={`px-5 py-3.5 ${idx % 2 === 1 ? "bg-[#F0F0FF]/20" : ""}`}>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-bold text-slate-400 w-5">{idx + 1}</span>
                   <div className="flex-1 min-w-0">
@@ -143,14 +146,14 @@ export default async function AnalyticsPage() {
 
       {/* Income sources — where money comes from */}
       {incomeSources.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-800">Top Income Sources</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Who pays you the most this month</p>
+        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E2E2FF]">
+            <h2 className="font-semibold text-[#0A0D27]">Top Income Sources</h2>
+            <p className="text-xs text-[#33375C]/60 mt-0.5">Who pays you the most this month</p>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-[#E2E2FF]">
             {incomeSources.map((m, idx) => (
-              <div key={m.merchant} className={`px-5 py-3.5 ${idx % 2 === 1 ? "bg-slate-50/50" : ""}`}>
+              <div key={m.merchant} className={`px-5 py-3.5 ${idx % 2 === 1 ? "bg-[#F0F0FF]/20" : ""}`}>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-bold text-slate-400 w-5">{idx + 1}</span>
                   <div className="flex-1 min-w-0">
@@ -185,13 +188,13 @@ export default async function AnalyticsPage() {
 
       {/* Top spending categories table */}
       {topCategories.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-800">Top Spending Categories</h2>
+        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E2E2FF]">
+            <h2 className="font-semibold text-[#0A0D27]">Top Spending Categories</h2>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-[#E2E2FF]">
             {topCategories.map((cat, idx) => (
-              <div key={cat.category_id} className={`px-5 py-3.5 ${idx % 2 === 1 ? "bg-slate-50/50" : ""}`}>
+              <div key={cat.category_id} className={`px-5 py-3.5 ${idx % 2 === 1 ? "bg-[#F0F0FF]/20" : ""}`}>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-bold text-slate-400 w-5">{idx + 1}</span>
                   <div
@@ -225,21 +228,21 @@ export default async function AnalyticsPage() {
 
       {/* Monthly summary table */}
       {trend.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-800">Monthly Summary</h2>
+        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E2E2FF]">
+            <h2 className="font-semibold text-[#0A0D27]">Monthly Summary</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
+                <tr className="bg-slate-50 border-b border-[#E2E2FF]">
                   <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Month</th>
                   <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Income</th>
                   <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Expenses</th>
                   <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Net</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-[#E2E2FF]">
                 {[...trend].reverse().map((row, idx) => (
                   <tr key={row.month} className={idx % 2 === 1 ? "bg-slate-50/50" : ""}>
                     <td className="px-5 py-3 text-sm text-slate-600">

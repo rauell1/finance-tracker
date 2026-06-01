@@ -5,7 +5,6 @@ import { registerSchema, type RegisterInput } from "@/lib/validators/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -38,45 +37,50 @@ export default function RegisterPage() {
   }
 
   return (
-    <Card className="border-slate-200/70 shadow-2xl shadow-indigo-500/10 bg-white/95 backdrop-blur">
-      <CardHeader className="text-center">
-        <div className="flex justify-center mb-2">
-          <TrendingUp className="h-8 w-8 text-primary" />
+    <div className="w-full">
+      <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
+        <div className="h-10 w-10 rounded-xl bg-[#524CF2] flex items-center justify-center shadow-md shadow-[#524CF2]/20">
+          <TrendingUp className="h-5 w-5 text-white" />
         </div>
-        <CardTitle>Create an account</CardTitle>
-        <CardDescription>Start tracking your finances today</CardDescription>
-      </CardHeader>
-      <CardContent>
+        <span className="font-extrabold text-xl tracking-tight text-[#0A0D27]">FinTrack</span>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-xl shadow-[#524CF2]/[0.06] p-7 sm:p-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Create your account</h1>
+          <p className="text-sm text-[#33375C]/70 mt-1">Start tracking your finances today</p>
+        </div>
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="fullName" className="text-xs font-bold text-[#33375C] uppercase tracking-wider">Full Name</Label>
             <Input id="fullName" placeholder="John Doe" {...register("fullName")} />
-            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
+            {errors.fullName && <p className="text-xs text-rose-600">{errors.fullName.message}</p>}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-bold text-[#33375C] uppercase tracking-wider">Email</Label>
             <Input id="email" type="email" placeholder="you@example.com" {...register("email")} />
-            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+            {errors.email && <p className="text-xs text-rose-600">{errors.email.message}</p>}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs font-bold text-[#33375C] uppercase tracking-wider">Password</Label>
             <Input id="password" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number" {...register("password")} />
-            {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+            {errors.password && <p className="text-xs text-rose-600">{errors.password.message}</p>}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword" className="text-xs font-bold text-[#33375C] uppercase tracking-wider">Confirm Password</Label>
             <Input id="confirmPassword" type="password" placeholder="••••••••" {...register("confirmPassword")} />
-            {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
+            {errors.confirmPassword && <p className="text-xs text-rose-600">{errors.confirmPassword.message}</p>}
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full h-11 mt-2" disabled={isLoading}>
             {isLoading ? "Creating account..." : "Create Account"}
           </Button>
         </form>
-        <p className="text-center text-sm text-muted-foreground mt-4">
+        <p className="text-center text-sm text-[#33375C]/70 mt-5">
           Already have an account?{" "}
-          <Link href="/login" className="text-primary hover:underline">Sign in</Link>
+          <Link href="/login" className="text-[#524CF2] font-semibold hover:underline">Sign in</Link>
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

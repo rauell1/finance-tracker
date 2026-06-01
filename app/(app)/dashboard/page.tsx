@@ -9,6 +9,7 @@ import { BudgetOverview } from "@/components/dashboard/budget-overview";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
 import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
+import { Wallet } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -24,26 +25,27 @@ export default async function DashboardPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      {/* Row 1: heading */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5 font-medium">Your financial overview</p>
-        </div>
+    <div className="space-y-6 sm:space-y-7">
+      {/* Heading */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#0A0D27] tracking-tight">Dashboard</h1>
+        <p className="text-sm text-[#33375C]/60 mt-1">Your real-time wealth overview</p>
       </div>
 
-      {/* Row 2: KPI cards */}
+      {/* KPI cards */}
       <KPICards data={kpi} />
 
-      {/* Row 3: Account balance cards */}
-      <div>
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Account Balances</h2>
+      {/* Account balances */}
+      <section>
+        <div className="flex items-center gap-2 mb-3.5">
+          <Wallet className="h-4 w-4 text-[#524CF2]" />
+          <h2 className="text-sm font-semibold text-[#0A0D27]">Account Balances</h2>
+        </div>
         <AccountBalanceCards accounts={accountComparison} />
-      </div>
+      </section>
 
-      {/* Row 4: Trend chart + Category donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* Trend chart + Category donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 sm:gap-6">
         <div className="lg:col-span-3">
           <MonthlyTrendChart data={trend} defaultMonths={6} />
         </div>
@@ -52,8 +54,8 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 5: Recent transactions + Budget overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* Recent transactions + Budget overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 sm:gap-6">
         <div className="lg:col-span-3">
           <RecentTransactions transactions={recentTxns} />
         </div>
@@ -62,7 +64,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 6: Insights */}
+      {/* Insights */}
       <InsightsPanel insights={insights} />
     </div>
   );
