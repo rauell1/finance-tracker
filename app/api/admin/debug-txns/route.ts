@@ -15,15 +15,28 @@ export async function GET(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Fetch recent 10 transactions
+  // Find MPESA account
+  const { data: mpesaAccount } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("account_code", "main")
+    .single();
+
+  if (!mpesaAccount) {
+    return NextResponse.json({ error: "M-Pesa account not found" }, { status: 404 });
+  }
+
+  // Fetch recent 30 transactions for MPESA
   const { data: txns, error } = await supabase
     .from("transactions")
-    .select("id, amount, txn_type, occurred_on, description, metadata")
+    .select("id, amount, txn_type, occurred_on, description, metadata, created_at")
+    .eq("account_id", mpesaAccount.id)
     .order("occurred_on", { ascending: false })
-    .limit(20);
+    .order("created_at", { ascending: false })
+    .limit(30);
 
   if (error) {
-    return NextResponse.json({ error: error.message, details: error.details }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({ txns });
