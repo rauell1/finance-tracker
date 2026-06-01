@@ -1,12 +1,15 @@
 import {
   getKPIData, getMonthlyTrend, getCategoryBreakdown, getAccountComparison,
-  getRecentTransactions, getBudgets, generateInsights
+  getRecentTransactions, getBudgets, generateInsights,
+  getUpcomingObligations, getDebts,
 } from "@/lib/queries";
 import { KPICards } from "@/components/dashboard/kpi-cards";
 import { AccountBalanceCards } from "@/components/dashboard/account-balance-cards";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
+import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
+import { DebtSummary } from "@/components/dashboard/debt-summary";
 import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
 import { Wallet } from "lucide-react";
@@ -14,7 +17,7 @@ import { Wallet } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [kpi, trend, categoryBreakdown, accountComparison, recentTxns, budgets, insights] = await Promise.all([
+  const [kpi, trend, categoryBreakdown, accountComparison, recentTxns, budgets, insights, upcoming, debts] = await Promise.all([
     getKPIData(),
     getMonthlyTrend(6),
     getCategoryBreakdown(),
@@ -22,6 +25,8 @@ export default async function DashboardPage() {
     getRecentTransactions(8),
     getBudgets(),
     generateInsights(),
+    getUpcomingObligations(7).catch(() => []),
+    getDebts().catch(() => []),
   ]);
 
   return (
@@ -62,6 +67,12 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2">
           <BudgetOverview budgets={budgets} />
         </div>
+      </div>
+
+      {/* Upcoming bills + Debts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+        <UpcomingBills obligations={upcoming} />
+        <DebtSummary debts={debts} />
       </div>
 
       {/* Insights */}

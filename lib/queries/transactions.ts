@@ -21,7 +21,7 @@ export async function getTransactions(rawFilter = {}): Promise<PaginatedResponse
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
     .range(offset, offset + filter.limit - 1)
-    .not("metadata->>is_transfer_counter", "eq", "true");
+    .or("metadata->>is_transfer_counter.is.null,metadata->>is_transfer_counter.neq.true");
 
   if (filter.account_id) query = query.eq("account_id", filter.account_id);
   if (filter.category_id) query = query.eq("category_id", filter.category_id);
@@ -151,7 +151,6 @@ export async function getRecentTransactions(limit = 5): Promise<Transaction[]> {
     .from("transactions")
     .select("*, account:accounts!account_id(id, name, account_code), category:categories!category_id(id, name, type, color)")
     .neq("txn_type", "transfer")
-    .not("metadata->>is_transfer_counter", "eq", "true")
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);

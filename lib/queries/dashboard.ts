@@ -20,12 +20,14 @@ export async function getKPIData(month?: string): Promise<KPIData> {
   let totalBalance = (accounts ?? []).reduce((s, a) => s + Number(a.opening_balance), 0);
   const ids = (accounts ?? []).map((a) => a.id);
   if (ids.length > 0) {
-    // Two separate queries - OR+IN is not valid PostgREST syntax
     const [{ data: outflows }, { data: inflows }] = await Promise.all([
-      supabase.from("transactions").select("account_id, amount").in("account_id", ids),
+      supabase.from("transactions").select("account_id, amount, txn_type").in("account_id", ids),
       supabase.from("transactions").select("transfer_account_id, amount").in("transfer_account_id", ids).not("transfer_account_id", "is", null),
     ]);
-    for (const t of outflows ?? []) totalBalance -= Number(t.amount);
+    for (const t of outflows ?? []) {
+      if (t.txn_type === "income") totalBalance += Number(t.amount);
+      else totalBalance -= Number(t.amount);
+    }
     for (const t of inflows ?? []) totalBalance += Number(t.amount);
   }
   return {
@@ -74,15 +76,32 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
   if (!accounts) return [];
   const results: AccountComparison[] = [];
   for (const a of accounts) {
-    const [{ data: inc }, { data: exp }, { data: tout }, { data: tin }] = await Promise.all([
+    const [
+      { data: inc }, { data: exp }, { data: tout }, { data: tin },
+      { data: incLifetime }, { data: expLifetime }, { data: toutLifetime }, { data: tinLifetime }
+    ] = await Promise.all([
       supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "income").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
       supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
       supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
       supabase.from("transactions").select("amount").eq("transfer_account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "income").lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "expense").lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount").eq("transfer_account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
     ]);
     const income = (inc ?? []).reduce((s, t) => s + Number(t.amount), 0) + (tin ?? []).reduce((s, t) => s + Number(t.amount), 0);
     const expense = (exp ?? []).reduce((s, t) => s + Number(t.amount), 0) + (tout ?? []).reduce((s, t) => s + Number(t.amount), 0);
-    results.push({ account_id: a.id, account_name: a.name, account_code: a.account_code, income, expense, net: income - expense, balance: Number(a.opening_balance) + income - expense });
+    const lifetimeIncome = (incLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0) + (tinLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0);
+    const lifetimeExpense = (expLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0) + (toutLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0);
+    results.push({
+      account_id: a.id,
+      account_name: a.name,
+      account_code: a.account_code,
+      income,
+      expense,
+      net: income - expense,
+      balance: Number(a.opening_balance) + lifetimeIncome - lifetimeExpense,
+    });
   }
   return results;
 }

@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Target } from "lucide-react";
+type TxnTypeTab = "expense" | "income";
 
 const progressColors = {
   safe: "bg-emerald-500",
@@ -33,8 +34,9 @@ function addMonths(monthStr: string, delta: number): string {
 
 export default function BudgetsPage() {
   const [month, setMonth] = useState(() => getMonthStart(new Date()));
+  const [txnType, setTxnType] = useState<TxnTypeTab>("expense");
 
-  const { data: budgets = [], isLoading } = useQuery<Budget[]>({
+  const { data: allBudgets = [], isLoading } = useQuery<Budget[]>({
     queryKey: ["budgets", month],
     queryFn: async () => {
       const res = await fetch(`/api/budgets?month=${month}`);
@@ -42,6 +44,7 @@ export default function BudgetsPage() {
       return res.json();
     },
   });
+  const budgets = allBudgets.filter((b) => (b.txn_type ?? "expense") === txnType);
 
   const totalBudget = budgets.reduce((s, b) => s + b.amount, 0);
   const totalSpent = budgets.reduce((s, b) => s + b.spent, 0);
@@ -78,6 +81,22 @@ export default function BudgetsPage() {
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
+      </div>
+
+      {/* Income/Expense Tabs */}
+      <div className="inline-flex p-1 rounded-xl bg-[#F0F0FF] border border-[#E2E2FF]">
+        {(["expense", "income"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTxnType(t)}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
+              txnType === t ? "bg-white text-[#524CF2] shadow-sm" : "text-[#33375C]/60 hover:text-[#524CF2]"
+            )}
+          >
+            {t} ({allBudgets.filter((b) => (b.txn_type ?? "expense") === t).length})
+          </button>
+        ))}
       </div>
 
       {/* Hero card: monthly total */}

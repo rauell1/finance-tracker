@@ -5,3 +5,5 @@ export * from "./budgets";
 export * from "./dashboard";
 export * from "./insights";
 export * from "./merchants";
+export * from "./recurring";
+export * from "./debts";

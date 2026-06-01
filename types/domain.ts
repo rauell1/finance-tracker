@@ -47,6 +47,7 @@ export interface Budget {
   amount: number;
   currency_code: string;
   alert_threshold_pct: number;
+  txn_type: "income" | "expense";
   created_at: string;
   updated_at: string;
   spent: number;
@@ -54,6 +55,52 @@ export interface Budget {
   pct_used: number;
   status: "safe" | "warning" | "over";
   category?: Pick<Category, "id" | "name" | "color">;
+}
+export type ObligationType = "bill" | "subscription";
+export type Recurrence = "weekly" | "monthly" | "quarterly" | "yearly";
+export interface RecurringObligation {
+  id: string;
+  user_id: string;
+  obligation_type: ObligationType;
+  name: string;
+  category_id: string | null;
+  account_id: string | null;
+  amount: number;
+  currency_code: string;
+  recurrence: Recurrence;
+  due_day_of_month: number | null;
+  next_due_date: string | null;
+  match_keywords: string | null;
+  notes: string | null;
+  is_active: boolean;
+  last_paid_date: string | null;
+  last_transaction_id: string | null;
+  created_at: string;
+  updated_at: string;
+  due_in_days: number | null;
+  category?: Pick<Category, "id" | "name" | "color"> | null;
+  account?: Pick<Account, "id" | "name" | "account_code"> | null;
+}
+export type DebtType =
+  | "loan" | "overdraft" | "credit_card" | "fuliza"
+  | "mshwari_loan" | "kcb_overdraft" | "other";
+export interface Debt {
+  id: string;
+  user_id: string;
+  creditor: string;
+  debt_type: DebtType;
+  principal: number;
+  current_balance: number;
+  interest_rate: number | null;
+  monthly_payment: number | null;
+  due_date: string | null;
+  currency_code: string;
+  notes: string | null;
+  is_active: boolean;
+  auto_tracked: boolean;
+  source_identifier: string | null;
+  created_at: string;
+  updated_at: string;
 }
 export interface KPIData {
   totalBalance: number;

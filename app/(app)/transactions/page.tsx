@@ -4,6 +4,8 @@ import { TransactionsClient } from "@/components/forms/transactions-client";
 import { ArrowLeftRight, Search, X } from "lucide-react";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   searchParams: Promise<Record<string, string>>;
 }

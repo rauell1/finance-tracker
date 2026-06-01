@@ -6,19 +6,23 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 // ─── Patterns ────────────────────────────────────────────────────────────────
 const P = {
   fulizaInfo:   /fuliza m-?pesa amount is/i,
+  fulizaOutstanding: /total fuliza m-?pesa outstanding amount is\s*ksh\s*([\d,]+\.?\d*)/i,
+  mshwariLoanOutstanding: /m-?shwari\s+loan[^.]*outstanding[^.]*ksh\s*([\d,]+\.?\d*)/i,
+  kcbOverdraftOutstanding: /kcb m-?pesa[^.]*overdraft[^.]*ksh\s*([\d,]+\.?\d*)/i,
+  fulizaRepay:  /ksh\s*([\d,]+\.?\d*)\s+from your m-pesa has been used to fully pay your outstanding fuliza/i,
   received:     /received ksh([\d,]+\.?\d*) from ([^.]+?)(?=\s*\d{6,}|\s+on \d|\.)/i,
   sentPaid:     /ksh([\d,]+\.?\d*) (?:sent|paid) to ([^.]+?)(?=\s+for account|\s+on \d|\.)/i,
   withdrawn:    /ksh([\d,]+\.?\d*) withdrawn from ([^.]+?)(?=\s+on \d|\.|new m-?pesa)/i,
   giveCash:     /give ksh([\d,]+\.?\d*) cash to ([^.]+?)(?=\.|new m-?pesa)/i,
   airtime:      /(?:bought ksh([\d,]+\.?\d*) of airtime|airtime purchase of ksh([\d,]+\.?\d*))/i,
-  // Savings transfers (M-Pesa ↔ KCB M-PESA / M-Shwari)
-  toSavings:    /ksh([\d,]+\.?\d*) transfer(?:r)?ed to (kcb m-?pesa|m-?shwari)/i,
-  fromSavings:  /ksh([\d,]+\.?\d*) transfer(?:r)?ed from (kcb m-?pesa|m-?shwari)/i,
+  // Savings transfers (M-Pesa ↔ KCB M-PESA / M-Shwari) (supporting "your" and "account")
+  toSavings:    /(?:you\s+have\s+)?(?:transfer(?:r)?ed\s+)?ksh\s*([\d,]+\.?\d*)\s+(?:transfer(?:r)?ed\s+)?to\s+(?:your\s+)?(kcb m-?pesa|m-?shwari)(?:\s+account)?/i,
+  fromSavings:  /(?:you\s+have\s+)?(?:transfer(?:r)?ed\s+)?ksh\s*([\d,]+\.?\d*)\s+(?:transfer(?:r)?ed\s+)?from\s+(?:your\s+)?(kcb m-?pesa|m-?shwari)(?:\s+account)?/i,
   receipt:      /\b([A-Z0-9]{10})\b/,
   date:         /on (\d{1,2}\/\d{1,2}\/\d{2,4})/i,
-  mpesaBal:     /new m-?pesa balance is ksh([\d,]+\.?\d*)/i,
-  kcbBal:       /new kcb m-?pesa[^.]*balance is ksh([\d,]+\.?\d*)/i,
-  mshwariBal:   /new m-?shwari[^.]*balance is ksh([\d,]+\.?\d*)/i,
+  mpesaBal:     /(?:new\s+|your\s+)?m-?pesa\s+balance\s+is\s+(?:ksh\s?)?([\d,]+\.?\d*)/i,
+  kcbBal:       /(?:new\s+)?kcb m-?pesa[^.]*balance is\s+(?:ksh\s?)?([\d,]+\.?\d*)/i,
+  mshwariBal:   /(?:new\s+)?m-?shwari[^.]*balance is\s+(?:ksh\s?)?([\d,]+\.?\d*)/i,
   txnCost:      /transaction cost[,\s]+ksh([\d,]+\.?\d*)/i,
   anyAmount:    /ksh\s?([\d,]+\.?\d*)/i,
 };
@@ -122,6 +126,12 @@ function parse(rawText: string): Parsed | null {
     return { ...base, kind: "transfer_in", amount: num(fromSav[1]), txnType: "transfer", savingsCode: code, savingsBal: savBal, counterparty: name, description: `Transfer from ${name}` };
   }
 
+  // Fuliza repayment line
+  const fulizaRepay = text.match(P.fulizaRepay);
+  if (fulizaRepay) {
+    return { ...base, kind: "expense", amount: num(fulizaRepay[1]), txnType: "expense", savingsBal: null, counterparty: "Fuliza M-Pesa", description: "Fuliza repayment" };
+  }
+
   // Income
   const recv = text.match(P.received);
   if (recv) {
@@ -197,6 +207,109 @@ async function setBalance(supabase: AdminClient, accountId: string, stated: numb
   await supabase.from("accounts").update({ opening_balance: stated - net }).eq("id", accountId);
 }
 
+// ─── Auto-debt upserts (Fuliza / M-Shwari Loan / KCB Overdraft) ─────────────
+async function upsertAutoDebt(
+  supabase: AdminClient,
+  userId: string,
+  source: "fuliza" | "mshwari_loan" | "kcb_overdraft",
+  creditor: string,
+  balance: number,
+) {
+  try {
+    const isActive = balance > 0;
+    const { data: existing } = await supabase
+      .from("debts")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("source_identifier", source)
+      .maybeSingle();
+    if (existing) {
+      await supabase.from("debts").update({
+        creditor,
+        debt_type: source,
+        current_balance: balance,
+        auto_tracked: true,
+        is_active: isActive,
+      }).eq("id", existing.id);
+    } else {
+      await supabase.from("debts").insert({
+        user_id: userId,
+        creditor,
+        debt_type: source,
+        principal: balance,
+        current_balance: balance,
+        currency_code: "KES",
+        auto_tracked: true,
+        is_active: isActive,
+        source_identifier: source,
+      });
+    }
+  } catch (err) {
+    console.warn("[upsertAutoDebt] failed:", err);
+  }
+}
+
+function advanceDate(dateStr: string, recurrence: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  switch (recurrence) {
+    case "weekly":    d.setDate(d.getDate() + 7); break;
+    case "monthly":   d.setMonth(d.getMonth() + 1); break;
+    case "quarterly": d.setMonth(d.getMonth() + 3); break;
+    case "yearly":    d.setFullYear(d.getFullYear() + 1); break;
+    default:          d.setMonth(d.getMonth() + 1);
+  }
+  return d.toISOString().split("T")[0];
+}
+
+function currentCycleStart(recurrence: string, today: Date): string {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  switch (recurrence) {
+    case "weekly":    d.setDate(d.getDate() - 7); break;
+    case "monthly":   d.setDate(1); break;
+    case "quarterly": d.setMonth(d.getMonth() - 3); break;
+    case "yearly":    d.setMonth(0); d.setDate(1); break;
+    default:          d.setDate(1);
+  }
+  return d.toISOString().split("T")[0];
+}
+
+async function tryAutoMatchObligation(
+  supabase: AdminClient,
+  userId: string,
+  txnId: string,
+  occurredOn: string,
+  searchText: string,
+) {
+  try {
+    const { data: obls } = await supabase
+      .from("recurring_obligations")
+      .select("id, recurrence, last_paid_date, next_due_date, match_keywords")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .not("match_keywords", "is", null);
+    if (!obls || obls.length === 0) return;
+    const lower = searchText.toLowerCase();
+    const today = new Date();
+    for (const o of obls) {
+      if (!o.match_keywords) continue;
+      const kws = o.match_keywords.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+      if (!kws.some((k: string) => lower.includes(k))) continue;
+      // Check cycle: skip if already paid in current cycle
+      const cycleStart = currentCycleStart(o.recurrence, today);
+      if (o.last_paid_date && o.last_paid_date >= cycleStart) continue;
+      const fromDate = o.next_due_date ?? occurredOn;
+      const nextDue = advanceDate(fromDate, o.recurrence);
+      await supabase.from("recurring_obligations").update({
+        last_paid_date: occurredOn,
+        last_transaction_id: txnId,
+        next_due_date: nextDue,
+      }).eq("id", o.id);
+    }
+  } catch (err) {
+    console.warn("[tryAutoMatchObligation] failed:", err);
+  }
+}
+
 // ─── POST ───────────────────────────────────────────────────────────────────
 // Persist a raw payload for diagnosis (recoverable via GET ?debug=1). Best-effort.
 async function captureDebug(rawBody: string, contentType: string, extracted: string, reason: string) {
@@ -237,7 +350,23 @@ export async function POST(request: NextRequest) {
     await captureDebug(rawBody, contentType, smsText, "not_mpesa");
     return NextResponse.json({ status: "ignored", reason: "not_mpesa", preview: smsText.slice(0, 120) });
   }
-  if (p.kind === "fuliza") return NextResponse.json({ status: "ignored", reason: "fuliza_financing", receipt: p.receipt });
+  if (p.kind === "fuliza") {
+    // Auto-track Fuliza outstanding balance as a debt
+    try {
+      const adminSb = createAdminClient();
+      const { data: mpesa } = await adminSb.from("accounts").select("user_id").eq("account_code", "main").single();
+      if (mpesa) {
+        const m = p.raw.match(P.fulizaOutstanding);
+        if (m) {
+          const balance = num(m[1]);
+          await upsertAutoDebt(adminSb, mpesa.user_id, "fuliza", "Safaricom Fuliza", balance);
+        }
+      }
+    } catch (err) {
+      console.warn("[fuliza upsert] failed:", err);
+    }
+    return NextResponse.json({ status: "ignored", reason: "fuliza_financing", receipt: p.receipt });
+  }
   if (p.amount <= 0) return NextResponse.json({ status: "ignored", reason: "zero_amount" });
 
   const supabase = createAdminClient();
@@ -297,6 +426,26 @@ export async function POST(request: NextRequest) {
 
   if (p.mpesaBal !== null) { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
 
+  // Auto-match recurring obligations on expense txns
+  if (p.txnType === "expense") {
+    const searchText = `${p.description ?? ""} ${p.counterparty ?? ""} ${p.raw}`;
+    await tryAutoMatchObligation(supabase, userId, txn.id, p.occurredOn, searchText);
+  }
+
+  // Auto-track M-Shwari Loan / KCB M-PESA Overdraft outstanding balances
+  try {
+    const mshwariM = p.raw.match(P.mshwariLoanOutstanding);
+    if (mshwariM) {
+      await upsertAutoDebt(supabase, userId, "mshwari_loan", "M-Shwari Loan", num(mshwariM[1]));
+    }
+    const kcbM = p.raw.match(P.kcbOverdraftOutstanding);
+    if (kcbM) {
+      await upsertAutoDebt(supabase, userId, "kcb_overdraft", "KCB M-PESA Overdraft", num(kcbM[1]));
+    }
+  } catch (err) {
+    console.warn("[auto-debt detection] failed:", err);
+  }
+
   return NextResponse.json({
     status: "created", kind: p.kind, transaction_id: txn.id, amount: p.amount, type: p.txnType,
     category: categoryName, counterparty: p.counterparty, balance_after: p.mpesaBal, needs_review: p.needsReview,
@@ -310,6 +459,250 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
   const { data: accounts } = await supabase.from("accounts").select("account_code, name, opening_balance, currency_code").order("account_code");
   const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true });
+  // ?diagnose=1 -> calculate exact balances using frontend query logic to check math
+  if (request.nextUrl.searchParams.get("diagnose") === "1") {
+    const { data: accts } = await supabase.from("accounts").select("id, name, account_code, opening_balance, user_id");
+    if (!accts) return NextResponse.json({ error: "No accounts" });
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name");
+    const { data: txns } = await supabase.from("transactions").select("user_id, description, amount");
+    
+    const ids = accts.map(a => a.id);
+    const balances: Record<string, number> = {};
+    for (const id of ids) balances[id] = 0;
+    
+    let totalBalance = accts.reduce((s, a) => s + Number(a.opening_balance), 0);
+    let outflowsList = [];
+    let inflowsList = [];
+
+    if (ids.length > 0) {
+      const [{ data: outflows }, { data: inflows }] = await Promise.all([
+        supabase.from("transactions").select("account_id, amount, txn_type"),
+        supabase.from("transactions").select("transfer_account_id, amount").not("transfer_account_id", "is", null),
+      ]);
+      outflowsList = outflows || [];
+      inflowsList = inflows || [];
+
+      for (const r of outflows || []) {
+        if (r.txn_type === "income") {
+          balances[r.account_id] += Number(r.amount);
+          totalBalance += Number(r.amount);
+        } else {
+          balances[r.account_id] -= Number(r.amount);
+          totalBalance -= Number(r.amount);
+        }
+      }
+      for (const r of inflows || []) {
+        if (r.transfer_account_id) {
+          balances[r.transfer_account_id] += Number(r.amount);
+          totalBalance += Number(r.amount);
+        }
+      }
+    }
+
+    const calculatedAccounts = accts.map(a => ({
+      name: a.name,
+      account_code: a.account_code,
+      opening_balance: Number(a.opening_balance),
+      net_change: balances[a.id] || 0,
+      calculated_balance: Number(a.opening_balance) + (balances[a.id] || 0),
+      user_id: a.user_id,
+    }));
+
+    return NextResponse.json({
+      status: "diagnose",
+      total_balance: totalBalance,
+      accounts: calculatedAccounts,
+      transaction_count: outflowsList.length,
+      profiles: profiles,
+      transactions_summary: (txns || []).slice(0, 10).map(t => ({ user_id: t.user_id, desc: t.description, amt: t.amount })),
+    });
+  }
+
+  // ?reprocess=<receipt> -> delete and reprocess a transaction with new regexes
+  const repReceipt = request.nextUrl.searchParams.get("reprocess");
+  if (repReceipt) {
+    const { data: txn } = await supabase.from("transactions").select("id, metadata").contains("metadata", { mpesa_receipt: repReceipt }).limit(1).maybeSingle();
+    if (!txn) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    const rawSms = (txn.metadata as Record<string, any>)?.raw_sms;
+    if (!rawSms) return NextResponse.json({ error: "No raw SMS text in metadata" }, { status: 400 });
+
+    await supabase.from("transactions").delete().eq("id", txn.id);
+
+    const p = parse(rawSms);
+    if (!p) return NextResponse.json({ error: "Failed to parse SMS with new regexes" }, { status: 400 });
+
+    const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+    const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+    if (!mpesa) return NextResponse.json({ error: "M-Pesa account not found" }, { status: 404 });
+    const userId = mpesa.user_id;
+
+    let result = null;
+
+    if (p.txnType === "transfer" && p.savingsCode) {
+      const savings = (accts ?? []).find((a) => a.account_code === p.savingsCode);
+      if (!savings) return NextResponse.json({ error: `${p.savingsCode} account not found` }, { status: 404 });
+
+      const fromId = p.kind === "transfer_out" ? mpesa.id : savings.id;
+      const toId   = p.kind === "transfer_out" ? savings.id : mpesa.id;
+
+      const { data: newTxn, error } = await supabase.from("transactions").insert({
+        user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
+        txn_type: "transfer", amount: p.amount, currency_code: "KES", occurred_on: p.occurredOn,
+        description: p.description,
+        metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, savings_balance: p.savingsBal, raw_sms: p.raw },
+      }).select("id").single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      if (p.mpesaBal !== null)   { await setBalance(supabase, mpesa.id, p.mpesaBal); }
+      if (p.savingsBal !== null) { await setBalance(supabase, savings.id, p.savingsBal); }
+      result = { status: "reprocessed", id: newTxn.id, mpesa_balance: p.mpesaBal, savings_balance: p.savingsBal };
+    } else {
+      const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
+      let { data: category } = await supabase.from("categories").select("id").eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
+      if (!category) {
+        const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
+        category = fb;
+      }
+      if (!category) return NextResponse.json({ error: "No category" }, { status: 500 });
+
+      const { data: newTxn, error } = await supabase.from("transactions").insert({
+        user_id: userId, account_id: mpesa.id, category_id: category.id,
+        txn_type: p.txnType, amount: p.amount, currency_code: "KES", occurred_on: p.occurredOn,
+        description: p.description,
+        metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, txn_cost: p.txnCost, needs_review: p.needsReview, raw_sms: p.raw },
+      }).select("id").single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      if (p.mpesaBal !== null) { await setBalance(supabase, mpesa.id, p.mpesaBal); }
+      result = { status: "reprocessed", id: newTxn.id, mpesa_balance: p.mpesaBal };
+    }
+
+    return NextResponse.json(result);
+  }
+
+  // ?backfill=1 → delete duplicates and re-ingest all 43 pasted SMS with corrected regexes and accurate math!
+  if (request.nextUrl.searchParams.get("backfill") === "1") {
+    const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+    if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
+    
+    const mpesa = accts.find(a => a.account_code === "main");
+    const kcb = accts.find(a => a.account_code === "kcb_mpesa");
+    if (!mpesa || !kcb) return NextResponse.json({ error: "Main or KCB account missing" }, { status: 500 });
+    const userId = mpesa.user_id;
+
+    // 1. Delete all transactions created by the webhook or debug capturing
+    await supabase.from("transactions").delete().eq("user_id", userId).or("metadata->>source.eq.sms_webhook,metadata->>source.eq.webhook_debug");
+    
+    // 2. Delete any manual upkeep double entry
+    await supabase.from("transactions").delete().eq("user_id", userId).eq("description", "Monthly Upkeep sent by Okwembas");
+
+    // 3. Reset all account opening balances to 0
+    await supabase.from("accounts").update({ opening_balance: 0 }).eq("user_id", userId);
+
+    const smsList = [
+      "UEULA5XIBK confirmed. You have received Ksh12,852.00 from Jenifer Akoth OkwembaGilles in US via Sendwave on 30/5/26 at 8:06 PM. New M-PESA balance is Ksh12,852.00.",
+      "UEULA5XIBO Confirmed. Ksh 1142.46 from your M-PESA has been used to fully pay your outstanding Fuliza M-PESA. Available Fuliza M-PESA limit is Ksh 1500.00. Your M-PESA balance is 11709.54.",
+      "UEULA5XMT4 Confirmed. Ksh500.00 sent to Gathogo  Kigotho 0708767392 on 30/5/26 at 8:10 PM. New M-PESA balance is Ksh11,202.54. Transaction cost, Ksh7.00.  Amount you can transact within the day is 498,340.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEULA5XT58 Confirmed. Ksh40.00 sent to JOSPHAT  MUTINDA on 30/5/26 at 9:12 PM. New M-PESA balance is Ksh11,162.54. Transaction cost, Ksh0.00. Amount you can transact within the day is 498,300.00. Download My OneApp on https://saf.cx/kWQpy",
+      "UEULA5XW6C Confirmed. Ksh75.00 paid to Polymatt Supermarket. on 30/5/26 at 9:17 PM.New M-PESA balance is Ksh11,087.54. Transaction cost, Ksh0.00. Amount you can transact within the day is 498,225.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEULA5XWBQ Confirmed. Ksh70.00 paid to ATOMIC INC 3. on 30/5/26 at 9:25 PM.New M-PESA balance is Ksh11,017.54. Transaction cost, Ksh0.00. Amount you can transact within the day is 498,155.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEULA5XWCI Confirmed. Ksh350.00 paid to SIP AND SAVOR WINERIES. on 30/5/26 at 9:26 PM.New M-PESA balance is Ksh10,667.54. Transaction cost, Ksh0.00. Amount you can transact within the day is 497,805.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA5Z1RU Confirmed. Ksh200.00 sent to MUSA  YAVATSA 0768360370 on 31/5/26 at 10:27 AM. New M-PESA balance is Ksh10,460.54. Transaction cost, Ksh7.00.  Amount you can transact within the day is 499,800.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA5Z4SY Confirmed. Ksh100.00 sent to IAN  HOKA 0705241027 on 31/5/26 at 10:28 AM. New M-PESA balance is Ksh10,360.54. Transaction cost, Ksh0.00.  Amount you can transact within the day is 499,700.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA5Z7JP Confirmed. Ksh500.00 sent to DTB 247 for account 5804605001 on 31/5/26 at 10:41 AM New M-PESA balance is Ksh9,855.54. Transaction cost, Ksh5.00.Amount you can transact within the day is 499,200.00. Download My OneApp on https://saf.cx/kWQpy",
+      "UEVLA5ZFU3 Confirmed. Ksh400.00 paid to SIP AND SAVOR WINERIES. on 31/5/26 at 12:15 PM.New M-PESA balance is Ksh9,455.54. Transaction cost, Ksh0.00. Amount you can transact within the day is 498,800.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA5ZL0C Confirmed. Ksh9,000.00 transfered to KCB M-PESA account on 31/5/26 at 12:33 PM. New M-PESA balance is Ksh455.54, new KCB M-PESA Saving account balance is Ksh9,000.00.",
+      "UEVLA5ZMZV Confirmed. Ksh450.00 sent to KPLC PREPAID for account 14244145760 on 31/5/26 at 1:08 PM New M-PESA balance is Ksh0.54. Transaction cost, Ksh5.00.Amount you can transact within the day is 489,350.00. Download My OneApp on https://saf.cx/kWQpy",
+      "UEVLA606GQ Confirmed. Ksh140.00 paid to IMPALA STREET EATERIES. on 31/5/26 at 3:03 PM.New M-PESA balance is Ksh0.00. Transaction cost, Ksh0.00. Amount you can transact within the day is 489,210.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA606GQ Confirmed. Fuliza M-PESA amount is Ksh 139.46. Access Fee charged Ksh 1.40. Total Fuliza M-PESA outstanding amount is Ksh140.86 due on 30/06/26. To check daily charges, Dial *334#OK Select Query Charges",
+      "UEVLA601MI Confirmed. Ksh50.00 sent to DAVID  KINUTHIA on 31/5/26 at 3:09 PM. New M-PESA balance is Ksh0.00. Transaction cost, Ksh0.00. Amount you can transact within the day is 489,160.00. Download My OneApp on https://saf.cx/kWQpy",
+      "UEVLA601MI Confirmed. Fuliza M-PESA amount is Ksh 50.00. Access Fee charged Ksh 0.50. Total Fuliza M-PESA outstanding amount is Ksh191.36 due on 30/06/26. To check daily charges, Dial *334#OK Select Query Charges",
+      "UEVLA604TD Confirmed. Fuliza M-PESA amount is Ksh 30.00. Access Fee charged Ksh 0.30. Total Fuliza M-PESA outstanding amount is Ksh221.66 due on 30/06/26. To check daily charges, Dial *334#OK Select Query Charges",
+      "UEVLA60MGN Confirmed. Ksh40.00 sent to PETER  NJOROGE KAHORO on 31/5/26 at 5:01 PM. New M-PESA balance is Ksh0.00. Transaction cost, Ksh0.00. Amount you can transact within the day is 489,090.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA60MGN Confirmed. Fuliza M-PESA amount is Ksh 40.00. Access Fee charged Ksh 0.40. Total Fuliza M-PESA outstanding amount is Ksh262.06 due on 30/06/26. To check daily charges, Dial *334#OK Select Query Charges",
+      "UEVLA60H7J Confirmed. Ksh50.00 sent to SONIA  OTIENO 0746511297 on 31/5/26 at 5:02 PM. New M-PESA balance is Ksh0.00. Transaction cost, Ksh0.00.  Amount you can transact within the day is 489,040.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA60H7J Confirmed. Fuliza M-PESA amount is Ksh 50.00. Access Fee charged Ksh 0.50. Total Fuliza M-PESA outstanding amount is Ksh312.56 due on 30/06/26. To check daily charges, Dial *334#OK Select Query Charges",
+      "UEVLA60NS4 Confirmed. Ksh300.00 sent to BRIAN  BURUDI 0720214254 on 31/5/26 at 5:03 PM. New M-PESA balance is Ksh0.00. Transaction cost, Ksh7.00.  Amount you can transact within the day is 488,740.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA60NS4 Confirmed. Fuliza M-PESA amount is Ksh 307.00. Access Fee charged Ksh 3.07. Total Fuliza M-PESA outstanding amount is Ksh622.63 due on 30/06/26. To check daily charges, Dial *334#OK Select Query Charges",
+      "UEVLA61G8X Confirmed. Ksh400.00 sent to Equity Paybill Account for account 0790962744 on 31/5/26 at 8:02 PM New M-PESA balance is Ksh0.00. Transaction cost, Ksh5.00.Amount you can transact within the day is 488,340.00. Download My OneApp on https://saf.cx/kWQpy",
+      "UEVLA61G8X Confirmed. Fuliza M-PESA amount is Ksh 405.00. Access Fee charged Ksh 4.05. Total Fuliza M-PESA outstanding amount is Ksh1031.68 due on 30/06/26. To check daily charges, Dial *334#OK Select Query Charges",
+      "UEVLA61NCL Confirmed. Ksh 1031.68 from your M-PESA has been used to fully pay your outstanding Fuliza M-PESA. Available Fuliza M-PESA limit is Ksh 1500.00. Your M-PESA balance is 968.32.",
+      "UEVLA61NCK Confirmed. You have transfered Ksh2,000.00 from your KCB M-PESA account on 31/5/26 at 8:06 PM. KCB M-PESA Account balance is Ksh7,000.00. New M-PESA balance is Ksh2,000.00.",
+      "UEVLA61GK8 Confirmed. Ksh150.00 paid to DANIEL WANYOIKE NGUGI. on 31/5/26 at 8:15 PM.New M-PESA balance is Ksh818.32. Transaction cost, Ksh0.00. Amount you can transact within the day is 488,190.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA61Q0J Confirmed. Ksh280.00 sent to Equity Paybill Account for account 250019 on 31/5/26 at 8:20 PM New M-PESA balance is Ksh533.32. Transaction cost, Ksh5.00.Amount you can transact within the day is 487,910.00. Download My OneApp on https://saf.cx/kWQpy",
+      "UEVLA61VAC Confirmed. Ksh200.00 transfered to KCB M-PESA account on 31/5/26 at 9:10 PM. New M-PESA balance is Ksh333.32, new KCB M-PESA Saving account balance is Ksh7,200.00.",
+      "UEVLA61PXE Confirmed. Ksh100.00 transfered to KCB M-PESA account on 31/5/26 at 9:16 PM. New M-PESA balance is Ksh233.32, new KCB M-PESA Saving account balance is Ksh7,300.00.",
+      "UEVLA620VX confirmed.You bought Ksh5.00 of airtime for 254704612435 on 31/5/26 at 9:36 PM.New  balance is Ksh228.32. Transaction cost, Ksh0.00. Amount you can transact within the day is 487,605.00.You can now access M-PESA via *334#",
+      "UF1LA62OX6 Confirmed. Ksh100.00 transfered to KCB M-PESA account on 1/6/26 at 9:15 AM. New M-PESA balance is Ksh28.32, new KCB M-PESA Saving account balance is Ksh7,500.00.",
+      "UF1LA62OVV Confirmed. Ksh100.00 transfered to KCB M-PESA account on 1/6/26 at 9:13 AM. New M-PESA balance is Ksh128.32, new KCB M-PESA Saving account balance is Ksh7,400.00.",
+      "UF1LA62TF0 Confirmed. You have transfered Ksh100.00 from your KCB M-PESA account on 1/6/26 at 9:42 AM. KCB M-PESA Account balance is Ksh7,400.00. New M-PESA balance is Ksh128.32.",
+      "UF1LA62YXP Confirmed. You have transfered Ksh100.00 from your KCB M-PESA account on 1/6/26 at 10:04 AM. KCB M-PESA Account balance is Ksh7,300.00. New M-PESA balance is Ksh228.32.",
+      "UF1LA630GR Confirmed. You have transfered Ksh100.00 from your KCB M-PESA account on 1/6/26 at 10:08 AM. KCB M-PESA Account balance is Ksh7,200.00. New M-PESA balance is Ksh328.32.",
+      "UF1LA633NI Confirmed. Ksh400.00 paid to SIP AND SAVOR WINERIES. on 1/6/26 at 10:41 AM.New M-PESA balance is Ksh0.00. Transaction cost, Ksh0.00. Amount you can transact within the day is 499,400.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UF1LA633NI Confirmed. Fuliza M-PESA amount is Ksh 71.68. Access Fee charged Ksh 0.72. Total Fuliza M-PESA outstanding amount is Ksh72.40 due on 01/07/26. To check daily charges, Dial *334#OK Select Query Charges",
+      "UF1LA633QX Confirmed. On 1/6/26 at 10:45 AM Give Ksh300.00 cash to SWISSCOM VENTURES  LTD Joska hse Gusii rd Nakuru New M-PESA balance is Ksh300.00. You can now access M-PESA via *334#",
+      "UF1LA632C9 Confirmed. Ksh 72.40 from your M-PESA has been used to fully pay your outstanding Fuliza M-PESA. Available Fuliza M-PESA limit is Ksh 1500.00. Your M-PESA balance is 227.60.",
+      "UF1LA63SEV Confirmed. You have transfered Ksh200.00 from your KCB M-PESA account on 1/6/26 at 2:11 PM. KCB M-PESA Account balance is Ksh7,000.00. New M-PESA balance is Ksh427.60."
+    ];
+
+    const ingested = [];
+    for (const sms of smsList) {
+      const p = parse(sms);
+      if (!p || p.kind === "fuliza" || p.amount <= 0) continue;
+      
+      // Check dedup
+      if (p.receipt !== "UNKNOWN") {
+        const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
+          .eq("user_id", userId).contains("metadata", { mpesa_receipt: p.receipt });
+        if (count && count > 0) continue;
+      }
+
+      // Handle transfers
+      if (p.txnType === "transfer" && p.savingsCode) {
+        const savings = accts.find(a => a.account_code === p.savingsCode);
+        if (!savings) continue;
+        const fromId = p.kind === "transfer_out" ? mpesa.id : savings.id;
+        const toId   = p.kind === "transfer_out" ? savings.id : mpesa.id;
+        const { data: txn } = await supabase.from("transactions").insert({
+          user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
+          txn_type: "transfer", amount: p.amount, currency_code: "KES", occurred_on: p.occurredOn,
+          description: p.description,
+          metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, savings_balance: p.savingsBal, raw_sms: p.raw },
+        }).select("id").single();
+        if (txn) ingested.push({ receipt: p.receipt, kind: "transfer", amount: p.amount });
+      } else {
+        // Income / Expense
+        const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
+        let { data: category } = await supabase.from("categories").select("id")
+          .eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
+        if (!category) {
+          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
+          category = fb;
+        }
+        if (category) {
+          const { data: txn } = await supabase.from("transactions").insert({
+            user_id: userId, account_id: mpesa.id, category_id: category.id,
+            txn_type: p.txnType, amount: p.amount, currency_code: "KES", occurred_on: p.occurredOn,
+            description: p.description,
+            metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, txn_cost: p.txnCost, needs_review: p.needsReview, raw_sms: p.raw },
+          }).select("id").single();
+          if (txn) ingested.push({ receipt: p.receipt, kind: p.txnType, amount: p.amount });
+        }
+      }
+    }
+
+    // Set exact requested balances
+    await setBalance(supabase, kcb.id, 7000);
+    await setBalance(supabase, mpesa.id, 427.60);
+    
+    // Reset all other accounts opening_balances to 0.00
+    const others = accts.filter(a => a.account_code !== "main" && a.account_code !== "kcb_mpesa");
+    for (const o of others) {
+      await supabase.from("accounts").update({ opening_balance: 0 }).eq("id", o.id);
+    }
+
+    return NextResponse.json({ status: "backfill_complete", parsed_and_inserted: ingested.length, details: ingested });
+  }
 
   // ?recent=1 → list the latest transactions with full metadata
   if (request.nextUrl.searchParams.get("recent") === "1") {
@@ -319,6 +712,22 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(10);
     return NextResponse.json({ count, recent });
+  }
+
+  // ?testfilter=1 → compare different JSONB metadata filter methods
+  if (request.nextUrl.searchParams.get("testfilter") === "1") {
+    const q1 = await supabase.from("transactions").select("id", { count: "exact", head: true })
+      .not("metadata->>is_transfer_counter", "eq", "true");
+    const q2 = await supabase.from("transactions").select("id", { count: "exact", head: true })
+      .or("metadata->>is_transfer_counter.is.null,metadata->>is_transfer_counter.neq.true");
+    const q3 = await supabase.from("transactions").select("id", { count: "exact", head: true });
+
+    return NextResponse.json({
+      not_filter_count: q1.count,
+      or_filter_count: q2.count,
+      no_filter_count: q3.count,
+      errors: { q1: q1.error, q2: q2.error, q3: q3.error }
+    });
   }
   // Confirm which Supabase project the running app is bound to
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/^["']|["']$/g, "").trim();
