@@ -24,7 +24,7 @@ type Step = "upload" | "preview" | "result";
 
 interface PreviewData {
   rows: ParsedRow[];
-  format: "mpesa" | "generic";
+  format: string;
   skipped: number;
 }
 
@@ -55,13 +55,14 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
   }
 
   async function handleUpload() {
-    if (!file) { setError("Please select a CSV file"); return; }
+    if (!file) { setError("Please select a CSV or PDF file"); return; }
     if (!accountId) { setError("Please select an account"); return; }
     setError(null);
     setLoading(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("accountId", accountId);
       const res = await fetch("/api/import", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Upload failed"); return; }
@@ -113,7 +114,7 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import Transactions from CSV</DialogTitle>
+          <DialogTitle>Import Transactions from CSV or PDF</DialogTitle>
         </DialogHeader>
 
         <Progress value={progress} className="h-1.5 mb-4" />
@@ -133,15 +134,15 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>CSV File</Label>
+              <Label>CSV or PDF Statement File</Label>
               <Input
                 ref={fileRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.pdf"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
               <p className="text-xs text-muted-foreground">
-                Supports M-Pesa MySafaricom exports or generic bank CSVs (max 500 rows)
+                Supports M-Pesa CSVs, and SBM / DTB / I&M Bank CSV or PDF statements (max 500 rows)
               </p>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -158,7 +159,7 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
             ) : preview && (
               <>
                 <div className="flex items-center gap-2 text-sm">
-                  <Badge variant="secondary">{preview.format === "mpesa" ? "M-Pesa" : "Generic CSV"}</Badge>
+                  <Badge variant="secondary">{preview.format === "mpesa" ? "M-Pesa CSV" : preview.format === "sbm" ? "SBM Bank" : "Bank Statement"}</Badge>
                   <span className="text-muted-foreground">
                     <span className="font-medium text-foreground">{preview.rows.length}</span> rows ready
                     {preview.skipped > 0 && (

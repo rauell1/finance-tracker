@@ -25,6 +25,11 @@ const P = {
   mshwariBal:   /(?:new\s+)?m-?shwari[^.]*balance is\s+(?:ksh\s?)?([\d,]+\.?\d*)/i,
   txnCost:      /transaction cost[,\s]+ksh([\d,]+\.?\d*)/i,
   anyAmount:    /ksh\s?([\d,]+\.?\d*)/i,
+  sbmCard:         /(?:online purchase|Retail transaction) of KES\s*([\d,]+\.?\d*) has been made on your card \d+\*+(\d+) at ([^.]+?) on (\d{4}-\d{2}-\d{2})/i,
+  sbmPesalink:     /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s+Incoming Pesalink\s*,\s*has been credited to account ending (\d+) on (\d{1,2}-\d{1,2}-\d{4})/i,
+  sbmEft:          /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s+Inward Clg EFT has been deposited to account ending with (\d+) on (\d{1,2}-\d{1,2}-\d{4})/i,
+  sbmMobileCredit: /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s*,\s*has been credited to account ending (\d+) through MPESA Mobile Banking Terminal on (\d{1,2}-\d{1,2}-\d{4})/i,
+  sbmMpesaPay:     /Your M-Pesa payment of KES\s*([\d,]+\.?\d*) to (\d+) was successful on (\d{1,2}\/\d{1,2}\/\d{2,4}).*?M-Pesa Ref:\s*\b([A-Z0-9]{10})\b/i,
 };
 
 const CATEGORY_RULES: { pattern: RegExp; category: string; type: "income" | "expense" }[] = [
@@ -88,6 +93,109 @@ interface Parsed {
 function savingsCodeFor(label: string): "kcb_mpesa" | "mshwari" {
   return /kcb/i.test(label) ? "kcb_mpesa" : "mshwari";
 }
+
+function hashString(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function parseSbmDate(s: string): string {
+  if (s.includes(" ")) s = s.split(" ")[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const parts = s.split(/[-/]/).map(Number);
+  if (parts.length === 3) {
+    if (parts[0] > 100) {
+      return `${parts[0]}-${String(parts[1]).padStart(2, "0")}-${String(parts[2]).padStart(2, "0")}`;
+    }
+    if (s.includes("/") || parts[0] > 12) {
+      const [d, m, y] = parts;
+      const yr = y < 100 ? 2000 + y : y;
+      return `${yr}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    }
+    const [m, d, y] = parts;
+    const yr = y < 100 ? 2000 + y : y;
+    return `${yr}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  return new Date().toISOString().split("T")[0];
+}
+
+interface ParsedSbm {
+  kind: "income" | "expense" | "transfer";
+  receipt: string;
+  amount: number;
+  description: string;
+  counterparty: string;
+  occurredOn: string;
+}
+
+function parseSbmSMS(text: string): ParsedSbm | null {
+  if (/maintenance| OTP |declined|closed tomorrow|resumed|reminder|observed/i.test(text)) return null;
+
+  // 1. Card Purchase (Expense)
+  const card = text.match(P.sbmCard);
+  if (card) {
+    const amount = num(card[1]);
+    const merchant = cleanName(card[3]);
+    const date = parseSbmDate(card[4]);
+    return {
+      kind: "expense",
+      receipt: `SBM-CARD-${card[2]}-${date.replace(/-/g, "")}-${hashString(text)}`,
+      amount,
+      description: `Card purchase at ${merchant}`,
+      counterparty: merchant,
+      occurredOn: date,
+    };
+  }
+
+  // 2. Incoming Credit (Income)
+  const pesalink = text.match(P.sbmPesalink);
+  if (pesalink) {
+    return {
+      kind: "income",
+      receipt: `SBM-PL-${pesalink[2]}-${parseSbmDate(pesalink[3]).replace(/-/g, "")}-${hashString(text)}`,
+      amount: num(pesalink[1]),
+      description: "Incoming Pesalink",
+      counterparty: "Pesalink",
+      occurredOn: parseSbmDate(pesalink[3]),
+    };
+  }
+
+  const eft = text.match(P.sbmEft);
+  if (eft) {
+    return {
+      kind: "income",
+      receipt: `SBM-EFT-${eft[2]}-${parseSbmDate(eft[3]).replace(/-/g, "")}-${hashString(text)}`,
+      amount: num(eft[1]),
+      description: "Inward Clearing EFT Deposit",
+      counterparty: "Clearing House",
+      occurredOn: parseSbmDate(eft[3]),
+    };
+  }
+
+  // We skip sbmMobileCredit (credits from M-Pesa mobile banking terminal) 
+  // because we already capture them as transfers from the sender-side M-Pesa paybill SMS!
+
+  // 3. M-Pesa to SBM Paybill Payment (Transfer)
+  const mpesaPay = text.match(P.sbmMpesaPay);
+  if (mpesaPay) {
+    return {
+      kind: "transfer",
+      receipt: mpesaPay[4],
+      amount: num(mpesaPay[1]),
+      description: "Transfer to SBM Bank",
+      counterparty: "SBM Bank",
+      occurredOn: parseSbmDate(mpesaPay[3]),
+    };
+  }
+
+  return null;
+}
+
 
 function parse(rawText: string): Parsed | null {
   const text = cleanSms(rawText);
@@ -343,6 +451,67 @@ export async function POST(request: NextRequest) {
   if (!smsText) {
     await captureDebug(rawBody, contentType, "", "empty_body");
     return NextResponse.json({ status: "ignored", reason: "empty_body", content_type: contentType, raw_preview: rawBody.slice(0, 120) });
+  }
+
+  // 1. SBM Bank Parsing
+  const sbm = parseSbmSMS(smsText);
+  if (sbm) {
+    const supabase = createAdminClient();
+    const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+    const sbmAccount = (accts ?? []).find((a) => a.account_code === "bank_c");
+    if (!sbmAccount) return NextResponse.json({ error: "SBM Bank account (bank_c) not found" }, { status: 404 });
+    const userId = sbmAccount.user_id;
+
+    // Dedup by receipt
+    if (sbm.receipt !== "UNKNOWN") {
+      const { data: existing } = await supabase.from("transactions").select("id, txn_type")
+        .eq("user_id", userId)
+        .or(`metadata->>sbm_receipt.eq.${sbm.receipt},metadata->>mpesa_receipt.eq.${sbm.receipt}`);
+
+      if (existing && existing.length > 0) {
+        const incorrectExpense = existing.find(t => t.txn_type === "expense" && sbm.kind === "transfer");
+        if (incorrectExpense) {
+          await supabase.from("transactions").delete().eq("id", incorrectExpense.id);
+        } else {
+          return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: sbm.receipt });
+        }
+      }
+    }
+
+    if (sbm.kind === "transfer") {
+      const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+      if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
+
+      const { data: txn, error } = await supabase.from("transactions").insert({
+        user_id: userId, account_id: mpesa.id, transfer_account_id: sbmAccount.id, category_id: null,
+        txn_type: "transfer", amount: sbm.amount, currency_code: "KES", occurred_on: sbm.occurredOn,
+        description: sbm.description,
+        metadata: { source: "sbm_webhook", sbm_receipt: sbm.receipt, counterparty: sbm.counterparty, raw_sms: smsText },
+      }).select("id").single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      return NextResponse.json({ status: "created", kind: "transfer", transaction_id: txn.id, amount: sbm.amount });
+    }
+
+    // Income / Expense
+    const categoryName = guessCategory(smsText, sbm.kind);
+    let { data: category } = await supabase.from("categories").select("id")
+      .eq("user_id", userId).eq("name", categoryName).eq("type", sbm.kind).single();
+    if (!category) {
+      const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", sbm.kind).limit(1).single();
+      category = fb;
+    }
+    if (!category) return NextResponse.json({ error: "No category found" }, { status: 500 });
+
+    const { data: txn, error } = await supabase.from("transactions").insert({
+      user_id: userId, account_id: sbmAccount.id, category_id: category.id,
+      txn_type: sbm.kind, amount: sbm.amount, currency_code: "KES", occurred_on: sbm.occurredOn,
+      description: sbm.description,
+      metadata: { source: "sbm_webhook", sbm_receipt: sbm.receipt, counterparty: sbm.counterparty, raw_sms: smsText },
+    }).select("id").single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ status: "created", kind: sbm.kind, transaction_id: txn.id, amount: sbm.amount, category: categoryName });
   }
 
   const p = parse(smsText);
@@ -702,6 +871,103 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ status: "backfill_complete", parsed_and_inserted: ingested.length, details: ingested });
+  }
+
+  // ?backfillsbm=1 → delete duplicates and re-ingest all pasted SBM SMS notifications!
+  if (request.nextUrl.searchParams.get("backfillsbm") === "1") {
+    const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+    if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
+    
+    const sbmAccount = accts.find(a => a.account_code === "bank_c");
+    const mpesa = accts.find(a => a.account_code === "main");
+    if (!sbmAccount || !mpesa) return NextResponse.json({ error: "SBM Bank or M-Pesa account missing" }, { status: 500 });
+    const userId = sbmAccount.user_id;
+
+    // 1. Delete all transactions created by the SBM webhook
+    await supabase.from("transactions").delete().eq("user_id", userId).contains("metadata", { source: "sbm_webhook" });
+
+    // 2. Reset SBM Bank account opening_balance to 0
+    await supabase.from("accounts").update({ opening_balance: 0 }).eq("id", sbmAccount.id);
+
+    const sbmList = [
+      "Dear ROY, online purchase of KES 149.00 has been made on your card 529058******4101 at GOOGLE *Truecaller Spa on 2026-05-15 01:49:30.  For queries, call 0709800000.",
+      "Dear ROY : KES 900 Incoming Pesalink , has been credited to account ending 7860001 on 5-11-2026 .For any queries call 0709800000",
+      "Dear ROY : KES 3000 Incoming Pesalink , has been credited to account ending 7860001 on 5-8-2026 .For any queries call 0709800000",
+      "Dear ROY, online purchase of KES 149.00 has been made on your card 529058******4101 at GOOGLE *Truecaller Spa on 2026-04-15 01:49:30.  For queries, call 0709800000.",
+      "Dear ROY, online purchase of KES 289.00 has been made on your card 529058******4101 at GOOGLE *YouTubePremium on 2026-04-10 04:56:46.  For queries, call 0709800000.",
+      "Dear ROY : KES 47500 Inward Clg EFT has been deposited to account ending with 7860001 on 4-10-2026 .For any queries call 0709800000",
+      "Dear ROY, online purchase of KES 745.00 has been made on your card 529058******4101 at Google ChatGPT on 2026-03-31 21:54:10.  For queries, call 0709800000.",
+      "Dear ROY : KES 1850 , has been credited to account ending 7860001 through MPESA Mobile Banking Terminal on 4-1-2026 .For any queries call 0709800000",
+      "Dear ROY, online purchase of KES 750.00 has been made on your card 529058******4101 at GOOGLE *Canva AI Photo on 2026-03-31 15:23:14.  For queries, call 0709800000.",
+      "Your M-Pesa payment of KES 1850.00 to 0322417860001 was successful on 31/03/26 10:22 PM. M-Pesa Ref: UCVLAB13O1. SBM Bank. For queries contact us on 0709800000",
+      "Dear ROY : KES 47500 Inward Clg EFT has been deposited to account ending with 7860001 on 3-6-2026 .For any queries call 0709800000",
+      "Dear ROY, Retail transaction of KES 745.00 has been made on your card 529058******4101 at GOOGLE *ChatGPT on 2026-01-29 22:16:08. . For queries call 0709800000",
+      "Dear ROY : KES 400 , has been credited to account ending 7860001 through MPESA Mobile Banking Terminal on 2-28-2026 .For any queries call 0709800000",
+      "Dear ROY, Retail transaction of KES 375.00 has been made on your card 529058******4101 at Google Canva AI Photo on 2026-02-28 09:41:12. . For queries call 0709800000",
+      "Your M-Pesa payment of KES 400.00 to 0322417860001 was successful on 28/02/26 11:40 AM. M-Pesa Ref: UBSLA7T9HY. SBM Bank. For queries contact us on 0709800000",
+      "Dear ROY, Retail transaction of KES 745.00 has been made on your card 529058******4101 at GOOGLE *ChatGPT on 2026-02-28 02:26:01. . For queries call 0709800000",
+      "Dear ROY : KES 800 , has been credited to account ending 7860001 through MPESA Mobile Banking Terminal on 2-28-2026 .For any queries call 0709800000",
+      "Your M-Pesa payment of KES 800.00 to 0322417860001 was successful on 28/02/26 10:17 AM. M-Pesa Ref: UBSLA7SZ0V. SBM Bank. For queries contact us on 0709800000"
+    ];
+
+    const ingested = [];
+    for (const sms of sbmList) {
+      const sbm = parseSbmSMS(sms);
+      if (!sbm) continue;
+
+      // Dedup by receipt
+      if (sbm.receipt !== "UNKNOWN") {
+        const { data: existing } = await supabase.from("transactions").select("id, txn_type")
+          .eq("user_id", userId)
+          .or(`metadata->>sbm_receipt.eq.${sbm.receipt},metadata->>mpesa_receipt.eq.${sbm.receipt}`);
+
+        if (existing && existing.length > 0) {
+          const incorrectExpense = existing.find(t => t.txn_type === "expense" && sbm.kind === "transfer");
+          if (incorrectExpense) {
+            await supabase.from("transactions").delete().eq("id", incorrectExpense.id);
+          } else {
+            continue;
+          }
+        }
+      }
+
+      if (sbm.kind === "transfer") {
+        const { data: txn } = await supabase.from("transactions").insert({
+          user_id: userId, account_id: mpesa.id, transfer_account_id: sbmAccount.id, category_id: null,
+          txn_type: "transfer", amount: sbm.amount, currency_code: "KES", occurred_on: sbm.occurredOn,
+          description: sbm.description,
+          metadata: { source: "sbm_webhook", sbm_receipt: sbm.receipt, counterparty: sbm.counterparty, raw_sms: sms },
+        }).select("id").single();
+        if (txn) ingested.push({ receipt: sbm.receipt, kind: "transfer", amount: sbm.amount });
+      } else {
+        const categoryName = guessCategory(sms, sbm.kind);
+        let { data: category } = await supabase.from("categories").select("id")
+          .eq("user_id", userId).eq("name", categoryName).eq("type", sbm.kind).single();
+        if (!category) {
+          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", sbm.kind).limit(1).single();
+          category = fb;
+        }
+        if (category) {
+          const { data: txn } = await supabase.from("transactions").insert({
+            user_id: userId, account_id: sbmAccount.id, category_id: category.id,
+            txn_type: sbm.kind, amount: sbm.amount, currency_code: "KES", occurred_on: sbm.occurredOn,
+            description: sbm.description,
+            metadata: { source: "sbm_webhook", sbm_receipt: sbm.receipt, counterparty: sbm.counterparty, raw_sms: sms },
+          }).select("id").single();
+          if (txn) ingested.push({ receipt: sbm.receipt, kind: sbm.kind, amount: sbm.amount });
+        }
+      }
+    }
+
+    // Set exact final calibrated balances to protect internal transfer wealth preservation
+    await setBalance(supabase, mpesa.id, 122.32);
+    const kcbAccount = accts.find(a => a.account_code === "kcb_mpesa");
+    if (kcbAccount) await setBalance(supabase, kcbAccount.id, 30001.00);
+    const mshwariAccount = accts.find(a => a.account_code === "mshwari");
+    if (mshwariAccount) await setBalance(supabase, mshwariAccount.id, 3000.27);
+    await setBalance(supabase, sbmAccount.id, 13.46);
+
+    return NextResponse.json({ status: "sbm_backfill_complete", parsed_and_inserted: ingested.length, details: ingested });
   }
 
   // ?recent=1 → list the latest transactions with full metadata
