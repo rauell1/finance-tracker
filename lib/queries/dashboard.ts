@@ -1,50 +1,80 @@
 import { createClient } from "@/lib/supabase/server";
 import type { KPIData, MonthlyTrend, CategoryBreakdown, AccountComparison } from "@/types/domain";
-import { getMonthStart, normalizeDescription } from "@/lib/utils";
+import { getMonthStart, normalizeDescription, normalizeToTarget, type ExchangeRate } from "@/lib/utils";
+
+const DEFAULT_CURRENCY = "USD";
+
+async function getCurrencyContext(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { baseCurrency: DEFAULT_CURRENCY, rates: [] as ExchangeRate[] };
+  const [{ data: profile }, { data: rates }] = await Promise.all([
+    supabase.from("profiles").select("preferred_currency").eq("id", user.id).single(),
+    supabase.from("exchange_rates").select("base_currency, quote_currency, rate, valid_on").eq("user_id", user.id),
+  ]);
+  return {
+    baseCurrency: profile?.preferred_currency ?? DEFAULT_CURRENCY,
+    rates: (rates ?? []) as ExchangeRate[],
+  };
+}
 export async function getKPIData(month?: string): Promise<KPIData> {
   const supabase = await createClient();
+  const { baseCurrency, rates } = await getCurrencyContext(supabase);
   const targetMonth = month ?? getMonthStart(new Date());
   const end = new Date(targetMonth + "T00:00:00");
   end.setMonth(end.getMonth() + 1);
   const endStr = end.toISOString().split("T")[0];
-  const { data: cur } = await supabase.from("transactions").select("txn_type, amount, description").in("txn_type", ["income","expense"]).gte("occurred_on", targetMonth).lt("occurred_on", endStr);
+  const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
+    normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
+      rates,
+      validOn: occurredOn,
+      onMissing: "original",
+    });
+  const { data: cur } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", targetMonth).lt("occurred_on", endStr);
   let monthlyIncome = 0, monthlyExpense = 0;
   for (const t of cur ?? []) {
+    const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
     if (t.txn_type === "income") {
-      monthlyIncome += Number(t.amount);
+      monthlyIncome += normalized;
     } else {
       if (t.description !== "Fuliza repayment") {
-        monthlyExpense += Number(t.amount);
+        monthlyExpense += normalized;
       }
     }
   }
   const prev = new Date(targetMonth + "T00:00:00");
   prev.setMonth(prev.getMonth() - 1);
   const prevStart = prev.toISOString().split("T")[0];
-  const { data: prevData } = await supabase.from("transactions").select("txn_type, amount, description").in("txn_type", ["income","expense"]).gte("occurred_on", prevStart).lt("occurred_on", targetMonth);
+  const { data: prevData } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", prevStart).lt("occurred_on", targetMonth);
   let prevIncome = 0, prevExpense = 0;
   for (const t of prevData ?? []) {
+    const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
     if (t.txn_type === "income") {
-      prevIncome += Number(t.amount);
+      prevIncome += normalized;
     } else {
       if (t.description !== "Fuliza repayment") {
-        prevExpense += Number(t.amount);
+        prevExpense += normalized;
       }
     }
   }
-  const { data: accounts } = await supabase.from("accounts").select("id, opening_balance").eq("is_archived", false);
-  let totalBalance = (accounts ?? []).reduce((s, a) => s + Number(a.opening_balance), 0);
+  const { data: accounts } = await supabase.from("accounts").select("id, opening_balance, currency_code").eq("is_archived", false);
+  let totalBalance = (accounts ?? []).reduce(
+    (s, a) => s + normalizeAmount(Number(a.opening_balance), a.currency_code, targetMonth),
+    0
+  );
   const ids = (accounts ?? []).map((a) => a.id);
   if (ids.length > 0) {
     const [{ data: outflows }, { data: inflows }] = await Promise.all([
-      supabase.from("transactions").select("account_id, amount, txn_type").in("account_id", ids),
-      supabase.from("transactions").select("transfer_account_id, amount").in("transfer_account_id", ids).not("transfer_account_id", "is", null),
+      supabase.from("transactions").select("account_id, amount, txn_type, currency_code, occurred_on").in("account_id", ids),
+      supabase.from("transactions").select("transfer_account_id, amount, currency_code, occurred_on").in("transfer_account_id", ids).not("transfer_account_id", "is", null),
     ]);
     for (const t of outflows ?? []) {
-      if (t.txn_type === "income") totalBalance += Number(t.amount);
-      else totalBalance -= Number(t.amount);
+      const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
+      if (t.txn_type === "income") totalBalance += normalized;
+      else totalBalance -= normalized;
     }
-    for (const t of inflows ?? []) totalBalance += Number(t.amount);
+    for (const t of inflows ?? []) {
+      totalBalance += normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
+    }
   }
   return {
     totalBalance, monthlyIncome, monthlyExpense, netCashflow: monthlyIncome - monthlyExpense,
@@ -54,20 +84,28 @@ export async function getKPIData(month?: string): Promise<KPIData> {
 }
 export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
   const supabase = await createClient();
+  const { baseCurrency, rates } = await getCurrencyContext(supabase);
+  const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
+    normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
+      rates,
+      validOn: occurredOn,
+      onMissing: "original",
+    });
   const trends: MonthlyTrend[] = [];
   for (let i = months - 1; i >= 0; i--) {
     const d = new Date(); d.setMonth(d.getMonth() - i); d.setDate(1);
     const start = d.toISOString().split("T")[0];
     d.setMonth(d.getMonth() + 1);
     const end = d.toISOString().split("T")[0];
-    const { data } = await supabase.from("transactions").select("txn_type, amount, description").in("txn_type", ["income","expense"]).gte("occurred_on", start).lt("occurred_on", end);
+    const { data } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", start).lt("occurred_on", end);
     let income = 0, expense = 0;
     for (const t of data ?? []) {
+      const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
       if (t.txn_type === "income") {
-        income += Number(t.amount);
+        income += normalized;
       } else {
         if (t.description !== "Fuliza repayment") {
-          expense += Number(t.amount);
+          expense += normalized;
         }
       }
     }
@@ -77,15 +115,22 @@ export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
 }
 export async function getCategoryBreakdown(month?: string): Promise<CategoryBreakdown[]> {
   const supabase = await createClient();
+  const { baseCurrency, rates } = await getCurrencyContext(supabase);
+  const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
+    normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
+      rates,
+      validOn: occurredOn,
+      onMissing: "original",
+    });
   const targetMonth = month ?? getMonthStart(new Date());
   const end = new Date(targetMonth + "T00:00:00"); end.setMonth(end.getMonth() + 1);
-  const { data } = await supabase.from("transactions").select("category_id, amount, description, category:categories!category_id(name, color)").eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", end.toISOString().split("T")[0]);
+  const { data } = await supabase.from("transactions").select("category_id, amount, description, currency_code, occurred_on, category:categories!category_id(name, color)").eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", end.toISOString().split("T")[0]);
   const map = new Map<string, { name: string; color: string; amount: number }>();
   let total = 0;
   for (const r of data ?? []) {
     if (r.description === "Fuliza repayment") continue;
     const cat = (Array.isArray(r.category) ? r.category[0] : r.category) as { name: string; color: string } | null;
-    const amt = Number(r.amount); total += amt;
+    const amt = normalizeAmount(Number(r.amount), r.currency_code, r.occurred_on); total += amt;
     const e = map.get(r.category_id);
     if (e) e.amount += amt;
     else map.set(r.category_id, { name: cat?.name ?? "Other", color: cat?.color ?? "#64748B", amount: amt });
@@ -94,6 +139,13 @@ export async function getCategoryBreakdown(month?: string): Promise<CategoryBrea
 }
 export async function getAccountComparison(month?: string): Promise<AccountComparison[]> {
   const supabase = await createClient();
+  const { baseCurrency, rates } = await getCurrencyContext(supabase);
+  const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
+    normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
+      rates,
+      validOn: occurredOn,
+      onMissing: "original",
+    });
   const targetMonth = month ?? getMonthStart(new Date());
   const end = new Date(targetMonth + "T00:00:00"); end.setMonth(end.getMonth() + 1);
   const endStr = end.toISOString().split("T")[0];
@@ -105,19 +157,24 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
       { data: inc }, { data: exp }, { data: tout }, { data: tin },
       { data: incLifetime }, { data: expLifetime }, { data: toutLifetime }, { data: tinLifetime }
     ] = await Promise.all([
-      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "income").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount, description").eq("account_id", a.id).eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount").eq("transfer_account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "income").lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "expense").lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount").eq("transfer_account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "income").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, description, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("transfer_account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "income").lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "expense").lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("transfer_account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
     ]);
-    const income = (inc ?? []).reduce((s, t) => s + Number(t.amount), 0) + (tin ?? []).reduce((s, t) => s + Number(t.amount), 0);
-    const expense = (exp ?? []).filter(t => t.description !== "Fuliza repayment").reduce((s, t) => s + Number(t.amount), 0) + (tout ?? []).reduce((s, t) => s + Number(t.amount), 0);
-    const lifetimeIncome = (incLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0) + (tinLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0);
-    const lifetimeExpense = (expLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0) + (toutLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0);
+    const income = (inc ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0)
+      + (tin ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0);
+    const expense = (exp ?? []).filter(t => t.description !== "Fuliza repayment").reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0)
+      + (tout ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0);
+    const lifetimeIncome = (incLifetime ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0)
+      + (tinLifetime ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0);
+    const lifetimeExpense = (expLifetime ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0)
+      + (toutLifetime ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0);
+    const openingBalance = normalizeAmount(Number(a.opening_balance), a.currency_code, endStr);
     results.push({
       account_id: a.id,
       account_name: a.name,
@@ -125,7 +182,7 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
       income,
       expense,
       net: income - expense,
-      balance: Number(a.opening_balance) + lifetimeIncome - lifetimeExpense,
+      balance: openingBalance + lifetimeIncome - lifetimeExpense,
     });
   }
   return results;
