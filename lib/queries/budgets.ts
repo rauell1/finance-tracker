@@ -19,7 +19,7 @@ export async function getBudgets(month?: string, txnType?: "income" | "expense")
     end.setMonth(end.getMonth() + 1);
     // Need per-budget txn type — pull both kinds (cheap) and bucket per category id later.
     const { data } = await supabase.from("transactions")
-      .select("category_id, amount, txn_type")
+      .select("category_id, amount, txn_type, description")
       .in("txn_type", ["income", "expense"])
       .in("category_id", ids)
       .gte("occurred_on", targetMonth)
@@ -27,6 +27,7 @@ export async function getBudgets(month?: string, txnType?: "income" | "expense")
     const txnMap: Record<string, { income: number; expense: number }> = {};
     for (const id of ids) txnMap[id] = { income: 0, expense: 0 };
     for (const r of data ?? []) {
+      if (r.description === "Fuliza repayment") continue;
       if (r.txn_type === "income" || r.txn_type === "expense") {
         txnMap[r.category_id][r.txn_type as "income" | "expense"] += Number(r.amount);
       }

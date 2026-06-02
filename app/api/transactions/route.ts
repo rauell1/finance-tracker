@@ -5,6 +5,10 @@ import { transactionSchema, transferSchema } from "@/lib/validators/transaction"
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const filters = Object.fromEntries(searchParams.entries());
     const result = await getTransactions(filters);

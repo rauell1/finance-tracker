@@ -5,6 +5,10 @@ import { budgetSchema } from "@/lib/validators/budget";
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month") ?? undefined;
     const result = await getBudgets(month);

@@ -147,21 +147,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Calibrate running balances
-  // If SBM Bank, calibrate to exactly 13.46 KES as requested by the user
-  if (account.account_code === "bank_c") {
-    await setBalance(supabase, account_id, 13.46);
-  } else {
-    // For other accounts, calibrate to the latest balance_after if present in rows
-    const rowsWithBalance = rows.filter(r => r.balance_after !== null && r.balance_after !== undefined);
-    if (rowsWithBalance.length > 0) {
-      // Get the latest row by date
-      const latestRow = rowsWithBalance.reduce((latest, current) => {
-        return new Date(current.date) > new Date(latest.date) ? current : latest;
-      }, rowsWithBalance[0]);
-      if (latestRow.balance_after !== null && latestRow.balance_after !== undefined) {
-        await setBalance(supabase, account_id, latestRow.balance_after);
-      }
+  // Calibrate running balances using the latest balance_after if present in rows
+  const rowsWithBalance = rows.filter(r => r.balance_after !== null && r.balance_after !== undefined);
+  if (rowsWithBalance.length > 0) {
+    // Get the latest row by date
+    const latestRow = rowsWithBalance.reduce((latest, current) => {
+      return new Date(current.date) > new Date(latest.date) ? current : latest;
+    }, rowsWithBalance[0]);
+    if (latestRow.balance_after !== null && latestRow.balance_after !== undefined) {
+      await setBalance(supabase, account_id, latestRow.balance_after);
     }
   }
 

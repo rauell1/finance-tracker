@@ -1,97 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-// Recompute an account's opening_balance so its computed balance equals `stated`.
-async function setBalance(supabase: any, accountId: string, stated: number) {
-  const [{ data: inc }, { data: exp }, { data: xOut }, { data: xIn }] = await Promise.all([
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "income"),
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "expense"),
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "transfer"),
-    supabase.from("transactions").select("amount").eq("transfer_account_id", accountId).eq("txn_type", "transfer"),
-  ]);
-  const net =
-    (inc ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) -
-    (exp ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) +
-    (xIn ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) -
-    (xOut ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0);
-  await supabase.from("accounts").update({ opening_balance: stated - net }).eq("id", accountId);
-  return { net, opening_balance: stated - net };
-}
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret");
-  if (secret !== "cLS4oOhHsVYmA8wiv1tG3PWZReyu06zK") {
+  const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
+  if (!expectedSecret || secret !== expectedSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://rqyikracpmpjhjvdtbxi.supabase.co";
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceRoleKey) {
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY missing" }, { status: 500 });
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const supabase = createAdminClient();
 
   // Fetch all accounts
-  const { data: accounts } = await supabase.from("accounts").select("id, account_code");
+  const { data: accounts } = await supabase.from("accounts").select("id, account_code, name, opening_balance");
   if (!accounts) {
     return NextResponse.json({ error: "No accounts found" }, { status: 404 });
   }
 
   const results: Record<string, any> = {};
 
-  for (const acct of accounts) {
-    if (acct.account_code === "main") {
-      results.main = await setBalance(supabase, acct.id, 0.00); // Calibrated to 0.00 KES
-    } else if (acct.account_code === "kcb_mpesa") {
-      results.kcb_mpesa = await setBalance(supabase, acct.id, 3001.00); // Calibrated to 3001.00 KES
-    } else if (acct.account_code === "mshwari") {
-      results.mshwari = await setBalance(supabase, acct.id, 3000.27); // Calibrated to 3000.27 KES
-    } else if (acct.account_code === "bank_c") {
-      results.bank_c = await setBalance(supabase, acct.id, 13.46); // Calibrated to 13.46 KES
-    }
-  }
+  const calibrationPromises = accounts.map(async (acct) => {
+    const paramVal = request.nextUrl.searchParams.get(acct.account_code);
+    
+    // Compute the net change for this account
+    const [{ data: inc }, { data: exp }, { data: xOut }, { data: xIn }] = await Promise.all([
+      supabase.from("transactions").select("amount").eq("account_id", acct.id).eq("txn_type", "income"),
+      supabase.from("transactions").select("amount").eq("account_id", acct.id).eq("txn_type", "expense"),
+      supabase.from("transactions").select("amount").eq("account_id", acct.id).eq("txn_type", "transfer"),
+      supabase.from("transactions").select("amount").eq("transfer_account_id", acct.id).eq("txn_type", "transfer"),
+    ]);
 
-  // Find or create Fuliza debt
-  // We will calibrate the Fuliza outstanding debt to exactly 124.68 KES (Available limit: 1375.32 KES out of 1500.00 KES)
-  const { data: mpesa } = await supabase.from("accounts").select("user_id").eq("account_code", "main").single();
-  if (mpesa) {
-    const { data: existing } = await supabase
-      .from("debts")
-      .select("id")
-      .eq("user_id", mpesa.user_id)
-      .eq("source_identifier", "fuliza")
-      .maybeSingle();
+    const net =
+      (inc ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) -
+      (exp ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) +
+      (xIn ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) -
+      (xOut ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0);
 
-    if (existing) {
-      await supabase.from("debts").update({
-        current_balance: 124.68,
-        principal: 124.68,
-        is_active: true,
-        auto_tracked: true
-      }).eq("id", existing.id);
-      results.fuliza = { updated: true, id: existing.id, outstanding: 124.68 };
+    if (paramVal !== null) {
+      const stated = parseFloat(paramVal);
+      if (isNaN(stated)) {
+        throw new Error(`Invalid numeric value for parameter ${acct.account_code}: ${paramVal}`);
+      }
+      const newOpening = stated - net;
+      await supabase.from("accounts").update({ opening_balance: newOpening }).eq("id", acct.id);
+      
+      results[acct.account_code] = {
+        mutated: true,
+        stated_target: stated,
+        net_change: net,
+        old_opening_balance: Number(acct.opening_balance),
+        new_opening_balance: newOpening,
+        calculated_balance: stated
+      };
     } else {
-      const { data: inserted } = await supabase.from("debts").insert({
-        user_id: mpesa.user_id,
-        creditor: "Safaricom Fuliza",
-        debt_type: "fuliza",
-        principal: 124.68,
-        current_balance: 124.68,
-        currency_code: "KES",
-        auto_tracked: true,
-        is_active: true,
-        source_identifier: "fuliza"
-      }).select("id").single();
-      results.fuliza = { inserted: true, id: inserted?.id, outstanding: 124.68 };
+      const calculated_balance = Number(acct.opening_balance) + net;
+      results[acct.account_code] = {
+        mutated: false,
+        net_change: net,
+        opening_balance: Number(acct.opening_balance),
+        calculated_balance
+      };
     }
+  });
+
+  try {
+    await Promise.all(calibrationPromises);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
   // Fetch all accounts to verify
-  const { data: updatedAccounts } = await supabase.from("accounts").select("*");
+  const { data: updatedAccounts } = await supabase.from("accounts").select("id, name, account_code, opening_balance");
 
   return NextResponse.json({
-    message: "All accounts and Fuliza debt calibrated successfully",
+    message: "Accounts calibrated/calculated successfully",
     results,
     accounts: updatedAccounts?.map(a => ({ name: a.name, code: a.account_code, opening: a.opening_balance }))
   });

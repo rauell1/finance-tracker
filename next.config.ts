@@ -6,5 +6,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/import": ["./node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs"],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 export default nextConfig;

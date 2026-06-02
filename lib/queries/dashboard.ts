@@ -7,15 +7,31 @@ export async function getKPIData(month?: string): Promise<KPIData> {
   const end = new Date(targetMonth + "T00:00:00");
   end.setMonth(end.getMonth() + 1);
   const endStr = end.toISOString().split("T")[0];
-  const { data: cur } = await supabase.from("transactions").select("txn_type, amount").in("txn_type", ["income","expense"]).gte("occurred_on", targetMonth).lt("occurred_on", endStr);
+  const { data: cur } = await supabase.from("transactions").select("txn_type, amount, description").in("txn_type", ["income","expense"]).gte("occurred_on", targetMonth).lt("occurred_on", endStr);
   let monthlyIncome = 0, monthlyExpense = 0;
-  for (const t of cur ?? []) { if (t.txn_type === "income") monthlyIncome += Number(t.amount); else monthlyExpense += Number(t.amount); }
+  for (const t of cur ?? []) {
+    if (t.txn_type === "income") {
+      monthlyIncome += Number(t.amount);
+    } else {
+      if (t.description !== "Fuliza repayment") {
+        monthlyExpense += Number(t.amount);
+      }
+    }
+  }
   const prev = new Date(targetMonth + "T00:00:00");
   prev.setMonth(prev.getMonth() - 1);
   const prevStart = prev.toISOString().split("T")[0];
-  const { data: prevData } = await supabase.from("transactions").select("txn_type, amount").in("txn_type", ["income","expense"]).gte("occurred_on", prevStart).lt("occurred_on", targetMonth);
+  const { data: prevData } = await supabase.from("transactions").select("txn_type, amount, description").in("txn_type", ["income","expense"]).gte("occurred_on", prevStart).lt("occurred_on", targetMonth);
   let prevIncome = 0, prevExpense = 0;
-  for (const t of prevData ?? []) { if (t.txn_type === "income") prevIncome += Number(t.amount); else prevExpense += Number(t.amount); }
+  for (const t of prevData ?? []) {
+    if (t.txn_type === "income") {
+      prevIncome += Number(t.amount);
+    } else {
+      if (t.description !== "Fuliza repayment") {
+        prevExpense += Number(t.amount);
+      }
+    }
+  }
   const { data: accounts } = await supabase.from("accounts").select("id, opening_balance").eq("is_archived", false);
   let totalBalance = (accounts ?? []).reduce((s, a) => s + Number(a.opening_balance), 0);
   const ids = (accounts ?? []).map((a) => a.id);
@@ -44,9 +60,17 @@ export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
     const start = d.toISOString().split("T")[0];
     d.setMonth(d.getMonth() + 1);
     const end = d.toISOString().split("T")[0];
-    const { data } = await supabase.from("transactions").select("txn_type, amount").in("txn_type", ["income","expense"]).gte("occurred_on", start).lt("occurred_on", end);
+    const { data } = await supabase.from("transactions").select("txn_type, amount, description").in("txn_type", ["income","expense"]).gte("occurred_on", start).lt("occurred_on", end);
     let income = 0, expense = 0;
-    for (const t of data ?? []) { if (t.txn_type === "income") income += Number(t.amount); else expense += Number(t.amount); }
+    for (const t of data ?? []) {
+      if (t.txn_type === "income") {
+        income += Number(t.amount);
+      } else {
+        if (t.description !== "Fuliza repayment") {
+          expense += Number(t.amount);
+        }
+      }
+    }
     trends.push({ month: start.slice(0, 7), income, expense, net: income - expense });
   }
   return trends;
@@ -55,10 +79,11 @@ export async function getCategoryBreakdown(month?: string): Promise<CategoryBrea
   const supabase = await createClient();
   const targetMonth = month ?? getMonthStart(new Date());
   const end = new Date(targetMonth + "T00:00:00"); end.setMonth(end.getMonth() + 1);
-  const { data } = await supabase.from("transactions").select("category_id, amount, category:categories!category_id(name, color)").eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", end.toISOString().split("T")[0]);
+  const { data } = await supabase.from("transactions").select("category_id, amount, description, category:categories!category_id(name, color)").eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", end.toISOString().split("T")[0]);
   const map = new Map<string, { name: string; color: string; amount: number }>();
   let total = 0;
   for (const r of data ?? []) {
+    if (r.description === "Fuliza repayment") continue;
     const cat = (Array.isArray(r.category) ? r.category[0] : r.category) as { name: string; color: string } | null;
     const amt = Number(r.amount); total += amt;
     const e = map.get(r.category_id);
@@ -81,7 +106,7 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
       { data: incLifetime }, { data: expLifetime }, { data: toutLifetime }, { data: tinLifetime }
     ] = await Promise.all([
       supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "income").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
+      supabase.from("transactions").select("amount, description").eq("account_id", a.id).eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
       supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
       supabase.from("transactions").select("amount").eq("transfer_account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
       supabase.from("transactions").select("amount").eq("account_id", a.id).eq("txn_type", "income").lt("occurred_on", endStr),
@@ -90,7 +115,7 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
       supabase.from("transactions").select("amount").eq("transfer_account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
     ]);
     const income = (inc ?? []).reduce((s, t) => s + Number(t.amount), 0) + (tin ?? []).reduce((s, t) => s + Number(t.amount), 0);
-    const expense = (exp ?? []).reduce((s, t) => s + Number(t.amount), 0) + (tout ?? []).reduce((s, t) => s + Number(t.amount), 0);
+    const expense = (exp ?? []).filter(t => t.description !== "Fuliza repayment").reduce((s, t) => s + Number(t.amount), 0) + (tout ?? []).reduce((s, t) => s + Number(t.amount), 0);
     const lifetimeIncome = (incLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0) + (tinLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0);
     const lifetimeExpense = (expLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0) + (toutLifetime ?? []).reduce((s, t) => s + Number(t.amount), 0);
     results.push({
@@ -161,8 +186,8 @@ export async function detectBudgetLeaks() {
     let over = 0, latest = 0;
     for (const m of info.months.sort((a, b) => b.month.localeCompare(a.month))) {
       const e = new Date(m.month + "T00:00:00"); e.setMonth(e.getMonth() + 1);
-      const { data } = await supabase.from("transactions").select("amount").eq("category_id", id).eq("txn_type", "expense").gte("occurred_on", m.month).lt("occurred_on", e.toISOString().split("T")[0]);
-      const spent = (data ?? []).reduce((s, t) => s + Number(t.amount), 0);
+      const { data } = await supabase.from("transactions").select("amount, description").eq("category_id", id).eq("txn_type", "expense").gte("occurred_on", m.month).lt("occurred_on", e.toISOString().split("T")[0]);
+      const spent = (data ?? []).filter(t => t.description !== "Fuliza repayment").reduce((s, t) => s + Number(t.amount), 0);
       if (spent - m.budget > 0) { over++; if (over === 1) latest = spent - m.budget; } else break;
     }
     if (over >= 2) results.push({ category_name: info.name, consecutive_over: over, latest_overspend: latest });

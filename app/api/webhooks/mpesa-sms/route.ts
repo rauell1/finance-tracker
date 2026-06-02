@@ -9,7 +9,10 @@ const P = {
   fulizaOutstanding: /total fuliza m-?pesa outstanding amount is\s*ksh\s*([\d,]+\.?\d*)/i,
   mshwariLoanOutstanding: /m-?shwari\s+loan[^.]*outstanding[^.]*ksh\s*([\d,]+\.?\d*)/i,
   kcbOverdraftOutstanding: /kcb m-?pesa[^.]*overdraft[^.]*ksh\s*([\d,]+\.?\d*)/i,
-  fulizaRepay:  /ksh\s*([\d,]+\.?\d*)\s+from your m-pesa has been used to fully pay your outstanding fuliza/i,
+  fulizaRepay:  /ksh\s*([\d,]+\.?\d*)\s+(?:from your m-pesa\s+)?has been used to\s+(?:fully\s+pay|repay)\s+(?:your\s+)?(?:outstanding\s+)?fuliza/i,
+  fulizaRepayRemaining: /(?:outstanding fuliza m-?pesa balance is|remaining fuliza outstanding balance is|outstanding balance is)\s*ksh\s*([\d,]+\.?\d*)/i,
+  fulizaAmount: /fuliza m-?pesa amount is\s*ksh\s*([\d,]+\.?\d*)/i,
+  fulizaAccessFee: /access fee charged\s*ksh\s*([\d,]+\.?\d*)/i,
   received:     /received ksh([\d,]+\.?\d*) from ([^.]+?)(?=\s*\d{6,}|\s+on \d|\.)/i,
   sentPaid:     /ksh([\d,]+\.?\d*) (?:sent|paid) to ([^.]+?)(?=\s+for account|\s+on \d|\.)/i,
   withdrawn:    /ksh([\d,]+\.?\d*) withdrawn from ([^.]+?)(?=\s+on \d|\.|new m-?pesa)/i,
@@ -30,6 +33,19 @@ const P = {
   sbmEft:          /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s+Inward Clg EFT has been deposited to account ending with (\d+) on (\d{1,2}-\d{1,2}-\d{4})/i,
   sbmMobileCredit: /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s*,\s*has been credited to account ending (\d+) through MPESA Mobile Banking Terminal on (\d{1,2}-\d{1,2}-\d{4})/i,
   sbmMpesaPay:     /Your M-Pesa payment of KES\s*([\d,]+\.?\d*) to (\d+) was successful on (\d{1,2}\/\d{1,2}\/\d{2,4}).*?M-Pesa Ref:\s*\b([A-Z0-9]{10})\b/i,
+  // DTB Patterns
+  dtbPos: /ALERT: Your account no\. (\S+) has been debited with KES\s*([\d,]+\.?\d*) for a POS PURCHASE at ([^.]+?) on (\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+  dtbMobileBankingDebit: /ALERT: Your account no\. (\S+) has been debited with KES\s*([\d,]+\.?\d*) for a MOBILE BANKING TXN on (\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+  dtbFromMpesa: /successfully transferred KES\s*([\d,]+\.?\d*) from your M-?PESA to account:?\s*(\S+)\.(?:\s*Mpesa)?\s*Ref(?:\s*No)?[:\s]+\b([A-Z0-9]{10})\b/i,
+  dtbToMpesa: /successfully transferred KES\s*([\d,]+\.?\d*) to\s+([^.]+?)\. M-?PESA Ref:\s*\b([A-Z0-9]{10})\b\. Ref No:\s*(\d+)/i,
+  dtbReceived: /received KES\s*([\d,]+\.?\d*) in your account\s*(\S+)\s+from\s+([^.]+?)\. Ref\s*\b([A-Z0-9]{10})\b/i,
+  // I&M Patterns
+  imFromMpesa: /successfully sent KES\s*([\d,]+\.?\d*) to\s+(\S+) with M Pesa Reference Number\s*\b([A-Z0-9]{10})\b/i,
+  imPesalinkReceive: /You have received KES\s*([\d,]+\.?\d*) via PesaLink into Acc\s*(\S+)\s+Tran Ref\s*(\d+)/i,
+  imToMpesa: /(?:Bank to )?M-?PESA transfer of KES\s*([\d,]+\.?\d*) to\s*([^.]+?)\s+successfully processed\.\s+Transaction Ref ID:\s*(\w+)\.\s+M-?PESA Ref ID:\s*\b([A-Z0-9]{10})\b/i,
+  imReceivedMpesa: /You have received KES\s*([\d,]+\.?\d*) from\s+([^.]+?)\.\s+Transaction Ref ID:\s*(\w+)\.\s+Mpesa Ref ID:\s*\b([A-Z0-9]{10})\b/i,
+  imPesalinkSend: /Pesalink transfer of KES\s*([\d,]+\.?\d*) to\s+(\S+) on (\d{1,2}\/\d{1,2}\/\d{2,4})\s+.*?processed successfully\.\s+Transaction Ref ID:\s*(\d+)/i,
+  imPaidMerchant: /KES\s*([\d,]+\.?\d*) paid to ([^.]+?)(?:\s+\(Acc \d+\))? on (\d{1,2}\/\d{1,2}\/\d{2,4}) at [^.]+? Ref:\s*\b([A-Z0-9]{10,})\b/i,
 };
 
 const CATEGORY_RULES: { pattern: RegExp; category: string; type: "income" | "expense" }[] = [
@@ -88,6 +104,9 @@ interface Parsed {
   txnCost: number | null;
   needsReview: boolean;
   raw: string;
+  fulizaAmount?: number;
+  fulizaFee?: number;
+  fulizaOutstanding?: number;
 }
 
 function savingsCodeFor(label: string): "kcb_mpesa" | "mshwari" {
@@ -131,6 +150,7 @@ interface ParsedSbm {
   description: string;
   counterparty: string;
   occurredOn: string;
+  isMobileBankingAlert?: boolean;
 }
 
 function parseSbmSMS(text: string): ParsedSbm | null {
@@ -196,14 +216,292 @@ function parseSbmSMS(text: string): ParsedSbm | null {
   return null;
 }
 
+const DTB_HISTORICAL_DATES: Record<string, string> = {
+  "UEVLA5Z7JP": "2026-05-31",
+  "UBRLA7QIOV": "2026-02-27",
+  "UAJLA440Q0": "2026-01-19",
+  "UDHLA10FYX": "2026-04-17",
+  "UDHLA0Z0G9": "2026-04-17",
+  "UDDLA0JJ1U": "2026-04-13",
+  "UD6LABNAGI": "2026-04-07",
+};
+
+function parseDtbSMS(text: string): ParsedSbm | null {
+  if (/maintenance| OTP |declined|closed tomorrow|resumed|reminder|observed|vigilant|investigate|security|Be aware|Stay alert|Good news|Pin change/i.test(text)) return null;
+
+  // 1. POS Purchase (Expense)
+  const pos = text.match(P.dtbPos);
+  if (pos) {
+    const amount = num(pos[2]);
+    const merchant = cleanName(pos[3]);
+    const date = parseDate(pos[4]);
+    return {
+      kind: "expense",
+      receipt: `DTB-POS-${pos[1]}-${date.replace(/-/g, "")}-${hashString(text)}`,
+      amount,
+      description: `POS purchase at ${merchant}`,
+      counterparty: merchant,
+      occurredOn: date,
+    };
+  }
+
+  // 2. Transfer from M-Pesa to DTB
+  const fromMpesa = text.match(P.dtbFromMpesa);
+  if (fromMpesa) {
+    const amount = num(fromMpesa[1]);
+    const mpesaRef = fromMpesa[3];
+    const date = DTB_HISTORICAL_DATES[mpesaRef] ?? new Date().toISOString().split("T")[0];
+    return {
+      kind: "transfer",
+      receipt: mpesaRef,
+      amount,
+      description: "Transfer from M-Pesa",
+      counterparty: "M-Pesa",
+      occurredOn: date,
+    };
+  }
+
+  // 3. Transfer from DTB to M-Pesa
+  const toMpesa = text.match(P.dtbToMpesa);
+  if (toMpesa) {
+    const amount = num(toMpesa[1]);
+    const cp = cleanName(toMpesa[2]);
+    const mpesaRef = toMpesa[3];
+    const date = DTB_HISTORICAL_DATES[mpesaRef] ?? new Date().toISOString().split("T")[0];
+    return {
+      kind: "transfer",
+      receipt: mpesaRef,
+      amount,
+      description: "Transfer to M-Pesa",
+      counterparty: cp,
+      occurredOn: date,
+    };
+  }
+
+  // 4. Mobile Banking Debit Alert (Transfer/Debit)
+  const mbDebit = text.match(P.dtbMobileBankingDebit);
+  if (mbDebit) {
+    const amount = num(mbDebit[2]);
+    const date = parseDate(mbDebit[3]);
+    return {
+      kind: "transfer",
+      receipt: `DTB-MB-${mbDebit[1]}-${date.replace(/-/g, "")}-${amount}`,
+      amount,
+      description: "Mobile Banking Debit",
+      counterparty: "Mobile Banking",
+      occurredOn: date,
+      isMobileBankingAlert: true,
+    };
+  }
+
+  // 5. Received from someone (Income/Transfer)
+  const received = text.match(P.dtbReceived);
+  if (received) {
+    const amount = num(received[1]);
+    const cp = cleanName(received[3]);
+    const ref = received[4];
+    const date = DTB_HISTORICAL_DATES[ref] ?? new Date().toISOString().split("T")[0];
+    return {
+      kind: "transfer",
+      receipt: ref,
+      amount,
+      description: "Transfer from M-Pesa",
+      counterparty: cp,
+      occurredOn: date,
+    };
+  }
+
+  return null;
+}
+
+const IM_HISTORICAL_DATES: Record<string, string> = {
+  "UAGLA3TKPT": "2026-01-15",
+  "UAKLA47X0Q": "2026-01-20",
+  "UAKLA48KKZ": "2026-01-20",
+  "UAPLA4NCZV": "2026-01-25",
+  "UB4LA5K6SA": "2026-02-05",
+  "UB6LA5RU78": "2026-02-07",
+  "UB9JL656WR": "2026-02-09",
+  "UB9LA63CMS": "2026-02-09",
+  "UB9AG69Q4D": "2026-02-09",
+  "UBALA64O6B": "2026-02-10",
+  "UBALA661SH": "2026-02-10",
+  "UBACY6D82Z": "2026-02-10",
+  "UBBIN69TB3": "2026-02-11",
+  "UBCLA6C3NF": "2026-02-12",
+  "UBFLA6NGJA": "2026-02-15",
+  "UBGAG6WUEB": "2026-02-16",
+  "UBG256QQGK": "2026-02-16",
+  "UBGQS6WRD0": "2026-02-16",
+  "UBHLA6SHQ9": "2026-02-17",
+  "UBHP66XQFM": "2026-02-18",
+  "UBJLA6YUR1": "2026-02-20",
+  "UBJK672AC3": "2026-02-20",
+  "UBJS883K90": "2026-02-22",
+  "UBKLA74NEP": "2026-02-24",
+  "UBLLA76Y4U": "2026-02-25",
+  "UBMP67CGLK": "2026-02-26",
+  "UBMLA79C5U": "2026-02-26",
+  "UBNLA7BO20": "2026-02-28",
+  "UC3077ZMH6": "2026-03-03",
+  "UC3LA84E39": "2026-03-03",
+  "UC4P68BPQE": "2026-03-04",
+  "UC4LA888AS": "2026-03-04",
+  "UC6IN8DZXH": "2026-03-06",
+  "UC7LA8HXJ7": "2026-03-07",
+  "UCALA8QLUM": "2026-03-10",
+  "UCBP68ZUZ9": "2026-03-11",
+  "UCIQW9UPKN": "2026-03-17",
+  "UCIP69OTBK": "2026-03-17",
+  "UCJLA9PCPR": "2026-03-19",
+  "UCLLA9VXCK": "2026-03-21",
+  "UCL5ZABD0I": "2026-03-21",
+  "UCNBXAFTZR": "2026-03-23",
+  "UCOP6A9EMD": "2026-03-24",
+  "UCRQSASYWG": "2026-03-27",
+  "UCSLAAOA75": "2026-03-29",
+  "UCTQSAZ0TU": "2026-03-29",
+  "UCVP6B3OE1": "2026-03-31",
+  "UD5LABJICH": "2026-04-05",
+  "UDAP60CERC": "2026-04-10",
+  "UDAJL0AWZT": "2026-04-10",
+  "UDALA08HSP": "2026-04-10",
+  "UDABX0KU5V": "2026-04-10",
+  "UDALA08F0N": "2026-04-10",
+  "UDBIN0AKDS": "2026-04-11",
+  "UDCLA0HGLD": "2026-04-12",
+  "UDCP60LC98": "2026-04-12",
+  "UDCQS0QJCR": "2026-04-12",
+  "UDFQS11DV5": "2026-04-15",
+  "UDJLA18WEJ": "2026-04-18",
+  "UDKIN189G6": "2026-04-19",
+};
+
+function parseImSMS(text: string): ParsedSbm | null {
+  if (/maintenance| OTP |declined|closed tomorrow|resumed|reminder|observed|vigilant|investigate|security|Be aware|Stay alert|Happy International/i.test(text)) return null;
+
+  // 1. Inflow from M-Pesa
+  const fromMpesa = text.match(P.imFromMpesa);
+  if (fromMpesa) {
+    const amount = num(fromMpesa[1]);
+    const ref = fromMpesa[3];
+    const date = IM_HISTORICAL_DATES[ref] ?? new Date().toISOString().split("T")[0];
+    return {
+      kind: "transfer",
+      receipt: ref,
+      amount,
+      description: "Transfer from M-Pesa",
+      counterparty: "M-Pesa",
+      occurredOn: date,
+    };
+  }
+
+  // 2. Inflow from PesaLink
+  const pesalinkReceive = text.match(P.imPesalinkReceive);
+  if (pesalinkReceive) {
+    const amount = num(pesalinkReceive[1]);
+    const tranRef = pesalinkReceive[3];
+    let occurredOn = new Date().toISOString().split("T")[0];
+    const dMatch = tranRef.match(/2026[0-1]\d[0-3]\d/);
+    if (dMatch) {
+      const dStr = dMatch[0];
+      occurredOn = `${dStr.slice(0, 4)}-${dStr.slice(4, 6)}-${dStr.slice(6, 8)}`;
+    }
+    return {
+      kind: "income",
+      receipt: tranRef,
+      amount,
+      description: "PesaLink Deposit",
+      counterparty: "PesaLink",
+      occurredOn,
+    };
+  }
+
+  // 3. Outflow Bank to M-Pesa (Transfer or Expense)
+  const toMpesa = text.match(P.imToMpesa);
+  if (toMpesa) {
+    const amount = num(toMpesa[1]);
+    const cp = cleanName(toMpesa[2]);
+    const mpesaRef = toMpesa[4];
+    const date = IM_HISTORICAL_DATES[mpesaRef] ?? new Date().toISOString().split("T")[0];
+    const isUser = /0726683835|254726683835|ROY OKOLA OTIENO/i.test(cp);
+    return {
+      kind: isUser ? "transfer" : "expense",
+      receipt: mpesaRef,
+      amount,
+      description: isUser ? "Transfer to M-Pesa" : `Transfer to ${cp}`,
+      counterparty: isUser ? "M-Pesa" : cp,
+      occurredOn: date,
+    };
+  }
+
+  // 4. Outflow PesaLink Send (Transfer or Expense)
+  const pesalinkSend = text.match(P.imPesalinkSend);
+  if (pesalinkSend) {
+    const amount = num(pesalinkSend[1]);
+    const recipient = pesalinkSend[2];
+    const date = parseDate(pesalinkSend[3]);
+    const ref = pesalinkSend[4];
+    const isUser = /0726683835|254726683835/i.test(recipient);
+    return {
+      kind: isUser ? "transfer" : "expense",
+      receipt: ref,
+      amount,
+      description: isUser ? "PesaLink Transfer to M-Pesa" : `PesaLink Transfer to ${recipient}`,
+      counterparty: isUser ? "M-Pesa" : recipient,
+      occurredOn: date,
+    };
+  }
+
+  // 5. Merchant Card / Paybill Payment (Expense)
+  const paidMerchant = text.match(P.imPaidMerchant);
+  if (paidMerchant) {
+    const amount = num(paidMerchant[1]);
+    const cp = cleanName(paidMerchant[2]);
+    const date = parseDate(paidMerchant[3]);
+    const ref = paidMerchant[4];
+    return {
+      kind: "expense",
+      receipt: ref,
+      amount,
+      description: `Paid to ${cp}`,
+      counterparty: cp,
+      occurredOn: date,
+    };
+  }
+
+  return null;
+}
+
 
 function parse(rawText: string): Parsed | null {
   const text = cleanSms(rawText);
   if (!looksLikeMpesa(text)) return null;
 
-  // Fuliza financing line - skip (the paired send carries the real expense)
+  // Fuliza financing line
   if (P.fulizaInfo.test(text) && !P.sentPaid.test(text)) {
-    return { kind: "fuliza", receipt: text.match(P.receipt)?.[1] ?? "UNKNOWN", amount: 0, description: "", counterparty: "", occurredOn: "", txnType: "expense", mpesaBal: null, savingsBal: null, txnCost: null, needsReview: false, raw: text.slice(0, 400) };
+    const receipt = text.match(P.receipt)?.[1] ?? "UNKNOWN";
+    const occurredOn = text.match(P.date) ? parseDate(text.match(P.date)![1]) : new Date().toISOString().split("T")[0];
+    const fulizaAmount = text.match(P.fulizaAmount) ? num(text.match(P.fulizaAmount)![1]) : 0;
+    const fulizaFee = text.match(P.fulizaAccessFee) ? num(text.match(P.fulizaAccessFee)![1]) : 0;
+    const fulizaOutstanding = text.match(P.fulizaOutstanding) ? num(text.match(P.fulizaOutstanding)![1]) : 0;
+    return {
+      kind: "fuliza",
+      receipt,
+      amount: 0,
+      description: "Fuliza financing",
+      counterparty: "Safaricom Fuliza",
+      occurredOn,
+      txnType: "expense",
+      mpesaBal: null,
+      savingsBal: null,
+      txnCost: null,
+      needsReview: false,
+      raw: text.slice(0, 400),
+      fulizaAmount,
+      fulizaFee,
+      fulizaOutstanding
+    };
   }
 
   const receipt    = text.match(P.receipt)?.[1] ?? "UNKNOWN";
@@ -237,7 +535,9 @@ function parse(rawText: string): Parsed | null {
   // Fuliza repayment line
   const fulizaRepay = text.match(P.fulizaRepay);
   if (fulizaRepay) {
-    return { ...base, kind: "expense", amount: num(fulizaRepay[1]), txnType: "expense", savingsBal: null, counterparty: "Fuliza M-Pesa", description: "Fuliza repayment" };
+    const remainingM = text.match(P.fulizaRepayRemaining);
+    const remainingBal = remainingM ? num(remainingM[1]) : 0;
+    return { ...base, kind: "expense", amount: num(fulizaRepay[1]), txnType: "expense", savingsBal: null, counterparty: "Fuliza M-Pesa", description: "Fuliza repayment", fulizaOutstanding: remainingBal };
   }
 
   // Income
@@ -439,7 +739,8 @@ async function captureDebug(rawBody: string, contentType: string, extracted: str
 
 export async function POST(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret") ?? request.headers.get("x-webhook-secret") ?? request.headers.get("authorization")?.replace("Bearer ", "");
-  if (secret !== process.env.MPESA_WEBHOOK_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
+  if (!expectedSecret || secret !== expectedSecret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Capture raw body up-front (clone so extractSmsText can still read the stream)
   const contentType = request.headers.get("content-type") ?? "none";
@@ -514,27 +815,243 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "created", kind: sbm.kind, transaction_id: txn.id, amount: sbm.amount, category: categoryName });
   }
 
+  // 1b. DTB Bank Parsing
+  const dtb = parseDtbSMS(smsText);
+  if (dtb) {
+    const supabase = createAdminClient();
+    const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+    const dtbAccount = (accts ?? []).find((a) => a.account_code === "bank_a");
+    if (!dtbAccount) return NextResponse.json({ error: "DTB Bank account (bank_a) not found" }, { status: 404 });
+    const userId = dtbAccount.user_id;
+
+    // For Mobile Banking Debit alerts, check if duplicate by amount & date
+    if (dtb.isMobileBankingAlert) {
+      const { data: dup } = await supabase.from("transactions").select("id")
+        .eq("user_id", userId)
+        .eq("amount", dtb.amount)
+        .eq("occurred_on", dtb.occurredOn)
+        .or(`account_id.eq.${dtbAccount.id},transfer_account_id.eq.${dtbAccount.id}`);
+      if (dup && dup.length > 0) {
+        return NextResponse.json({ status: "ignored", reason: "duplicate_by_amount_and_date", amount: dtb.amount });
+      }
+    }
+
+    // Dedup by receipt
+    if (dtb.receipt !== "UNKNOWN") {
+      const { data: existing } = await supabase.from("transactions").select("id, txn_type")
+        .eq("user_id", userId)
+        .or(`metadata->>dtb_receipt.eq.${dtb.receipt},metadata->>mpesa_receipt.eq.${dtb.receipt}`);
+
+      if (existing && existing.length > 0) {
+        return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: dtb.receipt });
+      }
+    }
+
+    if (dtb.kind === "transfer") {
+      const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+      if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
+
+      const isOutflow = dtb.description === "Transfer to M-Pesa";
+      const fromId = isOutflow ? dtbAccount.id : mpesa.id;
+      const toId   = isOutflow ? mpesa.id : dtbAccount.id;
+
+      const { data: txn, error } = await supabase.from("transactions").insert({
+        user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
+        txn_type: "transfer", amount: dtb.amount, currency_code: "KES", occurred_on: dtb.occurredOn,
+        description: dtb.description,
+        metadata: { source: "dtb_webhook", dtb_receipt: dtb.receipt, counterparty: dtb.counterparty, raw_sms: smsText },
+      }).select("id").single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      return NextResponse.json({ status: "created", kind: "transfer", transaction_id: txn.id, amount: dtb.amount });
+    }
+
+    // Income / Expense
+    const categoryName = guessCategory(smsText, dtb.kind);
+    let { data: category } = await supabase.from("categories").select("id")
+      .eq("user_id", userId).eq("name", categoryName).eq("type", dtb.kind).single();
+    if (!category) {
+      const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", dtb.kind).limit(1).single();
+      category = fb;
+    }
+    if (!category) return NextResponse.json({ error: "No category found" }, { status: 500 });
+
+    const { data: txn, error } = await supabase.from("transactions").insert({
+      user_id: userId, account_id: dtbAccount.id, category_id: category.id,
+      txn_type: dtb.kind, amount: dtb.amount, currency_code: "KES", occurred_on: dtb.occurredOn,
+      description: dtb.description,
+      metadata: { source: "dtb_webhook", dtb_receipt: dtb.receipt, counterparty: dtb.counterparty, raw_sms: smsText },
+    }).select("id").single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ status: "created", kind: dtb.kind, transaction_id: txn.id, amount: dtb.amount, category: categoryName });
+  }
+
+  // 1c. I&M Bank Parsing
+  const im = parseImSMS(smsText);
+  if (im) {
+    const supabase = createAdminClient();
+    const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+    const imAccount = (accts ?? []).find((a) => a.account_code === "bank_b");
+    if (!imAccount) return NextResponse.json({ error: "I&M Bank account (bank_b) not found" }, { status: 404 });
+    const userId = imAccount.user_id;
+
+    // Dedup by receipt
+    if (im.receipt !== "UNKNOWN") {
+      const { data: existing } = await supabase.from("transactions").select("id, txn_type")
+        .eq("user_id", userId)
+        .or(`metadata->>im_receipt.eq.${im.receipt},metadata->>mpesa_receipt.eq.${im.receipt}`);
+
+      if (existing && existing.length > 0) {
+        return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: im.receipt });
+      }
+    }
+
+    if (im.kind === "transfer") {
+      const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+      if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
+
+      const isOutflow = im.description.toLowerCase().includes("transfer to");
+      const fromId = isOutflow ? imAccount.id : mpesa.id;
+      const toId   = isOutflow ? mpesa.id : imAccount.id;
+
+      const { data: txn, error } = await supabase.from("transactions").insert({
+        user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
+        txn_type: "transfer", amount: im.amount, currency_code: "KES", occurred_on: im.occurredOn,
+        description: im.description,
+        metadata: { source: "im_webhook", im_receipt: im.receipt, counterparty: im.counterparty, raw_sms: smsText },
+      }).select("id").single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      return NextResponse.json({ status: "created", kind: "transfer", transaction_id: txn.id, amount: im.amount });
+    }
+
+    // Income / Expense
+    const categoryName = guessCategory(smsText, im.kind);
+    let { data: category } = await supabase.from("categories").select("id")
+      .eq("user_id", userId).eq("name", categoryName).eq("type", im.kind).single();
+    if (!category) {
+      const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", im.kind).limit(1).single();
+      category = fb;
+    }
+    if (!category) return NextResponse.json({ error: "No category found" }, { status: 500 });
+
+    const { data: txn, error } = await supabase.from("transactions").insert({
+      user_id: userId, account_id: imAccount.id, category_id: category.id,
+      txn_type: im.kind, amount: im.amount, currency_code: "KES", occurred_on: im.occurredOn,
+      description: im.description,
+      metadata: { source: "im_webhook", im_receipt: im.receipt, counterparty: im.counterparty, raw_sms: smsText },
+    }).select("id").single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ status: "created", kind: im.kind, transaction_id: txn.id, amount: im.amount, category: categoryName });
+  }
+
   const p = parse(smsText);
   if (!p) {
     await captureDebug(rawBody, contentType, smsText, "not_mpesa");
     return NextResponse.json({ status: "ignored", reason: "not_mpesa", preview: smsText.slice(0, 120) });
   }
   if (p.kind === "fuliza") {
-    // Auto-track Fuliza outstanding balance as a debt
     try {
       const adminSb = createAdminClient();
-      const { data: mpesa } = await adminSb.from("accounts").select("user_id").eq("account_code", "main").single();
-      if (mpesa) {
-        const m = p.raw.match(P.fulizaOutstanding);
-        if (m) {
-          const balance = num(m[1]);
-          await upsertAutoDebt(adminSb, mpesa.user_id, "fuliza", "Safaricom Fuliza", balance);
+      const { data: mpesa } = await adminSb.from("accounts").select("id, user_id").eq("account_code", "main").single();
+      if (!mpesa) return NextResponse.json({ error: "Main M-Pesa account not found" }, { status: 404 });
+      const userId = mpesa.user_id;
+
+      const outstanding = p.fulizaOutstanding ?? 0;
+      const fee = p.fulizaFee ?? 0;
+      const amount = p.fulizaAmount ?? 0;
+
+      // 1. Auto-track Fuliza outstanding balance as a debt
+      await upsertAutoDebt(adminSb, userId, "fuliza", "Safaricom Fuliza", outstanding);
+
+      const inserted = [];
+
+      // 2. Log the Access Fee as an expense transaction
+      if (fee > 0 && p.receipt !== "UNKNOWN") {
+        const feeReceipt = p.receipt + "-fee";
+        const { data: existingFee } = await adminSb.from("transactions").select("id")
+          .eq("user_id", userId)
+          .contains("metadata", { mpesa_receipt: feeReceipt })
+          .maybeSingle();
+
+        if (!existingFee) {
+          let { data: category } = await adminSb.from("categories").select("id")
+            .eq("user_id", userId)
+            .eq("type", "expense")
+            .eq("name", "Other Expense")
+            .maybeSingle();
+          if (!category) {
+            const { data: fallback } = await adminSb.from("categories").select("id")
+              .eq("user_id", userId)
+              .eq("type", "expense")
+              .limit(1)
+              .maybeSingle();
+            category = fallback;
+          }
+
+          if (category) {
+            const { data: txn } = await adminSb.from("transactions").insert({
+              user_id: userId,
+              account_id: mpesa.id,
+              category_id: category.id,
+              txn_type: "expense",
+              amount: fee,
+              currency_code: "KES",
+              occurred_on: p.occurredOn,
+              description: "Fuliza Access Fee",
+              metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, raw_sms: p.raw }
+            }).select("id").single();
+            if (txn) inserted.push({ type: "fee", id: txn.id, amount: fee });
+          }
         }
       }
-    } catch (err) {
-      console.warn("[fuliza upsert] failed:", err);
+
+      // 3. Log the financed overdraft amount if the main transaction does not exist
+      if (amount > 0 && p.receipt !== "UNKNOWN") {
+        const { data: existingTxn } = await adminSb.from("transactions").select("id, metadata")
+          .eq("user_id", userId)
+          .contains("metadata", { mpesa_receipt: p.receipt })
+          .maybeSingle();
+
+        if (!existingTxn) {
+          let { data: category } = await adminSb.from("categories").select("id")
+            .eq("user_id", userId)
+            .eq("type", "expense")
+            .eq("name", "Other Expense")
+            .maybeSingle();
+          if (!category) {
+            const { data: fallback } = await adminSb.from("categories").select("id")
+              .eq("user_id", userId)
+              .eq("type", "expense")
+              .limit(1)
+              .maybeSingle();
+            category = fallback;
+          }
+
+          if (category) {
+            const { data: txn } = await adminSb.from("transactions").insert({
+              user_id: userId,
+              account_id: mpesa.id,
+              category_id: category.id,
+              txn_type: "expense",
+              amount: amount,
+              currency_code: "KES",
+              occurred_on: p.occurredOn,
+              description: "Fuliza transaction (auto-generated)",
+              metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, is_auto_generated: true, raw_sms: p.raw }
+            }).select("id").single();
+            if (txn) inserted.push({ type: "overdraft", id: txn.id, amount: amount });
+          }
+        }
+      }
+
+      return NextResponse.json({ status: "created_fuliza", receipt: p.receipt, inserted });
+    } catch (err: any) {
+      console.warn("[fuliza parsing] failed:", err);
+      return NextResponse.json({ error: err.message }, { status: 500 });
     }
-    return NextResponse.json({ status: "ignored", reason: "fuliza_financing", receipt: p.receipt });
   }
   if (p.amount <= 0) return NextResponse.json({ status: "ignored", reason: "zero_amount" });
 
@@ -545,11 +1062,57 @@ export async function POST(request: NextRequest) {
   if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
   const userId = mpesa.user_id;
 
-  // Dedup
+  // Dedup / Update auto-generated
   if (p.receipt !== "UNKNOWN") {
-    const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
-      .eq("user_id", userId).contains("metadata", { mpesa_receipt: p.receipt });
-    if (count && count > 0) return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: p.receipt });
+    const { data: existing } = await supabase.from("transactions").select("id, metadata")
+      .eq("user_id", userId).contains("metadata", { mpesa_receipt: p.receipt }).maybeSingle();
+
+    if (existing) {
+      const isAuto = (existing.metadata as Record<string, any>)?.is_auto_generated === true;
+      if (isAuto) {
+        // Update the auto-generated transaction with the correct main details!
+        const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
+        let { data: category } = await supabase.from("categories").select("id")
+          .eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
+        if (!category) {
+          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
+          category = fb;
+        }
+
+        const { data: updated, error } = await supabase.from("transactions").update({
+          category_id: category?.id ?? null,
+          txn_type: p.txnType,
+          amount: p.amount,
+          description: p.description,
+          metadata: {
+            ...((existing.metadata as Record<string, any>) ?? {}),
+            source: "sms_webhook",
+            counterparty: p.counterparty,
+            balance_after: p.mpesaBal,
+            txn_cost: p.txnCost,
+            needs_review: p.needsReview,
+            raw_sms: p.raw,
+            is_auto_generated: false
+          }
+        }).eq("id", existing.id).select("id").single();
+
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        if (p.mpesaBal !== null) { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
+
+        return NextResponse.json({
+          status: "updated_auto_generated",
+          kind: p.kind,
+          transaction_id: updated.id,
+          amount: p.amount,
+          type: p.txnType,
+          category: categoryName,
+          counterparty: p.counterparty,
+          balance_after: p.mpesaBal
+        });
+      }
+
+      return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: p.receipt });
+    }
   }
 
   // ── Transfers to/from savings sub-wallets ──
@@ -601,8 +1164,12 @@ export async function POST(request: NextRequest) {
     await tryAutoMatchObligation(supabase, userId, txn.id, p.occurredOn, searchText);
   }
 
-  // Auto-track M-Shwari Loan / KCB M-PESA Overdraft outstanding balances
+  // Auto-track M-Shwari Loan / KCB M-PESA Overdraft outstanding balances, and Fuliza repayments
   try {
+    if (p.description === "Fuliza repayment") {
+      const remaining = p.fulizaOutstanding ?? 0;
+      await upsertAutoDebt(supabase, userId, "fuliza", "Safaricom Fuliza", remaining);
+    }
     const mshwariM = p.raw.match(P.mshwariLoanOutstanding);
     if (mshwariM) {
       await upsertAutoDebt(supabase, userId, "mshwari_loan", "M-Shwari Loan", num(mshwariM[1]));
@@ -634,6 +1201,7 @@ export async function GET(request: NextRequest) {
     if (!accts) return NextResponse.json({ error: "No accounts" });
     const { data: profiles } = await supabase.from("profiles").select("id, full_name");
     const { data: txns } = await supabase.from("transactions").select("user_id, description, amount");
+    const { data: debts } = await supabase.from("debts").select("*");
     
     const ids = accts.map(a => a.id);
     const balances: Record<string, number> = {};
@@ -683,6 +1251,8 @@ export async function GET(request: NextRequest) {
       accounts: calculatedAccounts,
       transaction_count: outflowsList.length,
       profiles: profiles,
+      debts: debts,
+      fuliza_transactions: (txns || []).filter(t => t.description?.toLowerCase().includes("fuliza")),
       transactions_summary: (txns || []).slice(0, 10).map(t => ({ user_id: t.user_id, desc: t.description, amt: t.amount })),
     });
   }
@@ -743,13 +1313,12 @@ export async function GET(request: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       if (p.mpesaBal !== null) { await setBalance(supabase, mpesa.id, p.mpesaBal); }
-      result = { status: "reprocessed", id: newTxn.id, mpesa_balance: p.mpesaBal };
+      result = { status: "reprocessed", id: newTxn.id, balance_after: p.mpesaBal };
     }
 
     return NextResponse.json(result);
   }
 
-  // ?backfill=1 → delete duplicates and re-ingest all 43 pasted SMS with corrected regexes and accurate math!
   if (request.nextUrl.searchParams.get("backfill") === "1") {
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
     if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
@@ -765,9 +1334,6 @@ export async function GET(request: NextRequest) {
     // 2. Delete any manual upkeep double entry
     await supabase.from("transactions").delete().eq("user_id", userId).eq("description", "Monthly Upkeep sent by Okwembas");
 
-    // 3. Reset all account opening balances to 0
-    await supabase.from("accounts").update({ opening_balance: 0 }).eq("user_id", userId);
-
     const smsList = [
       "UEULA5XIBK confirmed. You have received Ksh12,852.00 from Jenifer Akoth OkwembaGilles in US via Sendwave on 30/5/26 at 8:06 PM. New M-PESA balance is Ksh12,852.00.",
       "UEULA5XIBO Confirmed. Ksh 1142.46 from your M-PESA has been used to fully pay your outstanding Fuliza M-PESA. Available Fuliza M-PESA limit is Ksh 1500.00. Your M-PESA balance is 11709.54.",
@@ -777,7 +1343,7 @@ export async function GET(request: NextRequest) {
       "UEULA5XWBQ Confirmed. Ksh70.00 paid to ATOMIC INC 3. on 30/5/26 at 9:25 PM.New M-PESA balance is Ksh11,017.54. Transaction cost, Ksh0.00. Amount you can transact within the day is 498,155.00. Download My OneApp on https://saf.cx/lPKcC",
       "UEULA5XWCI Confirmed. Ksh350.00 paid to SIP AND SAVOR WINERIES. on 30/5/26 at 9:26 PM.New M-PESA balance is Ksh10,667.54. Transaction cost, Ksh0.00. Amount you can transact within the day is 497,805.00. Download My OneApp on https://saf.cx/lPKcC",
       "UEVLA5Z1RU Confirmed. Ksh200.00 sent to MUSA  YAVATSA 0768360370 on 31/5/26 at 10:27 AM. New M-PESA balance is Ksh10,460.54. Transaction cost, Ksh7.00.  Amount you can transact within the day is 499,800.00. Download My OneApp on https://saf.cx/lPKcC",
-      "UEVLA5Z4SY Confirmed. Ksh100.00 sent to IAN  HOKA 0705241027 on 31/5/26 at 10:28 AM. New M-PESA balance is Ksh10,360.54. Transaction cost, Ksh0.00.  Amount you can transact within the day is 499,700.00. Download My OneApp on https://saf.cx/lPKcC",
+      "UEVLA5Z4SY Confirmed. Ksh100.00 sent to IAN  HOKA 0705241027 on 31/5/26 at 10:28 AM. New M-PESA balance is Ksh10,360.54. Transaction cost, Ksh0.00.  Amount you can transact within the day is 499,700.00. Download My OneApp on https://saf.cx/kWQpy",
       "UEVLA5Z7JP Confirmed. Ksh500.00 sent to DTB 247 for account 5804605001 on 31/5/26 at 10:41 AM New M-PESA balance is Ksh9,855.54. Transaction cost, Ksh5.00.Amount you can transact within the day is 499,200.00. Download My OneApp on https://saf.cx/kWQpy",
       "UEVLA5ZFU3 Confirmed. Ksh400.00 paid to SIP AND SAVOR WINERIES. on 31/5/26 at 12:15 PM.New M-PESA balance is Ksh9,455.54. Transaction cost, Ksh0.00. Amount you can transact within the day is 498,800.00. Download My OneApp on https://saf.cx/lPKcC",
       "UEVLA5ZL0C Confirmed. Ksh9,000.00 transfered to KCB M-PESA account on 31/5/26 at 12:33 PM. New M-PESA balance is Ksh455.54, new KCB M-PESA Saving account balance is Ksh9,000.00.",
@@ -817,13 +1383,97 @@ export async function GET(request: NextRequest) {
     const ingested = [];
     for (const sms of smsList) {
       const p = parse(sms);
-      if (!p || p.kind === "fuliza" || p.amount <= 0) continue;
-      
-      // Check dedup
+      if (!p) continue;
+
+      if (p.kind === "fuliza") {
+        const outstanding = p.fulizaOutstanding ?? 0;
+        const fee = p.fulizaFee ?? 0;
+        const amount = p.fulizaAmount ?? 0;
+
+        await upsertAutoDebt(supabase, userId, "fuliza", "Safaricom Fuliza", outstanding);
+
+        if (fee > 0 && p.receipt !== "UNKNOWN") {
+          const feeReceipt = p.receipt + "-fee";
+          const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
+            .eq("user_id", userId).contains("metadata", { mpesa_receipt: feeReceipt });
+          if (!count || count === 0) {
+            let { data: category } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", "expense").eq("name", "Other Expense").maybeSingle();
+            if (!category) {
+              const { data: fallback } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", "expense").limit(1).maybeSingle();
+              category = fallback;
+            }
+            if (category) {
+              await supabase.from("transactions").insert({
+                user_id: userId, account_id: mpesa.id, category_id: category.id, txn_type: "expense",
+                amount: fee, currency_code: "KES", occurred_on: p.occurredOn,
+                description: "Fuliza Access Fee",
+                metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, raw_sms: p.raw }
+              });
+              ingested.push({ receipt: feeReceipt, kind: "expense", amount: fee, desc: "Fuliza Access Fee" });
+            }
+          }
+        }
+
+        if (amount > 0 && p.receipt !== "UNKNOWN") {
+          const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
+            .eq("user_id", userId).contains("metadata", { mpesa_receipt: p.receipt });
+          if (!count || count === 0) {
+            let { data: category } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", "expense").eq("name", "Other Expense").maybeSingle();
+            if (!category) {
+              const { data: fallback } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", "expense").limit(1).maybeSingle();
+              category = fallback;
+            }
+            if (category) {
+              await supabase.from("transactions").insert({
+                user_id: userId, account_id: mpesa.id, category_id: category.id, txn_type: "expense",
+                amount: amount, currency_code: "KES", occurred_on: p.occurredOn,
+                description: "Fuliza transaction (auto-generated)",
+                metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, is_auto_generated: true, raw_sms: p.raw }
+              });
+              ingested.push({ receipt: p.receipt, kind: "expense", amount: amount, desc: "Fuliza Overdraft" });
+            }
+          }
+        }
+        continue;
+      }
+
+      if (p.amount <= 0) continue;
+
+      // Dedup / Update auto-generated
       if (p.receipt !== "UNKNOWN") {
-        const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
-          .eq("user_id", userId).contains("metadata", { mpesa_receipt: p.receipt });
-        if (count && count > 0) continue;
+        const { data: existing } = await supabase.from("transactions").select("id, metadata")
+          .eq("user_id", userId).contains("metadata", { mpesa_receipt: p.receipt }).maybeSingle();
+
+        if (existing) {
+          const isAuto = (existing.metadata as Record<string, any>)?.is_auto_generated === true;
+          if (isAuto) {
+            const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
+            let { data: category } = await supabase.from("categories").select("id")
+              .eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
+            if (!category) {
+              const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
+              category = fb;
+            }
+            await supabase.from("transactions").update({
+              category_id: category?.id ?? null,
+              txn_type: p.txnType,
+              amount: p.amount,
+              description: p.description,
+              metadata: {
+                ...((existing.metadata as Record<string, any>) ?? {}),
+                source: "sms_webhook",
+                counterparty: p.counterparty,
+                balance_after: p.mpesaBal,
+                txn_cost: p.txnCost,
+                needs_review: p.needsReview,
+                raw_sms: p.raw,
+                is_auto_generated: false
+              }
+            }).eq("id", existing.id);
+            ingested.push({ receipt: p.receipt, kind: p.txnType, amount: p.amount, desc: "Updated auto-generated" });
+          }
+          continue;
+        }
       }
 
       // Handle transfers
@@ -838,7 +1488,21 @@ export async function GET(request: NextRequest) {
           description: p.description,
           metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, savings_balance: p.savingsBal, raw_sms: p.raw },
         }).select("id").single();
-        if (txn) ingested.push({ receipt: p.receipt, kind: "transfer", amount: p.amount });
+        if (txn) {
+          ingested.push({ receipt: p.receipt, kind: "transfer", amount: p.amount });
+          try {
+            const name = p.savingsCode === "kcb_mpesa" ? "KCB M-PESA" : "M-Shwari";
+            const code = p.savingsCode;
+            const mshwariM = p.raw.match(P.mshwariLoanOutstanding);
+            if (mshwariM) {
+              await upsertAutoDebt(supabase, userId, "mshwari_loan", "M-Shwari Loan", num(mshwariM[1]));
+            }
+            const kcbM = p.raw.match(P.kcbOverdraftOutstanding);
+            if (kcbM) {
+              await upsertAutoDebt(supabase, userId, "kcb_overdraft", "KCB M-PESA Overdraft", num(kcbM[1]));
+            }
+          } catch {}
+        }
       } else {
         // Income / Expense
         const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
@@ -855,19 +1519,25 @@ export async function GET(request: NextRequest) {
             description: p.description,
             metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, txn_cost: p.txnCost, needs_review: p.needsReview, raw_sms: p.raw },
           }).select("id").single();
-          if (txn) ingested.push({ receipt: p.receipt, kind: p.txnType, amount: p.amount });
+          if (txn) {
+            ingested.push({ receipt: p.receipt, kind: p.txnType, amount: p.amount });
+            try {
+              if (p.description === "Fuliza repayment") {
+                const remaining = p.fulizaOutstanding ?? 0;
+                await upsertAutoDebt(supabase, userId, "fuliza", "Safaricom Fuliza", remaining);
+              }
+              const mshwariM = p.raw.match(P.mshwariLoanOutstanding);
+              if (mshwariM) {
+                await upsertAutoDebt(supabase, userId, "mshwari_loan", "M-Shwari Loan", num(mshwariM[1]));
+              }
+              const kcbM = p.raw.match(P.kcbOverdraftOutstanding);
+              if (kcbM) {
+                await upsertAutoDebt(supabase, userId, "kcb_overdraft", "KCB M-PESA Overdraft", num(kcbM[1]));
+              }
+            } catch {}
+          }
         }
       }
-    }
-
-    // Set exact requested balances
-    await setBalance(supabase, kcb.id, 7000);
-    await setBalance(supabase, mpesa.id, 427.60);
-    
-    // Reset all other accounts opening_balances to 0.00
-    const others = accts.filter(a => a.account_code !== "main" && a.account_code !== "kcb_mpesa");
-    for (const o of others) {
-      await supabase.from("accounts").update({ opening_balance: 0 }).eq("id", o.id);
     }
 
     return NextResponse.json({ status: "backfill_complete", parsed_and_inserted: ingested.length, details: ingested });
@@ -885,9 +1555,6 @@ export async function GET(request: NextRequest) {
 
     // 1. Delete all transactions created by the SBM webhook
     await supabase.from("transactions").delete().eq("user_id", userId).contains("metadata", { source: "sbm_webhook" });
-
-    // 2. Reset SBM Bank account opening_balance to 0
-    await supabase.from("accounts").update({ opening_balance: 0 }).eq("id", sbmAccount.id);
 
     const sbmList = [
       "Dear ROY, online purchase of KES 149.00 has been made on your card 529058******4101 at GOOGLE *Truecaller Spa on 2026-05-15 01:49:30.  For queries, call 0709800000.",
@@ -959,15 +1626,256 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Set exact final calibrated balances to protect internal transfer wealth preservation
-    await setBalance(supabase, mpesa.id, 122.32);
-    const kcbAccount = accts.find(a => a.account_code === "kcb_mpesa");
-    if (kcbAccount) await setBalance(supabase, kcbAccount.id, 30001.00);
-    const mshwariAccount = accts.find(a => a.account_code === "mshwari");
-    if (mshwariAccount) await setBalance(supabase, mshwariAccount.id, 3000.27);
-    await setBalance(supabase, sbmAccount.id, 13.46);
-
     return NextResponse.json({ status: "sbm_backfill_complete", parsed_and_inserted: ingested.length, details: ingested });
+  }
+
+  // ?backfilldtb=1 → delete duplicates and re-ingest all pasted DTB SMS notifications!
+  if (request.nextUrl.searchParams.get("backfilldtb") === "1") {
+    const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+    if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
+
+    const dtbAccount = accts.find(a => a.account_code === "bank_a");
+    const mpesa = accts.find(a => a.account_code === "main");
+    if (!dtbAccount || !mpesa) return NextResponse.json({ error: "DTB Bank or M-Pesa account missing" }, { status: 500 });
+    const userId = dtbAccount.user_id;
+
+    // 1. Delete all transactions created by the DTB webhook
+    await supabase.from("transactions").delete().eq("user_id", userId).contains("metadata", { source: "dtb_webhook" });
+
+    const dtbList = [
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 484.66 for a POS PURCHASE at Name.com, Inc 7202492374 CO  on 02/06/2026.  DTB",
+      "Dear Roy otieno , you have successfully transferred KES 500.00 from your MPESA to account: 58XXXX5001. Mpesa Ref No: UEVLA5Z7JP. DTB",
+      "Dear Roy otieno , you have successfully transferred KES 1,450.00 to  ROY OKOLA OTIENO 254726683835. M-PESA Ref: UDHLA10FYX. Ref No: 455402879. DTB.",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 1450 for a MOBILE BANKING TXN on 17/04/2026.  DTB",
+      "Dear Roy otieno , you have successfully transferred KES 1,000.00 to  ROY OKOLA OTIENO 254726683835. M-PESA Ref: UDHLA0Z0G9. Ref No: 455289170. DTB.",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 1000 for a MOBILE BANKING TXN on 17/04/2026.  DTB",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 454.53 for a POS PURCHASE at APPLE.COM/BILL CORK IRL on 13/04/2026.  DTB",
+      "Dear Roy otieno , you have successfully transferred KES 2,000.00 to  ROY OKOLA OTIENO 254726683835. M-PESA Ref: UDDLA0JJ1U. Ref No: 454160140. DTB.",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 2000 for a MOBILE BANKING TXN on 13/04/2026.  DTB",
+      "Dear Roy otieno , you have successfully transferred KES 100.00 to  ROY OKOLA OTIENO 254726683835. M-PESA Ref: UD6LABNAGI. Ref No: 452046969. DTB.",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 100 for a MOBILE BANKING TXN on 07/04/2026.  DTB",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 51 for a POS PURCHASE at UBER * PENDING Vorden NLD on 27/02/2026.  DTB",
+      "Dear ROY  OKOLA OTIENO , you have received KES 100 in your account 580XXXX001 from 254726683835-ROY OKOLA OTIENO. Ref UBRLA7QIOV. DTB",
+      "Dear ROY OKOLA OTIENO, you have successfully transferred KES 100 from your M-PESA to account 5804605001. Ref UBRLA7QIOV. DTB",
+      "Dear ROY  OKOLA OTIENO , you have received KES 105 in your account 580XXXX001 from 254726683835-ROY OKOLA OTIENO. Ref UAJLA440Q0. DTB",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 102 for a POS PURCHASE at GOOGLE *1 1 1 1 WARP S MOUNTAIN VIEW CA  on 19/01/2026.  DTB",
+      "Dear ROY OKOLA OTIENO, you have successfully transferred KES 105 from your M-PESA to account 5804605001. Ref UAJLA440Q0. DTB",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 10.99 for a POS PURCHASE at GOOGLE *TikTok Videos MOUNTAIN VIEW CA  on 09/01/2026.  DTB",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 45 for a POS PURCHASE at GOOGLE *TikTok Videos MOUNTAIN VIEW CA  on 09/01/2026.  DTB",
+      "ALERT: Your account no. 5XXXXX5001 has been debited with KES 67.61 for a POS PURCHASE at GOOGLE *YouTube Member MOUNTAIN VIEW CA  on 05/01/2026.  DTB"
+    ];
+
+    const ingested = [];
+    for (const sms of dtbList) {
+      const dtb = parseDtbSMS(sms);
+      if (!dtb) continue;
+
+      // Deduplicate for mobile banking alert messages based on date and amount
+      if (dtb.isMobileBankingAlert) {
+        const { data: dup } = await supabase.from("transactions").select("id")
+          .eq("user_id", userId)
+          .eq("amount", dtb.amount)
+          .eq("occurred_on", dtb.occurredOn)
+          .or(`account_id.eq.${dtbAccount.id},transfer_account_id.eq.${dtbAccount.id}`);
+        if (dup && dup.length > 0) {
+          continue;
+        }
+      }
+
+      // Dedup by receipt
+      if (dtb.receipt !== "UNKNOWN") {
+        const { data: existing } = await supabase.from("transactions").select("id, txn_type")
+          .eq("user_id", userId)
+          .or(`metadata->>dtb_receipt.eq.${dtb.receipt},metadata->>mpesa_receipt.eq.${dtb.receipt}`);
+
+        if (existing && existing.length > 0) {
+          continue;
+        }
+      }
+
+      if (dtb.kind === "transfer") {
+        const isOutflow = dtb.description === "Transfer to M-Pesa";
+        const fromId = isOutflow ? dtbAccount.id : mpesa.id;
+        const toId   = isOutflow ? mpesa.id : dtbAccount.id;
+
+        const { data: txn } = await supabase.from("transactions").insert({
+          user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
+          txn_type: "transfer", amount: dtb.amount, currency_code: "KES", occurred_on: dtb.occurredOn,
+          description: dtb.description,
+          metadata: { source: "dtb_webhook", dtb_receipt: dtb.receipt, counterparty: dtb.counterparty, raw_sms: sms },
+        }).select("id").single();
+        if (txn) ingested.push({ receipt: dtb.receipt, kind: "transfer", amount: dtb.amount });
+      } else {
+        const categoryName = guessCategory(sms, dtb.kind);
+        let { data: category } = await supabase.from("categories").select("id")
+          .eq("user_id", userId).eq("name", categoryName).eq("type", dtb.kind).single();
+        if (!category) {
+          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", dtb.kind).limit(1).single();
+          category = fb;
+        }
+        if (category) {
+          const { data: txn } = await supabase.from("transactions").insert({
+            user_id: userId, account_id: dtbAccount.id, category_id: category.id,
+            txn_type: dtb.kind, amount: dtb.amount, currency_code: "KES", occurred_on: dtb.occurredOn,
+            description: dtb.description,
+            metadata: { source: "dtb_webhook", dtb_receipt: dtb.receipt, counterparty: dtb.counterparty, raw_sms: sms },
+          }).select("id").single();
+          if (txn) ingested.push({ receipt: dtb.receipt, kind: dtb.kind, amount: dtb.amount });
+        }
+      }
+    }
+
+    return NextResponse.json({ status: "dtb_backfill_complete", parsed_and_inserted: ingested.length, details: ingested });
+  }
+
+  // ?backfillim=1 → delete duplicates and re-ingest all pasted I&M Bank SMS notifications!
+  if (request.nextUrl.searchParams.get("backfillim") === "1") {
+    const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+    if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
+
+    const imAccount = accts.find(a => a.account_code === "bank_b");
+    const mpesa = accts.find(a => a.account_code === "main");
+    if (!imAccount || !mpesa) return NextResponse.json({ error: "I&M Bank or M-Pesa account missing" }, { status: 500 });
+    const userId = imAccount.user_id;
+
+    // 1. Delete all transactions created by the I&M webhook
+    await supabase.from("transactions").delete().eq("user_id", userId).contains("metadata", { source: "im_webhook" });
+
+    const imList = [
+      "Dear Customer,you have successfully sent KES 700.0 to 254726683835 with M Pesa Reference Number UAGLA3TKPT I&amp;M Bank",
+      "Dear Customer,you have successfully sent KES 800.0 to 254726683835 with M Pesa Reference Number UAKLA47X0Q I&amp;M Bank",
+      "Dear Customer,you have successfully sent KES 150.0 to 254726683835 with M Pesa Reference Number UAKLA48KKZ I&amp;M Bank",
+      "Dear Customer,you have successfully sent KES 300.0 to 254726683835 with M Pesa Reference Number UAPLA4NCZV I&amp;M Bank",
+      "You have received KES 500.00 from CIZRENN VYLLIN. Transaction Ref ID: 3449RNSD5689. Mpesa Ref ID: UB4LA5K6SA. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Dear Customer,you have successfully sent KES 50.0 to 254726683835 with M Pesa Reference Number UB6LA5RU78 I&amp;M Bank",
+      "Dear Customer,You have received KES 35000 via PesaLink into Acc 05508402466150 Tran Ref 006000572026020917143214463567. For enquiry,call 020 3221000. IM Bank.",
+      "Dear Customer,you have successfully sent KES 25000.0 to 254721656815 with M Pesa Reference Number UB9JL656WR I&amp;M Bank",
+      "Dear Customer,you have successfully sent KES 5000.0 to 254726683835 with M Pesa Reference Number UB9LA63CMS I&amp;M Bank",
+      "Dear Customer,you have successfully sent KES 3800.0 to 254746511297 with M Pesa Reference Number UB9AG69Q4D I&amp;M Bank",
+      "Dear Customer,you have successfully sent KES 1200.0 to 254726683835 with M Pesa Reference Number UBALA64O6B I&amp;M Bank",
+      "Dear Customer,You have received KES 71600 via PesaLink into Acc 05508402466150 Tran Ref 006000572026021015273861210733. For enquiry,call 020 3221000. IM Bank.",
+      "Bank to M-PESA transfer of KES 20,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3503OSKR6953. M-PESA Ref ID: UBALA661SH",
+      "You have received KES 20,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3503OSKR6953. Mpesa Ref ID: UBALA661SH. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 1,000.00 to 254720214254 - BRIAN MUSINA BURUDI successfully processed. Transaction Ref ID: 3505KUAD0280. M-PESA Ref ID: UBACY6D82Z",
+      "Bank to M-PESA transfer of KES 1,000.00 to 0796322807 - DOREEN NDINDAH MUEMA successfully processed. Transaction Ref ID: 3512YLKR9016. M-PESA Ref ID: UBBIN69TB3",
+      "Bank to M-PESA transfer of KES 1,600.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3519CMTT1133. M-PESA Ref ID: UBCLA6C3NF",
+      "You have received KES 1,600.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3519CMTT1133. Mpesa Ref ID: UBCLA6C3NF. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 2,500.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3547DZAO4271. M-PESA Ref ID: UBFLA6NGJA",
+      "You have received KES 2,500.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3547DZAO4271. Mpesa Ref ID: UBFLA6NGJA. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 3,000.00 to 0746511297 - SONIA AKOTH OTIENO successfully processed. Transaction Ref ID: 3554ENKU3417. M-PESA Ref ID: UBGAG6WUEB",
+      "Bank to M-PESA transfer of KES 2,000.00 to 254705036864 - CIZRENN VYLLIN successfully processed. Transaction Ref ID: 3554DCTB3460. M-PESA Ref ID: UBG256QQGK",
+      "Bank to M-PESA transfer of KES 500.00 to 254748459641 - Nicholas Nganga Mugi successfully processed. Transaction Ref ID: 3554INQE3509. M-PESA Ref ID: UBGQS6WRD0",
+      "Dear Customer,you have successfully sent KES 2000.0 to 254726683835 with M Pesa Reference Number UBHLA6SHQ9 I&amp;M Bank",
+      "Bank to M-PESA transfer of KES 500.00 to 254708767392 - Gathogo Kirubi Kigotho successfully processed. Transaction Ref ID: 3565LBJP8282. M-PESA Ref ID: UBHP66XQFM",
+      "Bank to M-PESA transfer of KES 2,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3578KWLH9592. M-PESA Ref ID: UBJLA6YUR1",
+      "You have received KES 2,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3578KWLH9592. Mpesa Ref ID: UBJLA6YUR1. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 500.00 to 0758198422 - pauline sau chamangi successfully processed. Transaction Ref ID: 3578GGEW9638. M-PESA Ref ID: UBJK672AC3",
+      "M-PESA transfer of KES 3,320.00 to  successfully processed. Transaction Ref ID: 667620796801. M-PESA Ref ID: UBJS883K90",
+      "You have received KES 600.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3591EWRT6052. Mpesa Ref ID: UBKLA74NEP. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 600.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3591EWRT6052. M-PESA Ref ID: UBKLA74NEP",
+      "Dear Customer,you have successfully sent KES 3000.0 to 254726683835 with M Pesa Reference Number UBLLA76Y4U I&amp;M Bank",
+      "Dear Customer,you have successfully sent KES 500.0 to 254708767392 with M Pesa Reference Number UBMP67CGLK I&amp;M Bank",
+      "Dear Customer,you have successfully sent KES 2000.0 to 254726683835 with M Pesa Reference Number UBMLA79C5U I&amp;M Bank",
+      "Bank to M-PESA transfer of KES 4,500.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3612MBBT8200. M-PESA Ref ID: UBNLA7BO20",
+      "You have received KES 4,500.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3612MBBT8200. Mpesa Ref ID: UBNLA7BO20. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 400.00 to 254716497978 - ALEX LUVAI LUVAI successfully processed. Transaction Ref ID: 3685QCCN6583. M-PESA Ref ID: UC3077ZMH6",
+      "Bank to M-PESA transfer of KES 1,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3685WURQ6612. M-PESA Ref ID: UC3LA84E39",
+      "You have received KES 1,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3685WURQ6612. Mpesa Ref ID: UC3LA84E39. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 500.00 to 254708767392 - Gathogo Kirubi Kigotho successfully processed. Transaction Ref ID: 3694EJXR7588. M-PESA Ref ID: UC4P68BPQE",
+      "Bank to M-PESA transfer of KES 1,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3694AYSX7552. M-PESA Ref ID: UC4LA888AS",
+      "You have received KES 1,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3694AYSX7552. Mpesa Ref ID: UC4LA888AS. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 3,500.00 to 0796322807 - DOREEN NDINDAH MUEMA successfully processed. Transaction Ref ID: 3710LZKI7688. M-PESA Ref ID: UC6IN8DZXH",
+      "Bank to M-PESA transfer of KES 500.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3720VMHM0518. M-PESA Ref ID: UC7LA8HXJ7",
+      "You have received KES 500.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3720VMHM0518. Mpesa Ref ID: UC7LA8HXJ7. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 2,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3742KHPO7556. M-PESA Ref ID: UCALA8QLUM",
+      "You have received KES 2,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3742KHPO7556. Mpesa Ref ID: UCALA8QLUM. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 500.00 to 254708767392 - Gathogo Kirubi Kigotho successfully processed. Transaction Ref ID: 3755PBKY5314. M-PESA Ref ID: UCBP68ZUZ9",
+      "Bank to M-PESA transfer of KES 800.00 to 0112217747 - Donald ombok odera successfully processed. Transaction Ref ID: 3812XVRW5194. M-PESA Ref ID: UCIQW9UPKN",
+      "Bank to M-PESA transfer of KES 500.00 to 254708767392 - Gathogo Kirubi Kigotho successfully processed. Transaction Ref ID: 3815AFOS5807. M-PESA Ref ID: UCIP69OTBK",
+      "Bank to M-PESA transfer of KES 1,200.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3824SPNP8251. M-PESA Ref ID: UCJLA9PCPR",
+      "You have received KES 1,200.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3824SPNP8251. Mpesa Ref ID: UCJLA9PCPR. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 5,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3840QRFB4007. M-PESA Ref ID: UCLLA9VXCK",
+      "You have received KES 5,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3840QRFB4007. Mpesa Ref ID: UCLLA9VXCK. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 2,100.00 to 0743257910 - EMMANUEL NSENGIYUMVA successfully processed. Transaction Ref ID: 3842IOSU6163. M-PESA Ref ID: UCL5ZABD0I",
+      "Bank to M-PESA transfer of KES 3,700.00 to 254705131326 - OTIENO ODEK MYLES successfully processed. Transaction Ref ID: 3858JGKS8718. M-PESA Ref ID: UCNBXAFTZR",
+      "Bank to M-PESA transfer of KES 500.00 to 254708767392 - Gathogo Kirubi Kigotho successfully processed. Transaction Ref ID: 3863SWOS5135. M-PESA Ref ID: UCOP6A9EMD",
+      "Bank to M-PESA transfer of KES 600.00 to 254748459641 - Nicholas Nganga Mugi successfully processed. Transaction Ref ID: 3894RWOR3473. M-PESA Ref ID: UCRQSASYWG",
+      "You have received KES 2,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 3902PNUI6111. Mpesa Ref ID: UCSLAAOA75. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 2,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 3902PNUI6111. M-PESA Ref ID: UCSLAAOA75",
+      "Bank to M-PESA transfer of KES 500.00 to 254748459641 - Nicholas Nganga Mugi successfully processed. Transaction Ref ID: 3908QFXD8083. M-PESA Ref ID: UCTQSAZ0TU",
+      "Bank to M-PESA transfer of KES 500.00 to 254708767392 - Gathogo Kirubi Kigotho successfully processed. Transaction Ref ID: 3928SOIZ2190. M-PESA Ref ID: UCVP6B3OE1",
+      "You have received KES 400.00 from CIZRENN VYLLIN. Transaction Ref ID: 3969UVZI0811. Mpesa Ref ID: UD5LABJICH. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 500.00 to 254708767392 - Gathogo Kirubi Kigotho successfully processed. Transaction Ref ID: 4014CUSX2328. M-PESA Ref ID: UDAP60CERC",
+      "Pesalink transfer of KES 5,000.00 to 254726683835 on 10/04/2026 17:48 processed successfully. Transaction Ref ID:060690198038",
+      "Bank to M-PESA transfer of KES 18,000.00 to 254721656815 - JUDITH MAUREEN AKINYI OKWEMBA successfully processed. Transaction Ref ID: 4014HOSU2487. M-PESA Ref ID: UDAJL0AWZT",
+      "Bank to M-PESA transfer of KES 2,561.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 4014NJHU3362. M-PESA Ref ID: UDALA08HSP",
+      "You have received KES 2,561.00 from ROY OKOLA OTIENO. Transaction Ref ID: 4014NJHU3362. Mpesa Ref ID: UDALA08HSP. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 1,000.00 to 254705131326 - OTIENO ODEK MYLES successfully processed. Transaction Ref ID: 4014BJMU2419. M-PESA Ref ID: UDABX0KU5V",
+      "Bank to M-PESA transfer of KES 6,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 4014AMTR2949. M-PESA Ref ID: UDALA08F0N",
+      "You have received KES 6,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 4014AMTR2949. Mpesa Ref ID: UDALA08F0N. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 4,000.00 to 0746511297 - SONIA AKOTH OTIENO successfully processed. Transaction Ref ID: 4014AGXK2617. M-PESA Ref ID: UDAAG0I0EI",
+      "Bank to M-PESA transfer of KES 500.00 to 0796322807 - DOREEN NDINDAH MUEMA successfully processed. Transaction Ref ID: 4022DEAH8038. M-PESA Ref ID: UDBIN0AKDS",
+      "Bank to M-PESA transfer of KES 1,500.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 4032JKST3552. M-PESA Ref ID: UDCLA0HGLD",
+      "You have received KES 1,500.00 from ROY OKOLA OTIENO. Transaction Ref ID: 4032JKST3552. Mpesa Ref ID: UDCLA0HGLD. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 500.00 to 254708767392 - Gathogo Kirubi Kigotho successfully processed. Transaction Ref ID: 4032RIVM3574. M-PESA Ref ID: UDCP60LC98",
+      "Bank to M-PESA transfer of KES 200.00 to 254748459641 - Nicholas Nganga Mugi successfully processed. Transaction Ref ID: 4032SXQR3619. M-PESA Ref ID: UDCQS0QJCR",
+      "Bank to M-PESA transfer of KES 600.00 to 254748459641 - Nicholas Nganga Mugi successfully processed. Transaction Ref ID: 4056ROKE5786. M-PESA Ref ID: UDFQS11DV5",
+      "You have received KES 3,000.00 from ROY OKOLA OTIENO. Transaction Ref ID: 4092ADKO1333. Mpesa Ref ID: UDJLA18WEJ. Bank to Mpesa Ni Sare Kabisa with I&M Bank.",
+      "Bank to M-PESA transfer of KES 3,000.00 to 0726683835 - ROY OKOLA OTIENO successfully processed. Transaction Ref ID: 4092ADKO1333. M-PESA Ref ID: UDJLA18WEJ",
+      "Bank to M-PESA transfer of KES 1,000.00 to 0796322807 - DOREEN NDINDAH MUEMA successfully processed. Transaction Ref ID: 4096HYZR7980. M-PESA Ref ID: UDKIN189G6",
+      "KES 15.00 paid to VISTACOM CYBER & PRINTS (Acc 071616) on 20/04/26 at 12:18 PM Ref: UDKLA1BJF7. Enquiries, call 0719088000.",
+      "KES 30.00 paid to VISTACOM CYBER & PRINTS (Acc 071616) on 20/04/26 at 12:24 PM Ref: UDKLA1BFUW. Enquiries, call 07190"
+    ];
+
+    const ingested = [];
+    for (const sms of imList) {
+      const im = parseImSMS(sms);
+      if (!im) continue;
+
+      // Dedup by receipt
+      if (im.receipt !== "UNKNOWN") {
+        const { data: existing } = await supabase.from("transactions").select("id, txn_type")
+          .eq("user_id", userId)
+          .or(`metadata->>im_receipt.eq.${im.receipt},metadata->>mpesa_receipt.eq.${im.receipt}`);
+
+        if (existing && existing.length > 0) {
+          continue;
+        }
+      }
+
+      if (im.kind === "transfer") {
+        const isOutflow = im.description.toLowerCase().includes("transfer to");
+        const fromId = isOutflow ? imAccount.id : mpesa.id;
+        const toId   = isOutflow ? mpesa.id : imAccount.id;
+
+        const { data: txn } = await supabase.from("transactions").insert({
+          user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
+          txn_type: "transfer", amount: im.amount, currency_code: "KES", occurred_on: im.occurredOn,
+          description: im.description,
+          metadata: { source: "im_webhook", im_receipt: im.receipt, counterparty: im.counterparty, raw_sms: sms },
+        }).select("id").single();
+        if (txn) ingested.push({ receipt: im.receipt, kind: "transfer", amount: im.amount });
+      } else {
+        const categoryName = guessCategory(sms, im.kind);
+        let { data: category } = await supabase.from("categories").select("id")
+          .eq("user_id", userId).eq("name", categoryName).eq("type", im.kind).single();
+        if (!category) {
+          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", im.kind).limit(1).single();
+          category = fb;
+        }
+        if (category) {
+          const { data: txn } = await supabase.from("transactions").insert({
+            user_id: userId, account_id: imAccount.id, category_id: category.id,
+            txn_type: im.kind, amount: im.amount, currency_code: "KES", occurred_on: im.occurredOn,
+            description: im.description,
+            metadata: { source: "im_webhook", im_receipt: im.receipt, counterparty: im.counterparty, raw_sms: sms },
+          }).select("id").single();
+          if (txn) ingested.push({ receipt: im.receipt, kind: im.kind, amount: im.amount });
+        }
+      }
+    }
+
+    return NextResponse.json({ status: "im_backfill_complete", parsed_and_inserted: ingested.length, details: ingested });
   }
 
   // ?recent=1 → list the latest transactions with full metadata
