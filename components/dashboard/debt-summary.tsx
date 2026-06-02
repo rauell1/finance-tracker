@@ -40,24 +40,39 @@ export function DebtSummary({ debts }: Props) {
         </div>
       ) : (
         <div className="divide-y divide-[#E2E2FF]">
-          {displayed.map((d) => (
-            <div key={d.id} className="px-6 py-4 flex items-center justify-between gap-3 hover:bg-[#F0F0FF]/15 transition-colors">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-sm font-bold text-[#0A0D27] truncate">{d.creditor}</span>
-                  {d.auto_tracked && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200 inline-flex items-center gap-0.5 shrink-0">
-                      <Zap className="h-2.5 w-2.5" /> Auto
-                    </span>
+          {displayed.map((d) => {
+            const owed = Number(d.current_balance);
+            const limit = Number(d.principal);
+            const isCreditLine = ["fuliza", "overdraft", "kcb_overdraft", "credit_card"].includes(d.debt_type);
+            const available = isCreditLine ? Math.max(0, limit - owed) : null;
+            return (
+              <div key={d.id} className="px-6 py-4 flex items-center justify-between gap-3 hover:bg-[#F0F0FF]/15 transition-colors">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-sm font-bold text-[#0A0D27] truncate">{d.creditor}</span>
+                    {d.auto_tracked && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200 inline-flex items-center gap-0.5 shrink-0">
+                        <Zap className="h-2.5 w-2.5" /> Auto
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-[#33375C]/60 font-bold uppercase tracking-wider">
+                    {isCreditLine ? `Credit line · ${formatCurrency(limit)} limit` : d.debt_type.replace(/_/g, " ")}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={cn("text-sm font-bold", owed > 0 ? "text-rose-600" : "text-emerald-600")}>
+                    {owed > 0 ? formatCurrency(owed) : isCreditLine ? "Nothing owed" : formatCurrency(0)}
+                  </p>
+                  {available !== null && (
+                    <p className="text-[10px] text-[#33375C]/60 font-semibold mt-0.5">
+                      {formatCurrency(available)} available
+                    </p>
                   )}
                 </div>
-                <p className="text-[10px] text-[#33375C]/60 font-bold uppercase tracking-wider">{d.debt_type.replace(/_/g, " ")}</p>
               </div>
-              <p className={cn("text-sm font-bold shrink-0", Number(d.current_balance) > 0 ? "text-rose-600" : "text-emerald-600")}>
-                {formatCurrency(Number(d.current_balance))}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
