@@ -65,22 +65,24 @@ export async function getKPIData(month?: string): Promise<KPIData> {
   if (ids.length > 0) {
     const { data: txns } = await supabase
       .from("transactions")
-      .select("account_id, amount, txn_type, currency_code, occurred_on, metadata")
-      .in("account_id", ids)
+      .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, metadata")
+      .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
       .lt("occurred_on", endStr);
     for (const t of txns ?? []) {
+      const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+      if (isCounter) continue;
+
       const amt = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
+      const isSourceActive = ids.includes(t.account_id);
+      const isDestActive = t.transfer_account_id ? ids.includes(t.transfer_account_id) : false;
+
       if (t.txn_type === "income") {
-        totalBalance += amt;
+        if (isSourceActive) totalBalance += amt;
       } else if (t.txn_type === "expense") {
-        totalBalance -= amt;
+        if (isSourceActive) totalBalance -= amt;
       } else if (t.txn_type === "transfer") {
-        const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
-        if (isCounter) {
-          totalBalance += amt;
-        } else {
-          totalBalance -= amt;
-        }
+        if (isSourceActive) totalBalance -= amt;
+        if (isDestActive) totalBalance += amt;
       }
     }
   }
@@ -163,11 +165,11 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
   const ids = accounts.map((a) => a.id);
   if (ids.length === 0) return [];
 
-  // Batch query all transactions for active wallets up to endStr
+  // Batch query all transactions where either account_id OR transfer_account_id is in ids
   const { data: txns } = await supabase
     .from("transactions")
-    .select("account_id, amount, txn_type, currency_code, occurred_on, description, metadata")
-    .in("account_id", ids)
+    .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, description, metadata")
+    .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
     .lt("occurred_on", endStr);
 
   const results: AccountComparison[] = [];
@@ -177,15 +179,17 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
     let lifetimeIncome = 0;
     let lifetimeExpense = 0;
 
-    const accountTxns = (txns ?? []).filter((t) => t.account_id === a.id);
-    for (const t of accountTxns) {
+    for (const t of txns ?? []) {
+      const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+      if (isCounter) continue;
+
       const amt = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
       const isCurrentMonth = t.occurred_on >= targetMonth;
 
-      if (t.txn_type === "income") {
+      if (t.txn_type === "income" && t.account_id === a.id) {
         lifetimeIncome += amt;
         if (isCurrentMonth) income += amt;
-      } else if (t.txn_type === "expense") {
+      } else if (t.txn_type === "expense" && t.account_id === a.id) {
         if (t.description !== "Fuliza repayment") {
           lifetimeExpense += amt;
           if (isCurrentMonth) expense += amt;
@@ -193,13 +197,15 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
           lifetimeExpense += amt; // Include Fuliza repayment in lifetime expense to calculate cash balance correctly
         }
       } else if (t.txn_type === "transfer") {
-        const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
-        if (isCounter) {
-          lifetimeIncome += amt;
-          if (isCurrentMonth) income += amt;
-        } else {
+        // Outflow from a: when account_id === a.id
+        if (t.account_id === a.id) {
           lifetimeExpense += amt;
           if (isCurrentMonth) expense += amt;
+        }
+        // Inflow to a: when transfer_account_id === a.id
+        if (t.transfer_account_id === a.id) {
+          lifetimeIncome += amt;
+          if (isCurrentMonth) income += amt;
         }
       }
     }
