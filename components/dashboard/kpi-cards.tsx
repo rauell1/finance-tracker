@@ -5,9 +5,10 @@ import { cn } from "@/lib/utils";
 
 interface KPICardsProps {
   data: KPIData;
+  period?: "month" | "quarter" | "year" | "all";
 }
 
-export function KPICards({ data }: KPICardsProps) {
+export function KPICards({ data, period = "month" }: KPICardsProps) {
   const cards = [
     {
       title: "Total Balance",
@@ -20,7 +21,7 @@ export function KPICards({ data }: KPICardsProps) {
       valueColor: "text-[#0A0D27]",
     },
     {
-      title: "Monthly Income",
+      title: period === "quarter" ? "Quarterly Income" : period === "year" ? "Yearly Income" : period === "all" ? "Total Income" : "Monthly Income",
       value: formatCurrency(data.monthlyIncome),
       icon: TrendingUp,
       change: data.incomeChange,
@@ -31,7 +32,7 @@ export function KPICards({ data }: KPICardsProps) {
       invertChange: false,
     },
     {
-      title: "Monthly Expenses",
+      title: period === "quarter" ? "Quarterly Expenses" : period === "year" ? "Yearly Expenses" : period === "all" ? "Total Expenses" : "Monthly Expenses",
       value: formatCurrency(data.monthlyExpense),
       icon: TrendingDown,
       change: data.expenseChange,
@@ -111,7 +112,9 @@ export function KPICards({ data }: KPICardsProps) {
                   )}
                   <span>{formatPercentage(card.change)}</span>
                 </div>
-                <span className="text-[10px] font-bold text-[#33375C]/40">vs last month</span>
+                <span className="text-[10px] font-bold text-[#33375C]/40">
+                  {period === "quarter" ? "vs last quarter" : period === "year" ? "vs last year" : "vs last month"}
+                </span>
               </div>
             )}
           </div>

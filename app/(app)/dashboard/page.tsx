@@ -14,15 +14,23 @@ import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
 import { Wallet } from "lucide-react";
 import { SavingsProgress } from "@/components/dashboard/savings-progress";
+import { PeriodSelector } from "@/components/dashboard/period-selector";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+interface PageProps {
+  searchParams: Promise<Record<string, string>>;
+}
+
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const period = (params.period as "month" | "quarter" | "year" | "all") ?? "month";
+
   const [kpi, trend, categoryBreakdown, accountComparison, recentTxns, budgets, insights, upcoming, debts] = await Promise.all([
-    getKPIData(),
+    getKPIData(undefined, period),
     getMonthlyTrend(6),
-    getCategoryBreakdown(),
-    getAccountComparison(),
+    getCategoryBreakdown(undefined, period),
+    getAccountComparison(undefined, period),
     getRecentTransactions(8),
     getBudgets(),
     generateInsights(),
@@ -32,14 +40,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-7">
-      {/* Heading */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#0A0D27] tracking-tight">Dashboard</h1>
-        <p className="text-sm text-[#33375C]/60 mt-1">Your real-time wealth overview</p>
+      {/* Heading + Period Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#0A0D27] tracking-tight">Dashboard</h1>
+          <p className="text-sm text-[#33375C]/60 mt-1">Your real-time wealth overview</p>
+        </div>
+        <PeriodSelector />
       </div>
 
       {/* KPI cards */}
-      <KPICards data={kpi} />
+      <KPICards data={kpi} period={period} />
 
       {/* Account balances */}
       <section>

@@ -16,20 +16,93 @@ async function getCurrencyContext(supabase: Awaited<ReturnType<typeof createClie
     rates: (rates ?? []) as ExchangeRate[],
   };
 }
-export async function getKPIData(month?: string): Promise<KPIData> {
+
+function getPeriodDates(period: "month" | "quarter" | "year" | "all", monthParam?: string) {
+  const now = new Date();
+  let startStr = "";
+  let endStr = "";
+  let prevStartStr = "";
+  let prevEndStr = "";
+  
+  if (period === "quarter") {
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
+    const quarterStartMonth = Math.floor(currentMonth / 3) * 3; // 0, 3, 6, 9
+    
+    const start = new Date(currentYear, quarterStartMonth, 1);
+    startStr = start.toISOString().split("T")[0];
+    
+    const end = new Date(currentYear, quarterStartMonth + 3, 1);
+    endStr = end.toISOString().split("T")[0];
+    
+    const prevStart = new Date(currentYear, quarterStartMonth - 3, 1);
+    prevStartStr = prevStart.toISOString().split("T")[0];
+    prevEndStr = startStr;
+  } else if (period === "year") {
+    const currentYear = now.getFullYear();
+    
+    const start = new Date(currentYear, 0, 1);
+    startStr = start.toISOString().split("T")[0];
+    
+    const end = new Date(currentYear + 1, 0, 1);
+    endStr = end.toISOString().split("T")[0];
+    
+    const prevStart = new Date(currentYear - 1, 0, 1);
+    prevStartStr = prevStart.toISOString().split("T")[0];
+    prevEndStr = startStr;
+  } else if (period === "all") {
+    startStr = "1970-01-01";
+    endStr = "2999-12-31";
+    prevStartStr = "1970-01-01";
+    prevEndStr = "1970-01-01";
+  } else {
+    // default: "month"
+    const targetMonth = monthParam ?? getMonthStart(now);
+    startStr = targetMonth;
+    const end = new Date(targetMonth + "T00:00:00");
+    end.setMonth(end.getMonth() + 1);
+    endStr = end.toISOString().split("T")[0];
+    
+    const prev = new Date(targetMonth + "T00:00:00");
+    prev.setMonth(prev.getMonth() - 1);
+    prevStartStr = prev.toISOString().split("T")[0];
+    prevEndStr = targetMonth;
+  }
+  
+  return { startStr, endStr, prevStartStr, prevEndStr };
+}
+
+export async function getKPIData(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<KPIData> {
   const supabase = await createClient();
   const { baseCurrency, rates } = await getCurrencyContext(supabase);
-  const targetMonth = month ?? getMonthStart(new Date());
-  const end = new Date(targetMonth + "T00:00:00");
-  end.setMonth(end.getMonth() + 1);
-  const endStr = end.toISOString().split("T")[0];
+  
+  const { startStr, endStr, prevStartStr, prevEndStr } = getPeriodDates(period, month);
+  
   const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
     normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
       rates,
       validOn: occurredOn,
       onMissing: "original",
     });
-  const { data: cur } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", targetMonth).lt("occurred_on", endStr);
+
+  let cur: any[] = [];
+  let curPage = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error: qErr } = await supabase
+      .from("transactions")
+      .select("txn_type, amount, description, currency_code, occurred_on")
+      .in("txn_type", ["income", "expense"])
+      .gte("occurred_on", startStr)
+      .lt("occurred_on", endStr)
+      .range(curPage * pageSize, (curPage + 1) * pageSize - 1);
+    if (qErr) throw qErr;
+    if (!data || data.length === 0) break;
+    cur = cur.concat(data);
+    if (data.length < pageSize) break;
+    curPage++;
+  }
+
   let monthlyIncome = 0, monthlyExpense = 0;
   for (const t of cur ?? []) {
     const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
@@ -41,10 +114,24 @@ export async function getKPIData(month?: string): Promise<KPIData> {
       }
     }
   }
-  const prev = new Date(targetMonth + "T00:00:00");
-  prev.setMonth(prev.getMonth() - 1);
-  const prevStart = prev.toISOString().split("T")[0];
-  const { data: prevData } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", prevStart).lt("occurred_on", targetMonth);
+
+  let prevData: any[] = [];
+  let prevPage = 0;
+  while (true) {
+    const { data, error: qErr } = await supabase
+      .from("transactions")
+      .select("txn_type, amount, description, currency_code, occurred_on")
+      .in("txn_type", ["income", "expense"])
+      .gte("occurred_on", prevStartStr)
+      .lt("occurred_on", prevEndStr)
+      .range(prevPage * pageSize, (prevPage + 1) * pageSize - 1);
+    if (qErr) throw qErr;
+    if (!data || data.length === 0) break;
+    prevData = prevData.concat(data);
+    if (data.length < pageSize) break;
+    prevPage++;
+  }
+
   let prevIncome = 0, prevExpense = 0;
   for (const t of prevData ?? []) {
     const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
@@ -56,16 +143,16 @@ export async function getKPIData(month?: string): Promise<KPIData> {
       }
     }
   }
+
   const { data: accounts } = await supabase.from("accounts").select("id, opening_balance, currency_code").eq("is_archived", false);
   let totalBalance = (accounts ?? []).reduce(
-    (s, a) => s + normalizeAmount(Number(a.opening_balance), a.currency_code, targetMonth),
+    (s, a) => s + normalizeAmount(Number(a.opening_balance), a.currency_code, startStr),
     0
   );
   const ids = (accounts ?? []).map((a) => a.id);
   if (ids.length > 0) {
     let txns: any[] = [];
     let page = 0;
-    const pageSize = 1000;
     while (true) {
       const { data, error: qErr } = await supabase
         .from("transactions")
@@ -103,6 +190,7 @@ export async function getKPIData(month?: string): Promise<KPIData> {
     expenseChange: prevExpense > 0 ? ((monthlyExpense - prevExpense) / prevExpense) * 100 : 0,
   };
 }
+
 export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
   const supabase = await createClient();
   const { baseCurrency, rates } = await getCurrencyContext(supabase);
@@ -134,7 +222,8 @@ export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
   }
   return trends;
 }
-export async function getCategoryBreakdown(month?: string): Promise<CategoryBreakdown[]> {
+
+export async function getCategoryBreakdown(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<CategoryBreakdown[]> {
   const supabase = await createClient();
   const { baseCurrency, rates } = await getCurrencyContext(supabase);
   const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
@@ -143,9 +232,27 @@ export async function getCategoryBreakdown(month?: string): Promise<CategoryBrea
       validOn: occurredOn,
       onMissing: "original",
     });
-  const targetMonth = month ?? getMonthStart(new Date());
-  const end = new Date(targetMonth + "T00:00:00"); end.setMonth(end.getMonth() + 1);
-  const { data } = await supabase.from("transactions").select("category_id, amount, description, currency_code, occurred_on, category:categories!category_id(name, color)").eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", end.toISOString().split("T")[0]);
+  
+  const { startStr, endStr } = getPeriodDates(period, month);
+
+  let data: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data: pageData, error: qErr } = await supabase
+      .from("transactions")
+      .select("category_id, amount, description, currency_code, occurred_on, category:categories!category_id(name, color)")
+      .eq("txn_type", "expense")
+      .gte("occurred_on", startStr)
+      .lt("occurred_on", endStr)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (qErr) throw qErr;
+    if (!pageData || pageData.length === 0) break;
+    data = data.concat(pageData);
+    if (pageData.length < pageSize) break;
+    page++;
+  }
+
   const map = new Map<string, { name: string; color: string; amount: number }>();
   let total = 0;
   for (const r of data ?? []) {
@@ -158,7 +265,8 @@ export async function getCategoryBreakdown(month?: string): Promise<CategoryBrea
   }
   return Array.from(map.entries()).map(([id, v]) => ({ category_id: id, category_name: v.name, color: v.color, amount: v.amount, percentage: total > 0 ? (v.amount / total) * 100 : 0 })).sort((a, b) => b.amount - a.amount);
 }
-export async function getAccountComparison(month?: string): Promise<AccountComparison[]> {
+
+export async function getAccountComparison(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<AccountComparison[]> {
   const supabase = await createClient();
   const { baseCurrency, rates } = await getCurrencyContext(supabase);
   const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
@@ -167,16 +275,15 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
       validOn: occurredOn,
       onMissing: "original",
     });
-  const targetMonth = month ?? getMonthStart(new Date());
-  const end = new Date(targetMonth + "T00:00:00"); end.setMonth(end.getMonth() + 1);
-  const endStr = end.toISOString().split("T")[0];
+  
+  const { startStr, endStr } = getPeriodDates(period, month);
+
   const { data: accounts } = await supabase.from("accounts").select("*").eq("is_archived", false).order("account_code");
   if (!accounts) return [];
   
   const ids = accounts.map((a) => a.id);
   if (ids.length === 0) return [];
 
-  // Batch query all transactions where either account_id OR transfer_account_id is in ids
   let txns: any[] = [];
   let page = 0;
   const pageSize = 1000;
@@ -206,15 +313,15 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
       if (isCounter) continue;
 
       const amt = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
-      const isCurrentMonth = t.occurred_on >= targetMonth;
+      const isCurrentPeriod = t.occurred_on >= startStr;
 
       if (t.txn_type === "income" && t.account_id === a.id) {
         lifetimeIncome += amt;
-        if (isCurrentMonth) income += amt;
+        if (isCurrentPeriod) income += amt;
       } else if (t.txn_type === "expense" && t.account_id === a.id) {
         if (t.description !== "Fuliza repayment") {
           lifetimeExpense += amt;
-          if (isCurrentMonth) expense += amt;
+          if (isCurrentPeriod) expense += amt;
         } else {
           lifetimeExpense += amt; // Include Fuliza repayment in lifetime expense to calculate cash balance correctly
         }
@@ -222,12 +329,12 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
         // Outflow from a: when account_id === a.id
         if (t.account_id === a.id) {
           lifetimeExpense += amt;
-          if (isCurrentMonth) expense += amt;
+          if (isCurrentPeriod) expense += amt;
         }
         // Inflow to a: when transfer_account_id === a.id
         if (t.transfer_account_id === a.id) {
           lifetimeIncome += amt;
-          if (isCurrentMonth) income += amt;
+          if (isCurrentPeriod) income += amt;
         }
       }
     }
