@@ -546,7 +546,10 @@ function parseImSMS(text: string): ParsedSbm | null {
 
 
 function parse(rawText: string): Parsed | null {
-  const text = cleanSms(rawText);
+  let text = cleanSms(rawText);
+  // Clean out Fuliza/etc due dates to avoid matching them as transaction dates (e.g. "due on 30/06/26" in Fuliza messages)
+  text = text.replace(/due on \d{1,2}\/\d{1,2}\/\d{2,4}/gi, "");
+
   if (!looksLikeMpesa(text)) return null;
 
   // Fuliza financing line
@@ -1036,6 +1039,20 @@ export async function POST(request: NextRequest) {
       const fee = p.fulizaFee ?? 0;
       const amount = p.fulizaAmount ?? 0;
 
+      // Resolve occurredOn using parent transaction if it exists
+      let occurredOn = p.occurredOn;
+      if (p.receipt !== "UNKNOWN") {
+        const { data: parent } = await adminSb
+          .from("transactions")
+          .select("occurred_on")
+          .eq("user_id", userId)
+          .eq("metadata->>mpesa_receipt", p.receipt)
+          .maybeSingle();
+        if (parent) {
+          occurredOn = parent.occurred_on;
+        }
+      }
+
       // 1. Auto-track Fuliza outstanding balance as a debt
       await upsertAutoDebt(adminSb, userId, "fuliza", "Safaricom Fuliza", outstanding);
 
@@ -1060,7 +1077,7 @@ export async function POST(request: NextRequest) {
               txn_type: "expense",
               amount: fee,
               currency_code: "KES",
-              occurred_on: p.occurredOn,
+              occurred_on: occurredOn,
               description: "Fuliza Access Fee",
               metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, raw_sms: p.raw }
             }).select("id").single();
@@ -1087,7 +1104,7 @@ export async function POST(request: NextRequest) {
               txn_type: "expense",
               amount: amount,
               currency_code: "KES",
-              occurred_on: p.occurredOn,
+              occurred_on: occurredOn,
               description: "Fuliza transaction (auto-generated)",
               metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, is_auto_generated: true, raw_sms: p.raw }
             }).select("id").single();
