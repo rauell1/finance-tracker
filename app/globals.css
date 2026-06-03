@@ -99,6 +99,21 @@
 .dark .hover\:bg-\[\#F0F0FF\]:hover { background-color: hsl(235 45% 17%) !important; }
 .dark input, .dark select, .dark textarea { background-color: hsl(235 45% 15%) !important; color: hsl(0 0% 92%) !important; border-color: hsl(235 45% 22%) !important; }
 
+.dark .text-slate-900 { color: hsl(0 0% 95%) !important; }
+.dark .text-slate-800 { color: hsl(0 0% 92%) !important; }
+.dark .text-slate-700 { color: hsl(0 0% 85%) !important; }
+.dark .text-slate-600 { color: hsl(235 20% 75%) !important; }
+.dark .text-slate-500 { color: hsl(235 20% 68%) !important; }
+.dark .text-slate-400 { color: hsl(235 20% 60%) !important; }
+.dark .text-slate-300 { color: hsl(235 20% 50%) !important; }
+
+.dark .text-gray-900 { color: hsl(0 0% 95%) !important; }
+.dark .text-gray-800 { color: hsl(0 0% 92%) !important; }
+.dark .text-gray-700 { color: hsl(0 0% 85%) !important; }
+.dark .text-gray-600 { color: hsl(235 20% 75%) !important; }
+.dark .text-gray-500 { color: hsl(235 20% 68%) !important; }
+.dark .text-gray-400 { color: hsl(235 20% 60%) !important; }
+
 /* Print styles for reports */
 @media print {
   body { background: white !important; color: black !important; }
