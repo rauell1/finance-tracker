@@ -13,6 +13,7 @@ import { DebtSummary } from "@/components/dashboard/debt-summary";
 import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
 import { Wallet } from "lucide-react";
+import { SavingsProgress } from "@/components/dashboard/savings-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,9 @@ export default async function DashboardPage() {
         <UpcomingBills obligations={upcoming} />
         <DebtSummary debts={debts} />
       </div>
+
+      {/* Savings Goals */}
+      <SavingsProgress />
 
       {/* Insights */}
       <InsightsPanel insights={insights} />

@@ -8,62 +8,61 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 235 60% 10%; /* #0A0D27 */
-    
+
     --card: 0 0% 100%;
     --card-foreground: 235 60% 10%;
-    
+
     --popover: 0 0% 100%;
     --popover-foreground: 235 60% 10%;
-    
+
     --primary: 242 88% 62%; /* #524CF2 */
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 240 100% 97%; /* #F0F0FF */
     --secondary-foreground: 242 88% 62%;
-    
+
     --muted: 240 100% 97%;
     --muted-foreground: 235 25% 45%;
-    
+
     --accent: 240 100% 97%;
     --accent-foreground: 242 88% 62%;
-    
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    
+
     --border: 240 100% 94%; /* #E2E2FF */
     --input: 240 100% 94%;
     --ring: 242 88% 62%;
     --radius: 0.75rem; /* Smoother premium rounded corners */
   }
 
-  /* Strictly light mode override (prevents dark mode from showing dark elements) */
   .dark {
-    --background: 0 0% 100%;
-    --foreground: 235 60% 10%;
-    
-    --card: 0 0% 100%;
-    --card-foreground: 235 60% 10%;
-    
-    --popover: 0 0% 100%;
-    --popover-foreground: 235 60% 10%;
-    
-    --primary: 242 88% 62%;
+    --background: 235 60% 8%; /* #0A0D27 */
+    --foreground: 0 0% 95%;
+
+    --card: 235 45% 13%; /* #111631 */
+    --card-foreground: 0 0% 95%;
+
+    --popover: 235 45% 13%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 242 88% 62%; /* #524CF2 stays */
     --primary-foreground: 0 0% 100%;
-    
-    --secondary: 240 100% 97%;
-    --secondary-foreground: 242 88% 62%;
-    
-    --muted: 240 100% 97%;
-    --muted-foreground: 235 25% 45%;
-    
-    --accent: 240 100% 97%;
-    --accent-foreground: 242 88% 62%;
-    
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    
-    --border: 240 100% 94%;
-    --input: 240 100% 94%;
+
+    --secondary: 235 45% 17%; /* #161A3E */
+    --secondary-foreground: 242 80% 75%;
+
+    --muted: 235 45% 17%;
+    --muted-foreground: 235 20% 60%;
+
+    --accent: 235 45% 17%;
+    --accent-foreground: 242 80% 75%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 235 45% 18%; /* #1E2247 */
+    --input: 235 45% 18%;
     --ring: 242 88% 62%;
     --radius: 0.75rem;
   }
@@ -77,4 +76,32 @@
     @apply bg-background text-foreground;
     font-family: 'Figtree', sans-serif;
   }
+}
+
+/* Dark mode overrides for hardcoded colors */
+.dark .bg-white { background-color: hsl(235 45% 13%) !important; }
+.dark .bg-white\/90 { background-color: hsl(235 45% 13% / 0.9) !important; }
+.dark .border-\[\#E2E2FF\] { border-color: hsl(235 45% 18%) !important; }
+.dark .text-\[\#0A0D27\] { color: hsl(0 0% 92%) !important; }
+.dark .text-\[\#33375C\]\/60 { color: hsl(235 20% 60%) !important; }
+.dark .text-\[\#33375C\]\/70 { color: hsl(235 20% 65%) !important; }
+.dark .text-\[\#33375C\]\/50 { color: hsl(235 20% 55%) !important; }
+.dark .text-\[\#33375C\] { color: hsl(235 20% 65%) !important; }
+.dark .bg-\[\#F0F0FF\] { background-color: hsl(235 45% 17%) !important; }
+.dark .bg-\[\#F0F0FF\]\/20 { background-color: hsl(235 45% 17% / 0.2) !important; }
+.dark .bg-\[\#F0F0FF\]\/40 { background-color: hsl(235 45% 17% / 0.4) !important; }
+.dark .bg-\[\#F0F0FF\]\/50 { background-color: hsl(235 45% 17% / 0.5) !important; }
+.dark .from-white { --tw-gradient-from: hsl(235 45% 13%) !important; }
+.dark .via-white { --tw-gradient-via: hsl(235 45% 13%) !important; }
+.dark .to-\[\#F0F0FF\]\/40 { --tw-gradient-to: hsl(235 45% 17% / 0.4) !important; }
+.dark .bg-\[\#0A0D27\]\/40 { background-color: hsl(235 60% 5% / 0.6) !important; }
+.dark .hover\:bg-\[\#F0F0FF\]\/50:hover { background-color: hsl(235 45% 17% / 0.5) !important; }
+.dark .hover\:bg-\[\#F0F0FF\]:hover { background-color: hsl(235 45% 17%) !important; }
+.dark input, .dark select, .dark textarea { background-color: hsl(235 45% 15%) !important; color: hsl(0 0% 92%) !important; border-color: hsl(235 45% 22%) !important; }
+
+/* Print styles for reports */
+@media print {
+  body { background: white !important; color: black !important; }
+  .no-print, nav, aside, header { display: none !important; }
+  .print-break { page-break-before: always; }
 }

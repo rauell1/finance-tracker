@@ -4,9 +4,10 @@ import { createClient } from "@/lib/supabase/browser";
 import { formatCurrency } from "@/lib/utils";
 import type { Account } from "@/types/domain";
 import { cn } from "@/lib/utils";
-import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet } from "lucide-react";
+import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet, RefreshCw } from "lucide-react";
 import { MpesaIntegrationGuide } from "@/components/dashboard/mpesa-integration-guide";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 const accountIcons: Record<string, typeof Wallet> = {
   main: Smartphone,
@@ -42,6 +43,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [recategorizing, setRecategorizing] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -202,6 +204,45 @@ export default function SettingsPage() {
           </div>
 
           <MpesaIntegrationGuide />
+
+          {/* Data Tools */}
+          <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+              <h2 className="font-semibold text-[#0A0D27] text-sm">Data Tools</h2>
+              <p className="text-xs text-[#33375C]/60 mt-0.5">Maintenance and cleanup</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <p className="text-sm text-[#0A0D27] font-semibold">Bulk Recategorize</p>
+                <p className="text-xs text-[#33375C]/60 mt-0.5">
+                  Re-run category matching rules on all transactions. Learned mappings from your edits are checked first.
+                </p>
+                <button
+                  onClick={async () => {
+                    setRecategorizing(true);
+                    try {
+                      const res = await fetch("/api/transactions/recategorize", { method: "POST" });
+                      const data = await res.json();
+                      if (res.ok) {
+                        toast.success(`Recategorized ${data.updated} transaction${data.updated === 1 ? "" : "s"}`);
+                      } else {
+                        toast.error(data.error ?? "Failed");
+                      }
+                    } catch {
+                      toast.error("Network error");
+                    } finally {
+                      setRecategorizing(false);
+                    }
+                  }}
+                  disabled={recategorizing}
+                  className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#524CF2] text-white hover:bg-[#625DF1] transition-colors shadow-sm disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("h-4 w-4", recategorizing && "animate-spin")} />
+                  {recategorizing ? "Processing..." : "Recategorize All"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

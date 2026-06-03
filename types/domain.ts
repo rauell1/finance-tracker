@@ -143,6 +143,22 @@ export interface InsightItem {
   evidence: Record<string, unknown>;
   potential_savings?: number;
 }
+export interface SavingsGoal {
+  id: string;
+  user_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+  account_id: string | null;
+  is_completed: boolean;
+  currency_code: string;
+  created_at: string;
+  updated_at: string;
+  progress: number;
+  account?: Pick<Account, "id" | "name" | "account_code"> | null;
+}
+
 export interface TransactionFilter {
   page?: number;
   limit?: number;

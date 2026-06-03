@@ -6,12 +6,15 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { QuickAddTransaction } from "./quick-add-transaction";
+import { NotificationCenter } from "./notification-center";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/transactions", label: "Transactions" },
   { href: "/budgets", label: "Budgets" },
+  { href: "/goals", label: "Goals" },
   { href: "/analytics", label: "Analytics" },
+  { href: "/reports", label: "Reports" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -75,6 +78,9 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Add</span>
           </button>
+
+          {/* Notifications */}
+          <NotificationCenter />
 
           <div className="relative">
             <button

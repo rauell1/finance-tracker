@@ -7,3 +7,4 @@ export * from "./insights";
 export * from "./merchants";
 export * from "./recurring";
 export * from "./debts";
+export * from "./savings-goals";

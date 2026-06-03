@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getBudgets, createBudget } from "@/lib/queries";
+import { getBudgets, createBudget, getProjectedMonthEnd, getBudgetSuggestions } from "@/lib/queries";
 import { budgetSchema } from "@/lib/validators/budget";
 
 export async function GET(request: NextRequest) {
@@ -11,6 +11,17 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month") ?? undefined;
+
+    if (searchParams.get("projections") === "1") {
+      const result = await getProjectedMonthEnd(month);
+      return NextResponse.json(result);
+    }
+
+    if (searchParams.get("suggestions") === "1") {
+      const result = await getBudgetSuggestions(month);
+      return NextResponse.json(result);
+    }
+
     const result = await getBudgets(month);
     return NextResponse.json(result);
   } catch {

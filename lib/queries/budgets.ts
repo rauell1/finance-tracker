@@ -1,6 +1,101 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Budget } from "@/types/domain";
 import { getMonthStart } from "@/lib/utils";
+
+export interface BudgetProjection {
+  category_id: string;
+  category_name: string;
+  budget: number;
+  spent: number;
+  projected: number;
+  at_risk: boolean;
+}
+
+export interface BudgetSuggestion {
+  category_id: string;
+  category_name: string;
+  avg_spend: number;
+  suggested_amount: number;
+}
+
+export async function getProjectedMonthEnd(month?: string): Promise<BudgetProjection[]> {
+  const supabase = await createClient();
+  const targetMonth = month ?? getMonthStart(new Date());
+  const monthStart = new Date(targetMonth + "T00:00:00");
+  const monthEnd = new Date(monthStart);
+  monthEnd.setMonth(monthEnd.getMonth() + 1);
+  const today = new Date();
+  const dayOfMonth = Math.max(today.getDate(), 1);
+  const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+  const ratio = daysInMonth / dayOfMonth;
+
+  const budgets = await getBudgets(targetMonth, "expense");
+  return budgets.map((b) => ({
+    category_id: b.category_id,
+    category_name: b.category?.name ?? "Unknown",
+    budget: b.amount,
+    spent: b.spent,
+    projected: Math.round(b.spent * ratio * 100) / 100,
+    at_risk: b.spent * ratio > b.amount,
+  }));
+}
+
+export async function getBudgetSuggestions(month?: string): Promise<BudgetSuggestion[]> {
+  const supabase = await createClient();
+  const targetMonth = month ?? getMonthStart(new Date());
+  const suggestions: BudgetSuggestion[] = [];
+
+  // Look at last 3 months of spending per category
+  const months: string[] = [];
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(targetMonth + "T00:00:00");
+    d.setMonth(d.getMonth() - i);
+    months.push(d.toISOString().split("T")[0]);
+  }
+
+  const { data: cats } = await supabase.from("categories").select("id, name").eq("type", "expense");
+  if (!cats) return [];
+
+  for (const cat of cats) {
+    let total = 0;
+    let monthCount = 0;
+    for (const m of months) {
+      const end = new Date(m + "T00:00:00");
+      end.setMonth(end.getMonth() + 1);
+      const { data } = await supabase
+        .from("transactions")
+        .select("amount")
+        .eq("category_id", cat.id)
+        .eq("txn_type", "expense")
+        .gte("occurred_on", m)
+        .lt("occurred_on", end.toISOString().split("T")[0]);
+      const sum = (data ?? []).reduce((s, t) => s + Number(t.amount), 0);
+      if (sum > 0) { total += sum; monthCount++; }
+    }
+    if (monthCount >= 2) {
+      const avg = total / monthCount;
+      suggestions.push({
+        category_id: cat.id,
+        category_name: cat.name,
+        avg_spend: Math.round(avg),
+        suggested_amount: Math.round(avg * 1.1), // 10% buffer
+      });
+    }
+  }
+  return suggestions.sort((a, b) => b.avg_spend - a.avg_spend);
+}
+
+export async function getOverBudgetAlerts(): Promise<{ category_name: string; pct: number; spent: number; budget: number }[]> {
+  const budgets = await getBudgets(undefined, "expense");
+  return budgets
+    .filter((b) => b.pct_used >= 80)
+    .map((b) => ({
+      category_name: b.category?.name ?? "Unknown",
+      pct: b.pct_used,
+      spent: b.spent,
+      budget: b.amount,
+    }));
+}
 export async function getBudgets(month?: string, txnType?: "income" | "expense"): Promise<Budget[]> {
   const supabase = await createClient();
   const targetMonth = month ?? getMonthStart(new Date());

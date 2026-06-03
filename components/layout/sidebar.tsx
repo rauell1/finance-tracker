@@ -3,11 +3,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, ArrowLeftRight, Target, BarChart2,
-  Settings, LogOut, TrendingUp, X, Receipt, Landmark
+  Settings, LogOut, TrendingUp, X, Receipt, Landmark,
+  Crosshair, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
+import { ThemeToggle } from "./theme-toggle";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -15,7 +17,9 @@ const navItems = [
   { href: "/budgets", label: "Budgets", icon: Target },
   { href: "/recurring", label: "Bills & Subs", icon: Receipt },
   { href: "/debts", label: "Debts", icon: Landmark },
+  { href: "/goals", label: "Goals", icon: Crosshair },
   { href: "/analytics", label: "Analytics", icon: BarChart2 },
+  { href: "/reports", label: "Reports", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -93,7 +97,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       </nav>
 
       {/* User area */}
-      <div className="p-3 border-t border-[#E2E2FF]">
+      <div className="p-3 border-t border-[#E2E2FF] space-y-1">
+        <ThemeToggle />
         <button
           onClick={handleSignOut}
           className="group flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-semibold text-[#33375C] hover:bg-rose-50 hover:text-rose-600 w-full transition-colors"
