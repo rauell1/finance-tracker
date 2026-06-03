@@ -16,18 +16,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No accounts found" }, { status: 404 });
   }
 
-  const ids = accounts.map((a) => a.id);
-  const { data: txns } = await supabase
-    .from("transactions")
-    .select("account_id, transfer_account_id, amount, txn_type, metadata")
-    .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`);
-
   const results: Record<string, any> = {};
 
   const calibrationPromises = accounts.map(async (acct) => {
     const paramVal = request.nextUrl.searchParams.get(acct.account_code);
     
-    // Compute the net change for this account using the corrected logic
+    // Compute the net change for this account using the consistent logic
+    const { data: txns } = await supabase
+      .from("transactions")
+      .select("account_id, transfer_account_id, amount, txn_type, metadata")
+      .or(`account_id.eq.${acct.id},transfer_account_id.eq.${acct.id}`);
+
     let net = 0;
     for (const t of txns ?? []) {
       const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;

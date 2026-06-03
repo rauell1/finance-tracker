@@ -9,17 +9,26 @@ interface ConfirmBody {
 
 // Recompute an account's opening_balance so its computed balance equals `stated`.
 async function setBalance(supabase: any, accountId: string, stated: number) {
-  const [{ data: inc }, { data: exp }, { data: xOut }, { data: xIn }] = await Promise.all([
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "income"),
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "expense"),
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "transfer"),
-    supabase.from("transactions").select("amount").eq("transfer_account_id", accountId).eq("txn_type", "transfer"),
-  ]);
-  const net =
-    (inc ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) -
-    (exp ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) +
-    (xIn ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) -
-    (xOut ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const { data: txns } = await supabase
+    .from("transactions")
+    .select("account_id, transfer_account_id, amount, txn_type, metadata")
+    .or(`account_id.eq.${accountId},transfer_account_id.eq.${accountId}`);
+
+  let net = 0;
+  for (const t of txns ?? []) {
+    const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+    if (isCounter) continue;
+
+    const amt = Number(t.amount);
+    if (t.txn_type === "income" && t.account_id === accountId) {
+      net += amt;
+    } else if (t.txn_type === "expense" && t.account_id === accountId) {
+      net -= amt;
+    } else if (t.txn_type === "transfer") {
+      if (t.account_id === accountId) net -= amt;
+      if (t.transfer_account_id === accountId) net += amt;
+    }
+  }
   await supabase.from("accounts").update({ opening_balance: stated - net }).eq("id", accountId);
 }
 
@@ -89,7 +98,11 @@ export async function POST(request: NextRequest) {
     const isDuplicate = existingTxns.some(t => {
       if (matchedExistingIds.has(t.id)) return false;
       const isSameAmount = Math.abs(Number(t.amount) - row.amount) < 0.01;
-      const isSameType = t.txn_type === row.txn_type;
+      const isSameType = t.txn_type === row.txn_type ||
+        (t.txn_type === "transfer" && (
+          (row.txn_type === "income" && t.transfer_account_id === account_id) ||
+          (row.txn_type === "expense" && t.account_id === account_id)
+        ));
       
       const tTime = new Date(t.occurred_on).getTime();
       const rowTime = new Date(row.date).getTime();

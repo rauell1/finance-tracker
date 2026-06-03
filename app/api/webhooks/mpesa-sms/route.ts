@@ -601,17 +601,26 @@ async function extractSmsText(request: NextRequest): Promise<string> {
 
 // Recompute an account's opening_balance so its computed balance equals `stated`.
 async function setBalance(supabase: AdminClient, accountId: string, stated: number) {
-  const [{ data: inc }, { data: exp }, { data: xOut }, { data: xIn }] = await Promise.all([
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "income"),
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "expense"),
-    supabase.from("transactions").select("amount").eq("account_id", accountId).eq("txn_type", "transfer"),
-    supabase.from("transactions").select("amount").eq("transfer_account_id", accountId).eq("txn_type", "transfer"),
-  ]);
-  const net =
-    (inc ?? []).reduce((s, t) => s + Number(t.amount), 0) -
-    (exp ?? []).reduce((s, t) => s + Number(t.amount), 0) +
-    (xIn ?? []).reduce((s, t) => s + Number(t.amount), 0) -
-    (xOut ?? []).reduce((s, t) => s + Number(t.amount), 0);
+  const { data: txns } = await supabase
+    .from("transactions")
+    .select("account_id, transfer_account_id, amount, txn_type, metadata")
+    .or(`account_id.eq.${accountId},transfer_account_id.eq.${accountId}`);
+
+  let net = 0;
+  for (const t of txns ?? []) {
+    const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+    if (isCounter) continue;
+
+    const amt = Number(t.amount);
+    if (t.txn_type === "income" && t.account_id === accountId) {
+      net += amt;
+    } else if (t.txn_type === "expense" && t.account_id === accountId) {
+      net -= amt;
+    } else if (t.txn_type === "transfer") {
+      if (t.account_id === accountId) net -= amt;
+      if (t.transfer_account_id === accountId) net += amt;
+    }
+  }
   await supabase.from("accounts").update({ opening_balance: stated - net }).eq("id", accountId);
 }
 
