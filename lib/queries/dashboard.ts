@@ -63,17 +63,25 @@ export async function getKPIData(month?: string): Promise<KPIData> {
   );
   const ids = (accounts ?? []).map((a) => a.id);
   if (ids.length > 0) {
-    const [{ data: outflows }, { data: inflows }] = await Promise.all([
-      supabase.from("transactions").select("account_id, amount, txn_type, currency_code, occurred_on").in("account_id", ids),
-      supabase.from("transactions").select("transfer_account_id, amount, currency_code, occurred_on").in("transfer_account_id", ids).not("transfer_account_id", "is", null),
-    ]);
-    for (const t of outflows ?? []) {
-      const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
-      if (t.txn_type === "income") totalBalance += normalized;
-      else totalBalance -= normalized;
-    }
-    for (const t of inflows ?? []) {
-      totalBalance += normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
+    const { data: txns } = await supabase
+      .from("transactions")
+      .select("account_id, amount, txn_type, currency_code, occurred_on, metadata")
+      .in("account_id", ids)
+      .lt("occurred_on", endStr);
+    for (const t of txns ?? []) {
+      const amt = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
+      if (t.txn_type === "income") {
+        totalBalance += amt;
+      } else if (t.txn_type === "expense") {
+        totalBalance -= amt;
+      } else if (t.txn_type === "transfer") {
+        const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+        if (isCounter) {
+          totalBalance += amt;
+        } else {
+          totalBalance -= amt;
+        }
+      }
     }
   }
   return {
@@ -151,29 +159,51 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
   const endStr = end.toISOString().split("T")[0];
   const { data: accounts } = await supabase.from("accounts").select("*").eq("is_archived", false).order("account_code");
   if (!accounts) return [];
+  
+  const ids = accounts.map((a) => a.id);
+  if (ids.length === 0) return [];
+
+  // Batch query all transactions for active wallets up to endStr
+  const { data: txns } = await supabase
+    .from("transactions")
+    .select("account_id, amount, txn_type, currency_code, occurred_on, description, metadata")
+    .in("account_id", ids)
+    .lt("occurred_on", endStr);
+
   const results: AccountComparison[] = [];
   for (const a of accounts) {
-    const [
-      { data: inc }, { data: exp }, { data: tout }, { data: tin },
-      { data: incLifetime }, { data: expLifetime }, { data: toutLifetime }, { data: tinLifetime }
-    ] = await Promise.all([
-      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "income").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount, description, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "expense").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("transfer_account_id", a.id).eq("txn_type", "transfer").gte("occurred_on", targetMonth).lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "income").lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "expense").lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
-      supabase.from("transactions").select("amount, currency_code, occurred_on").eq("transfer_account_id", a.id).eq("txn_type", "transfer").lt("occurred_on", endStr),
-    ]);
-    const income = (inc ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0)
-      + (tin ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0);
-    const expense = (exp ?? []).filter(t => t.description !== "Fuliza repayment").reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0)
-      + (tout ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0);
-    const lifetimeIncome = (incLifetime ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0)
-      + (tinLifetime ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0);
-    const lifetimeExpense = (expLifetime ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0)
-      + (toutLifetime ?? []).reduce((s, t) => s + normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on), 0);
+    let income = 0;
+    let expense = 0;
+    let lifetimeIncome = 0;
+    let lifetimeExpense = 0;
+
+    const accountTxns = (txns ?? []).filter((t) => t.account_id === a.id);
+    for (const t of accountTxns) {
+      const amt = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
+      const isCurrentMonth = t.occurred_on >= targetMonth;
+
+      if (t.txn_type === "income") {
+        lifetimeIncome += amt;
+        if (isCurrentMonth) income += amt;
+      } else if (t.txn_type === "expense") {
+        if (t.description !== "Fuliza repayment") {
+          lifetimeExpense += amt;
+          if (isCurrentMonth) expense += amt;
+        } else {
+          lifetimeExpense += amt; // Include Fuliza repayment in lifetime expense to calculate cash balance correctly
+        }
+      } else if (t.txn_type === "transfer") {
+        const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+        if (isCounter) {
+          lifetimeIncome += amt;
+          if (isCurrentMonth) income += amt;
+        } else {
+          lifetimeExpense += amt;
+          if (isCurrentMonth) expense += amt;
+        }
+      }
+    }
+
     const openingBalance = normalizeAmount(Number(a.opening_balance), a.currency_code, endStr);
     results.push({
       account_id: a.id,

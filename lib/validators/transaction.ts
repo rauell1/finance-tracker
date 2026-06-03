@@ -22,12 +22,12 @@ export const transferSchema = z.object({
 export const transactionFilterSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  account_id: z.string().uuid().nullable().default(null),
-  category_id: z.string().uuid().nullable().default(null),
-  txn_type: z.enum(["income", "expense", "transfer"]).nullable().default(null),
-  date_from: z.string().nullable().default(null),
-  date_to: z.string().nullable().default(null),
-  search: z.string().max(200).nullable().default(null),
+  account_id: z.preprocess((val) => (val === "" ? null : val), z.string().uuid().nullable().default(null)),
+  category_id: z.preprocess((val) => (val === "" ? null : val), z.string().uuid().nullable().default(null)),
+  txn_type: z.preprocess((val) => (val === "" ? null : val), z.enum(["income", "expense", "transfer"]).nullable().default(null)),
+  date_from: z.preprocess((val) => (val === "" ? null : val), z.string().nullable().default(null)),
+  date_to: z.preprocess((val) => (val === "" ? null : val), z.string().nullable().default(null)),
+  search: z.preprocess((val) => (val === "" ? null : val), z.string().max(200).nullable().default(null)),
 });
 export type TransactionInput = z.infer<typeof transactionSchema>;
 export type TransferInput = z.infer<typeof transferSchema>;
