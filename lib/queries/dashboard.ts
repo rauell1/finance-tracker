@@ -63,11 +63,22 @@ export async function getKPIData(month?: string): Promise<KPIData> {
   );
   const ids = (accounts ?? []).map((a) => a.id);
   if (ids.length > 0) {
-    const { data: txns } = await supabase
-      .from("transactions")
-      .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, metadata")
-      .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
-      .lt("occurred_on", endStr);
+    let txns: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error: qErr } = await supabase
+        .from("transactions")
+        .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, metadata")
+        .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
+        .lt("occurred_on", endStr)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (qErr) throw qErr;
+      if (!data || data.length === 0) break;
+      txns = txns.concat(data);
+      if (data.length < pageSize) break;
+      page++;
+    }
     for (const t of txns ?? []) {
       const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
       if (isCounter) continue;
@@ -166,11 +177,22 @@ export async function getAccountComparison(month?: string): Promise<AccountCompa
   if (ids.length === 0) return [];
 
   // Batch query all transactions where either account_id OR transfer_account_id is in ids
-  const { data: txns } = await supabase
-    .from("transactions")
-    .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, description, metadata")
-    .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
-    .lt("occurred_on", endStr);
+  let txns: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error: qErr } = await supabase
+      .from("transactions")
+      .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, description, metadata")
+      .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
+      .lt("occurred_on", endStr)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (qErr) throw qErr;
+    if (!data || data.length === 0) break;
+    txns = txns.concat(data);
+    if (data.length < pageSize) break;
+    page++;
+  }
 
   const results: AccountComparison[] = [];
   for (const a of accounts) {

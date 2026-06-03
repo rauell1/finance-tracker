@@ -9,10 +9,21 @@ export async function getAccounts(): Promise<Account[]> {
   const balances: Record<string, number> = {};
   for (const id of ids) balances[id] = 0;
   if (ids.length > 0) {
-    const { data: txns } = await supabase
-      .from("transactions")
-      .select("account_id, transfer_account_id, amount, txn_type, metadata")
-      .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`);
+    let txns: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error: qErr } = await supabase
+        .from("transactions")
+        .select("account_id, transfer_account_id, amount, txn_type, metadata")
+        .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (qErr) throw qErr;
+      if (!data || data.length === 0) break;
+      txns = txns.concat(data);
+      if (data.length < pageSize) break;
+      page++;
+    }
     
     for (const r of txns ?? []) {
       // Ignore counter transactions to avoid double counting transfers
