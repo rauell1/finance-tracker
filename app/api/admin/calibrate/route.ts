@@ -22,10 +22,21 @@ export async function GET(request: NextRequest) {
     const paramVal = request.nextUrl.searchParams.get(acct.account_code);
     
     // Compute the net change for this account using the consistent logic
-    const { data: txns } = await supabase
-      .from("transactions")
-      .select("account_id, transfer_account_id, amount, txn_type, metadata")
-      .or(`account_id.eq.${acct.id},transfer_account_id.eq.${acct.id}`);
+    let txns: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error: qErr } = await supabase
+        .from("transactions")
+        .select("account_id, transfer_account_id, amount, txn_type, metadata")
+        .or(`account_id.eq.${acct.id},transfer_account_id.eq.${acct.id}`)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (qErr) throw qErr;
+      if (!data || data.length === 0) break;
+      txns = txns.concat(data);
+      if (data.length < pageSize) break;
+      page++;
+    }
 
     let net = 0;
     for (const t of txns ?? []) {

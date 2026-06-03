@@ -9,10 +9,21 @@ interface ConfirmBody {
 
 // Recompute an account's opening_balance so its computed balance equals `stated`.
 async function setBalance(supabase: any, accountId: string, stated: number) {
-  const { data: txns } = await supabase
-    .from("transactions")
-    .select("account_id, transfer_account_id, amount, txn_type, metadata")
-    .or(`account_id.eq.${accountId},transfer_account_id.eq.${accountId}`);
+  let txns: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error: qErr } = await supabase
+      .from("transactions")
+      .select("account_id, transfer_account_id, amount, txn_type, metadata")
+      .or(`account_id.eq.${accountId},transfer_account_id.eq.${accountId}`)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (qErr) throw qErr;
+    if (!data || data.length === 0) break;
+    txns = txns.concat(data);
+    if (data.length < pageSize) break;
+    page++;
+  }
 
   let net = 0;
   for (const t of txns ?? []) {
