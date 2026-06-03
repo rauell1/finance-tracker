@@ -136,10 +136,42 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const cat = catMap.get(row.category_name.toLowerCase())
-      ?? (row.txn_type === "income"
-        ? (fallbackIncome ? { id: fallbackIncome.id } : null)
-        : (fallbackExpense ? { id: fallbackExpense.id } : null));
+    let cat = catMap.get(row.category_name.toLowerCase());
+    if (!cat) {
+      const colorMap: Record<string, string> = {
+        "funds received": "#10B981",
+        "other income": "#84CC16",
+        "other expense": "#64748B",
+        "utilities": "#EC4899",
+        "food & dining": "#F97316",
+        "transport": "#3B82F6",
+        "housing": "#8B5CF6",
+        "healthcare": "#EF4444",
+        "subscriptions": "#D946EF",
+      };
+      const color = colorMap[row.category_name.toLowerCase()] ?? (row.txn_type === "income" ? "#10B981" : "#64748B");
+      
+      const { data: newCat } = await supabase
+        .from("categories")
+        .insert({
+          user_id: user.id,
+          name: row.category_name,
+          type: row.txn_type,
+          color,
+          is_system: false,
+        })
+        .select("id, name, type")
+        .maybeSingle();
+
+      if (newCat) {
+        cat = { id: newCat.id, type: newCat.type };
+        catMap.set(row.category_name.toLowerCase(), cat);
+      } else {
+        cat = row.txn_type === "income"
+          ? (fallbackIncome ? { id: fallbackIncome.id, type: fallbackIncome.type } : undefined)
+          : (fallbackExpense ? { id: fallbackExpense.id, type: fallbackExpense.type } : undefined);
+      }
+    }
 
     if (!cat) {
       errors.push(`Row ${row.raw_index}: no matching category`);

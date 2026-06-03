@@ -30,8 +30,10 @@ const typeConfig: Record<string, string> = {
 };
 
 function formatDateHeader(dateStr: string) {
-  const today = new Date().toISOString().split("T")[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+  const d = new Date();
+  const today = d.toLocaleDateString("sv-SE");
+  d.setDate(d.getDate() - 1);
+  const yesterday = d.toLocaleDateString("sv-SE");
   
   if (dateStr === today) return "Today";
   if (dateStr === yesterday) return "Yesterday";
@@ -43,6 +45,7 @@ function formatDateHeader(dateStr: string) {
     day: "numeric"
   });
 }
+
 
 export function TransactionsClient({
   transactions,

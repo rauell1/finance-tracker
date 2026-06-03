@@ -36,7 +36,7 @@ function extractCounterparty(details: string): string {
 const MAX_ROWS = 500;
 
 // ── M-Pesa auto-categorisation ────────────────────────────────────────────────
-function categorise(description: string, txnType: "income" | "expense"): string {
+function categorise(description: string, txnType: "income" | "expense", isMpesa = false): string {
   const d = description.toLowerCase();
   if (/kplc|kenya power|safaricom|airtel|telkom/.test(d)) return "Utilities";
   if (/naivas|carrefour|quickmart|chandarana/.test(d)) return "Food & Dining";
@@ -47,7 +47,7 @@ function categorise(description: string, txnType: "income" | "expense"): string 
   if (/airbnb|hotel|flight|kenya airways|jambojet/.test(d)) return "Travel";
   if (/salary|payroll|wages/.test(d)) return "Salary";
   if (/freelance|upwork|fiverr/.test(d)) return "Freelance";
-  return txnType === "income" ? "Other Income" : "Other Expense";
+  return txnType === "income" ? (isMpesa ? "Funds received" : "Other Income") : "Other Expense";
 }
 
 // ── Date parsing ──────────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ function parseMpesa(headers: string[], rows: string[][]): ParsedRow[] {
       description: txn_type === "income" ? `Received from ${counterparty}` : `Paid to ${counterparty}`,
       amount,
       txn_type,
-      category_name: categorise(description, txn_type),
+      category_name: categorise(description, txn_type, true),
       raw_index: idx,
       counterparty,
       receipt: iReceipt >= 0 ? row[iReceipt]?.trim() : undefined,
@@ -263,7 +263,7 @@ function parsePdfStatement(text: string, accountCode: string): ParsedRow[] {
       description: txn_type === "income" ? `Received from ${counterparty}` : `Paid to ${counterparty}`,
       amount: Math.abs(amount),
       txn_type,
-      category_name: categorise(description, txn_type),
+      category_name: categorise(description, txn_type, accountCode === "main"),
       raw_index: idx,
       counterparty,
       balance_after,

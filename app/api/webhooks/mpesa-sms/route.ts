@@ -69,6 +69,77 @@ function guessCategory(text: string, t: "income" | "expense"): string {
   return t === "income" ? "Other Income" : "Other Expense";
 }
 
+function guessMpesaCategory(text: string, t: "income" | "expense"): string {
+  const cat = guessCategory(text, t);
+  if (t === "income" && cat === "Other Income") {
+    return "Funds received";
+  }
+  return cat;
+}
+
+async function getOrCreateCategory(
+  supabase: AdminClient,
+  userId: string,
+  categoryName: string,
+  type: "income" | "expense"
+): Promise<{ id: string }> {
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("name", categoryName)
+    .eq("type", type)
+    .maybeSingle();
+
+  if (existing) {
+    return existing;
+  }
+
+  const colorMap: Record<string, string> = {
+    "Funds received": "#10B981",
+    "Other Income": "#84CC16",
+    "Other Expense": "#64748B",
+    "Utilities": "#EC4899",
+    "Food & Dining": "#F97316",
+    "Transport": "#3B82F6",
+    "Housing": "#8B5CF6",
+    "Healthcare": "#EF4444",
+    "Subscriptions": "#D946EF",
+  };
+  const color = colorMap[categoryName] ?? (type === "income" ? "#10B981" : "#64748B");
+
+  const { data: created } = await supabase
+    .from("categories")
+    .insert({
+      user_id: userId,
+      name: categoryName,
+      type: type,
+      color: color,
+      is_system: false,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (created) {
+    return created;
+  }
+
+  const { data: fb } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("type", type)
+    .limit(1)
+    .maybeSingle();
+
+  if (fb) {
+    return fb;
+  }
+
+  throw new Error(`Category ${categoryName} could not be resolved or created for user ${userId}`);
+}
+
+
 const num = (s: string) => parseFloat(s.replace(/,/g, ""));
 function parseDate(s: string): string {
   const [d, m, y] = s.split("/").map(Number);
@@ -816,13 +887,7 @@ export async function POST(request: NextRequest) {
 
     // Income / Expense
     const categoryName = guessCategory(smsText, sbm.kind);
-    let { data: category } = await supabase.from("categories").select("id")
-      .eq("user_id", userId).eq("name", categoryName).eq("type", sbm.kind).single();
-    if (!category) {
-      const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", sbm.kind).limit(1).single();
-      category = fb;
-    }
-    if (!category) return NextResponse.json({ error: "No category found" }, { status: 500 });
+    const category = await getOrCreateCategory(supabase, userId, categoryName, sbm.kind);
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: sbmAccount.id, category_id: category.id,
@@ -888,13 +953,7 @@ export async function POST(request: NextRequest) {
 
     // Income / Expense
     const categoryName = guessCategory(smsText, dtb.kind);
-    let { data: category } = await supabase.from("categories").select("id")
-      .eq("user_id", userId).eq("name", categoryName).eq("type", dtb.kind).single();
-    if (!category) {
-      const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", dtb.kind).limit(1).single();
-      category = fb;
-    }
-    if (!category) return NextResponse.json({ error: "No category found" }, { status: 500 });
+    const category = await getOrCreateCategory(supabase, userId, categoryName, dtb.kind);
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: dtbAccount.id, category_id: category.id,
@@ -948,13 +1007,7 @@ export async function POST(request: NextRequest) {
 
     // Income / Expense
     const categoryName = guessCategory(smsText, im.kind);
-    let { data: category } = await supabase.from("categories").select("id")
-      .eq("user_id", userId).eq("name", categoryName).eq("type", im.kind).single();
-    if (!category) {
-      const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", im.kind).limit(1).single();
-      category = fb;
-    }
-    if (!category) return NextResponse.json({ error: "No category found" }, { status: 500 });
+    const category = await getOrCreateCategory(supabase, userId, categoryName, im.kind);
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: imAccount.id, category_id: category.id,
@@ -997,19 +1050,7 @@ export async function POST(request: NextRequest) {
           .maybeSingle();
 
         if (!existingFee) {
-          let { data: category } = await adminSb.from("categories").select("id")
-            .eq("user_id", userId)
-            .eq("type", "expense")
-            .eq("name", "Other Expense")
-            .maybeSingle();
-          if (!category) {
-            const { data: fallback } = await adminSb.from("categories").select("id")
-              .eq("user_id", userId)
-              .eq("type", "expense")
-              .limit(1)
-              .maybeSingle();
-            category = fallback;
-          }
+          const category = await getOrCreateCategory(adminSb, userId, "Other Expense", "expense");
 
           if (category) {
             const { data: txn } = await adminSb.from("transactions").insert({
@@ -1036,19 +1077,7 @@ export async function POST(request: NextRequest) {
           .maybeSingle();
 
         if (!existingTxn) {
-          let { data: category } = await adminSb.from("categories").select("id")
-            .eq("user_id", userId)
-            .eq("type", "expense")
-            .eq("name", "Other Expense")
-            .maybeSingle();
-          if (!category) {
-            const { data: fallback } = await adminSb.from("categories").select("id")
-              .eq("user_id", userId)
-              .eq("type", "expense")
-              .limit(1)
-              .maybeSingle();
-            category = fallback;
-          }
+          const category = await getOrCreateCategory(adminSb, userId, "Other Expense", "expense");
 
           if (category) {
             const { data: txn } = await adminSb.from("transactions").insert({
@@ -1091,13 +1120,8 @@ export async function POST(request: NextRequest) {
       const isAuto = (existing.metadata as Record<string, any>)?.is_auto_generated === true;
       if (isAuto) {
         // Update the auto-generated transaction with the correct main details!
-        const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
-        let { data: category } = await supabase.from("categories").select("id")
-          .eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
-        if (!category) {
-          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
-          category = fb;
-        }
+        const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
+        const category = await getOrCreateCategory(supabase, userId, categoryName, p.txnType as "income" | "expense");
 
         const { data: updated, error } = await supabase.from("transactions").update({
           category_id: category?.id ?? null,
@@ -1159,14 +1183,8 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Income / Expense ──
-  const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
-  let { data: category } = await supabase.from("categories").select("id")
-    .eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
-  if (!category) {
-    const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
-    category = fb;
-  }
-  if (!category) return NextResponse.json({ error: "No category found" }, { status: 500 });
+  const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
+  const category = await getOrCreateCategory(supabase, userId, categoryName, p.txnType as "income" | "expense");
 
   const { data: txn, error } = await supabase.from("transactions").insert({
     user_id: userId, account_id: mpesa.id, category_id: category.id,
@@ -1316,13 +1334,8 @@ export async function GET(request: NextRequest) {
       if (p.savingsBal !== null) { await setBalance(supabase, savings.id, p.savingsBal); }
       result = { status: "reprocessed", id: newTxn.id, mpesa_balance: p.mpesaBal, savings_balance: p.savingsBal };
     } else {
-      const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
-      let { data: category } = await supabase.from("categories").select("id").eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
-      if (!category) {
-        const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
-        category = fb;
-      }
-      if (!category) return NextResponse.json({ error: "No category" }, { status: 500 });
+      const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
+      const category = await getOrCreateCategory(supabase, userId, categoryName, p.txnType as "income" | "expense");
 
       const { data: newTxn, error } = await supabase.from("transactions").insert({
         user_id: userId, account_id: mpesa.id, category_id: category.id,
@@ -1417,11 +1430,7 @@ export async function GET(request: NextRequest) {
           const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
             .eq("user_id", userId).contains("metadata", { mpesa_receipt: feeReceipt });
           if (!count || count === 0) {
-            let { data: category } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", "expense").eq("name", "Other Expense").maybeSingle();
-            if (!category) {
-              const { data: fallback } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", "expense").limit(1).maybeSingle();
-              category = fallback;
-            }
+            const category = await getOrCreateCategory(supabase, userId, "Other Expense", "expense");
             if (category) {
               await supabase.from("transactions").insert({
                 user_id: userId, account_id: mpesa.id, category_id: category.id, txn_type: "expense",
@@ -1438,11 +1447,7 @@ export async function GET(request: NextRequest) {
           const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true })
             .eq("user_id", userId).contains("metadata", { mpesa_receipt: p.receipt });
           if (!count || count === 0) {
-            let { data: category } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", "expense").eq("name", "Other Expense").maybeSingle();
-            if (!category) {
-              const { data: fallback } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", "expense").limit(1).maybeSingle();
-              category = fallback;
-            }
+            const category = await getOrCreateCategory(supabase, userId, "Other Expense", "expense");
             if (category) {
               await supabase.from("transactions").insert({
                 user_id: userId, account_id: mpesa.id, category_id: category.id, txn_type: "expense",
@@ -1467,13 +1472,8 @@ export async function GET(request: NextRequest) {
         if (existing) {
           const isAuto = (existing.metadata as Record<string, any>)?.is_auto_generated === true;
           if (isAuto) {
-            const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
-            let { data: category } = await supabase.from("categories").select("id")
-              .eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
-            if (!category) {
-              const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
-              category = fb;
-            }
+            const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
+            const category = await getOrCreateCategory(supabase, userId, categoryName, p.txnType as "income" | "expense");
             await supabase.from("transactions").update({
               category_id: category?.id ?? null,
               txn_type: p.txnType,
@@ -1525,13 +1525,8 @@ export async function GET(request: NextRequest) {
         }
       } else {
         // Income / Expense
-        const categoryName = guessCategory(p.raw, p.txnType as "income" | "expense");
-        let { data: category } = await supabase.from("categories").select("id")
-          .eq("user_id", userId).eq("name", categoryName).eq("type", p.txnType).single();
-        if (!category) {
-          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", p.txnType).limit(1).single();
-          category = fb;
-        }
+        const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
+        const category = await getOrCreateCategory(supabase, userId, categoryName, p.txnType as "income" | "expense");
         if (category) {
           const { data: txn } = await supabase.from("transactions").insert({
             user_id: userId, account_id: mpesa.id, category_id: category.id,
@@ -1628,12 +1623,7 @@ export async function GET(request: NextRequest) {
         if (txn) ingested.push({ receipt: sbm.receipt, kind: "transfer", amount: sbm.amount });
       } else {
         const categoryName = guessCategory(sms, sbm.kind);
-        let { data: category } = await supabase.from("categories").select("id")
-          .eq("user_id", userId).eq("name", categoryName).eq("type", sbm.kind).single();
-        if (!category) {
-          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", sbm.kind).limit(1).single();
-          category = fb;
-        }
+        const category = await getOrCreateCategory(supabase, userId, categoryName, sbm.kind);
         if (category) {
           const { data: txn } = await supabase.from("transactions").insert({
             user_id: userId, account_id: sbmAccount.id, category_id: category.id,
@@ -1727,12 +1717,7 @@ export async function GET(request: NextRequest) {
         if (txn) ingested.push({ receipt: dtb.receipt, kind: "transfer", amount: dtb.amount });
       } else {
         const categoryName = guessCategory(sms, dtb.kind);
-        let { data: category } = await supabase.from("categories").select("id")
-          .eq("user_id", userId).eq("name", categoryName).eq("type", dtb.kind).single();
-        if (!category) {
-          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", dtb.kind).limit(1).single();
-          category = fb;
-        }
+        const category = await getOrCreateCategory(supabase, userId, categoryName, dtb.kind);
         if (category) {
           const { data: txn } = await supabase.from("transactions").insert({
             user_id: userId, account_id: dtbAccount.id, category_id: category.id,
@@ -1877,12 +1862,7 @@ export async function GET(request: NextRequest) {
         if (txn) ingested.push({ receipt: im.receipt, kind: "transfer", amount: im.amount });
       } else {
         const categoryName = guessCategory(sms, im.kind);
-        let { data: category } = await supabase.from("categories").select("id")
-          .eq("user_id", userId).eq("name", categoryName).eq("type", im.kind).single();
-        if (!category) {
-          const { data: fb } = await supabase.from("categories").select("id").eq("user_id", userId).eq("type", im.kind).limit(1).single();
-          category = fb;
-        }
+        const category = await getOrCreateCategory(supabase, userId, categoryName, im.kind);
         if (category) {
           const { data: txn } = await supabase.from("transactions").insert({
             user_id: userId, account_id: imAccount.id, category_id: category.id,
