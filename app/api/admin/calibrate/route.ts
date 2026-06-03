@@ -16,24 +16,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No accounts found" }, { status: 404 });
   }
 
+  const ids = accounts.map((a) => a.id);
+  const { data: txns } = await supabase
+    .from("transactions")
+    .select("account_id, transfer_account_id, amount, txn_type, metadata")
+    .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`);
+
   const results: Record<string, any> = {};
 
   const calibrationPromises = accounts.map(async (acct) => {
     const paramVal = request.nextUrl.searchParams.get(acct.account_code);
     
-    // Compute the net change for this account
-    const [{ data: inc }, { data: exp }, { data: xOut }, { data: xIn }] = await Promise.all([
-      supabase.from("transactions").select("amount").eq("account_id", acct.id).eq("txn_type", "income"),
-      supabase.from("transactions").select("amount").eq("account_id", acct.id).eq("txn_type", "expense"),
-      supabase.from("transactions").select("amount").eq("account_id", acct.id).eq("txn_type", "transfer"),
-      supabase.from("transactions").select("amount").eq("transfer_account_id", acct.id).eq("txn_type", "transfer"),
-    ]);
+    // Compute the net change for this account using the corrected logic
+    let net = 0;
+    for (const t of txns ?? []) {
+      const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+      if (isCounter) continue;
 
-    const net =
-      (inc ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) -
-      (exp ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) +
-      (xIn ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0) -
-      (xOut ?? []).reduce((s: number, t: any) => s + Number(t.amount), 0);
+      const amt = Number(t.amount);
+      if (t.txn_type === "income" && t.account_id === acct.id) {
+        net += amt;
+      } else if (t.txn_type === "expense" && t.account_id === acct.id) {
+        net -= amt;
+      } else if (t.txn_type === "transfer") {
+        if (t.account_id === acct.id) net -= amt;
+        if (t.transfer_account_id === acct.id) net += amt;
+      }
+    }
 
     if (paramVal !== null) {
       const stated = parseFloat(paramVal);
