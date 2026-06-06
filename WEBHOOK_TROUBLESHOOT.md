@@ -150,6 +150,28 @@ If Frzip keeps failing for RCS, use **MacroDroid** (Android automation app):
 - Action: HTTP POST to webhook URL
 - Body: full message text (no template variables needed, MacroDroid reads SMS directly)
 
+### Step 6 — MacroDroid Setup & Optimization
+To prevent MacroDroid from missing overlapping notifications or failing when offline, configure the following settings:
+
+1. **Enable Queueing/Concurrency (Prevent Collision/Discard)**
+   - Open your forwarding macro in the MacroDroid editor.
+   - Tap the **Gear Icon** or the **three vertical dots** in the top-right toolbar of the macro edit screen (directly next to the macro name/category).
+   - Locate the option: **"When invoked while already running"** (sometimes labeled under Trigger Options).
+   - Change it from **"Ignore new trigger"** (default/discard behavior) to **"Queue new trigger"** or **"Allow multiple invocations"**.
+
+2. **Handle Offline/Network Connectivity Drops**
+   Before executing the HTTP POST, ensure the phone is connected to the internet:
+   - Under **Actions**, *above* your HTTP POST action, add a **Wait Before Next Action** (set to 5 seconds).
+   - Add an **If Clause** (under Conditions/Loops).
+   - Set the condition to: **Connectivity** > **Network Connected** > **Any Network**. Check the **Invert Condition** checkbox (so it reads `NOT Network Connected`).
+   - Inside this IF block, add the action: **Go To Action** and select the "Wait Before Next Action" step you created above.
+   - Place your **HTTP POST** action *after/below* the IF block.
+   - *Result:* The macro will wait and loop in the background checking connectivity every 5 seconds, firing the HTTP POST only when the phone has successfully reconnected to the internet.
+
+3. **Handle RCS/Google Messages Grouping**
+   - RCS notifications are grouped by Google Messages, meaning secondary notifications might not fire the "Notification Received" trigger.
+   - **Recommendation:** Turn off **RCS Chats** in Google Messages settings. This forces Safaricom messages to fall back to standard carrier SMS, which consistently triggers the **"SMS Received"** trigger every single time, completely bypassing notification grouping limitations.
+
 ---
 
 ## Database verification query
