@@ -1436,11 +1436,11 @@ export async function GET(request: NextRequest) {
     const { data: txns } = await supabase.from("transactions").select("user_id, description, amount");
     const { data: debts } = await supabase.from("debts").select("*");
     
-    const ids = accts.map(a => a.id);
+    const ids = accts.map((a: any) => a.id);
     const balances: Record<string, number> = {};
     for (const id of ids) balances[id] = 0;
     
-    let totalBalance = accts.reduce((s, a) => s + Number(a.opening_balance), 0);
+    let totalBalance = accts.reduce((s: number, a: any) => s + Number(a.opening_balance), 0);
     let outflowsList = [];
     let inflowsList = [];
 
@@ -1469,7 +1469,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const calculatedAccounts = accts.map(a => ({
+    const calculatedAccounts = accts.map((a: any) => ({
       name: a.name,
       account_code: a.account_code,
       opening_balance: Number(a.opening_balance),
@@ -1485,8 +1485,8 @@ export async function GET(request: NextRequest) {
       transaction_count: outflowsList.length,
       profiles: profiles,
       debts: debts,
-      fuliza_transactions: (txns || []).filter(t => t.description?.toLowerCase().includes("fuliza")),
-      transactions_summary: (txns || []).slice(0, 10).map(t => ({ user_id: t.user_id, desc: t.description, amt: t.amount })),
+      fuliza_transactions: (txns || []).filter((t: any) => t.description?.toLowerCase().includes("fuliza")),
+      transactions_summary: (txns || []).slice(0, 10).map((t: any) => ({ user_id: t.user_id, desc: t.description, amt: t.amount })),
     });
   }
 
