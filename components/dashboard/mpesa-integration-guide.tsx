@@ -1,16 +1,43 @@
 "use client";
 import { useState } from "react";
-import { Copy, Check, Smartphone, Key, FileText, RefreshCw, AlertCircle } from "lucide-react";
+import { Copy, Check, Smartphone, Key, FileText, RefreshCw, AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function MpesaIntegrationGuide() {
   const [copied, setCopied] = useState(false);
-  const webhookUrl = "https://your-domain.com/api/webhooks/mpesa-sms?secret=YOUR_WEBHOOK_SECRET";
+  const [revealed, setRevealed] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const [loadingUrl, setLoadingUrl] = useState(false);
+
+  const maskedUrl = "https://finance.rauell.systems/api/webhooks/mpesa-sms?secret=••••••••••••••••••••••••";
+
+  async function handleReveal() {
+    if (revealed && webhookUrl) {
+      setRevealed(false);
+      return;
+    }
+    setLoadingUrl(true);
+    try {
+      const res = await fetch("/api/settings/webhook-url");
+      if (!res.ok) throw new Error("Unauthorized");
+      const data = await res.json();
+      setWebhookUrl(data.webhookUrl);
+      setRevealed(true);
+    } catch {
+      toast.error("Could not load webhook URL. Please refresh and try again.");
+    } finally {
+      setLoadingUrl(false);
+    }
+  }
 
   function handleCopy() {
+    if (!webhookUrl) {
+      toast.error("Reveal the URL first before copying.");
+      return;
+    }
     navigator.clipboard.writeText(webhookUrl);
     setCopied(true);
-    toast.success("Placeholder webhook URL copied!");
+    toast.success("Webhook URL copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -65,23 +92,41 @@ export function MpesaIntegrationGuide() {
               <h3 className="font-bold text-[#0A0D27] text-sm">Configure Webhook Target URL</h3>
             </div>
             <p className="text-xs text-[#33375C]/75 leading-relaxed pl-7">
-              Set the Forward Destination to your webhook endpoint. Replace <code className="bg-slate-100 px-1 rounded">YOUR_WEBHOOK_SECRET</code> with your configured secret:
+              Use this target endpoint in your HTTP Request actions. Keep the secret token private.
             </p>
             <div className="pl-7 mt-3">
               <div className="flex items-center gap-2 w-full max-w-md bg-[#F0F0FF]/30 border border-[#E2E2FF] rounded-xl px-3.5 py-2">
                 <input
                   type="text"
-                  value={webhookUrl}
+                  value={revealed && webhookUrl ? webhookUrl : maskedUrl}
                   readOnly
                   className="flex-1 bg-transparent text-[11px] font-mono font-semibold text-[#33375C]/75 focus:outline-none select-all"
                 />
                 <button
+                  onClick={handleReveal}
+                  disabled={loadingUrl}
+                  title={revealed ? "Hide webhook URL" : "Reveal webhook URL"}
+                  className="h-8 w-8 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors disabled:opacity-50"
+                >
+                  {loadingUrl ? (
+                    <Loader2 className="h-4 w-4 text-[#524CF2] animate-spin" />
+                  ) : revealed ? (
+                    <EyeOff className="h-4 w-4 text-[#524CF2]" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-slate-500" />
+                  )}
+                </button>
+                <button
                   onClick={handleCopy}
+                  title="Copy webhook URL"
                   className="h-8 w-8 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors"
                 >
                   {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-slate-500" />}
                 </button>
               </div>
+              <p className="text-[10px] text-[#33375C]/50 mt-2 pl-0.5 flex items-center gap-1">
+                <Eye className="h-3 w-3 inline" /> Click the eye icon to reveal your secret URL. Keep it private.
+              </p>
             </div>
           </div>
           <div className="md:col-span-2 flex justify-center">
