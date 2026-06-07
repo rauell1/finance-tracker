@@ -27,7 +27,14 @@ export async function getTransactions(rawFilter = {}): Promise<PaginatedResponse
   if (filter.category_id) query = query.eq("category_id", filter.category_id);
   if (filter.txn_type) query = query.eq("txn_type", filter.txn_type);
   if (filter.date_from) query = query.gte("occurred_on", filter.date_from);
-  if (filter.date_to) query = query.lte("occurred_on", filter.date_to);
+  if (filter.date_to) {
+    query = query.lte("occurred_on", filter.date_to);
+  } else {
+    // Default: only show transactions up to today in East Africa Time (UTC+3)
+    const eatOffset = 3 * 60 * 60 * 1000;
+    const today = new Date(Date.now() + eatOffset).toISOString().split("T")[0];
+    query = query.lte("occurred_on", today);
+  }
   if (filter.search) query = query.ilike("description", `%${filter.search}%`);
 
   const { data, error, count } = await query;
@@ -147,10 +154,14 @@ export async function deleteTransaction(id: string): Promise<void> {
 
 export async function getRecentTransactions(limit = 5): Promise<Transaction[]> {
   const supabase = await createClient();
+  const eatOffset = 3 * 60 * 60 * 1000;
+  const today = new Date(Date.now() + eatOffset).toISOString().split("T")[0];
+
   const { data, error } = await supabase
     .from("transactions")
     .select("*, account:accounts!account_id(id, name, account_code), category:categories!category_id(id, name, type, color)")
     .neq("txn_type", "transfer")
+    .lte("occurred_on", today)
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
