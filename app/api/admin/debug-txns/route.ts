@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: acctsErr.message }, { status: 500 });
   }
 
-  const ids = accounts.map((a) => a.id);
+  const ids = accounts.map((a: any) => a.id);
   if (ids.length === 0) {
     return NextResponse.json({ accounts, txnsCount: 0, analysis: "No active accounts" });
   }
@@ -45,9 +45,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Perform balance calculation comparison for All Time
-  let kpiTotalAllTime = accounts.reduce((s, a) => s + Number(a.opening_balance), 0);
+  let kpiTotalAllTime = accounts.reduce((s: number, a: any) => s + Number(a.opening_balance), 0);
   const accountBalancesAllTime: Record<string, number> = {};
-  accounts.forEach((a) => {
+  accounts.forEach((a: any) => {
     accountBalancesAllTime[a.id] = Number(a.opening_balance);
   });
 
@@ -84,13 +84,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const sumOfAccountBalancesAllTime = accounts.reduce((s, a) => s + (accountBalancesAllTime[a.id] ?? 0), 0);
+  const sumOfAccountBalancesAllTime = accounts.reduce((s: number, a: any) => s + (accountBalancesAllTime[a.id] ?? 0), 0);
 
   // Perform balance check for Month (June 2026)
   const endStrJune = "2026-07-01";
-  let kpiTotalJune = accounts.reduce((s, a) => s + Number(a.opening_balance), 0);
+  let kpiTotalJune = accounts.reduce((s: number, a: any) => s + Number(a.opening_balance), 0);
   const accountBalancesJune: Record<string, number> = {};
-  accounts.forEach((a) => {
+  accounts.forEach((a: any) => {
     accountBalancesJune[a.id] = Number(a.opening_balance);
   });
 
@@ -129,10 +129,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const sumOfAccountBalancesJune = accounts.reduce((s, a) => s + (accountBalancesJune[a.id] ?? 0), 0);
+  const sumOfAccountBalancesJune = accounts.reduce((s: number, a: any) => s + (accountBalancesJune[a.id] ?? 0), 0);
 
   return NextResponse.json({
-    accounts: accounts.map((a) => ({
+    accounts: accounts.map((a: any) => ({
       name: a.name,
       code: a.account_code,
       opening: a.opening_balance,
