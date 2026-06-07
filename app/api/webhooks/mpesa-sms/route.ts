@@ -1709,8 +1709,8 @@ export async function GET(request: NextRequest) {
   if (secret !== process.env.MPESA_WEBHOOK_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createAdminClient();
   if (request.nextUrl.searchParams.get("checkschema") === "1") {
-    const { data: cols } = await supabase.from("accounts").select("*").limit(1);
-    return NextResponse.json({ columns: Object.keys(cols?.[0] || {}), row: cols?.[0] });
+    const { data: cols } = await supabase.from("accounts").select("*").order("account_code");
+    return NextResponse.json({ accounts: cols });
   }
   const { data: accounts } = await supabase.from("accounts").select("account_code, name, opening_balance, currency_code").order("account_code");
   const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true });
