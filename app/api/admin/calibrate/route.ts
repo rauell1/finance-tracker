@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   const results: Record<string, any> = {};
 
-  const calibrationPromises = accounts.map(async (acct) => {
+  const calibrationPromises = accounts.map(async (acct: any) => {
     const paramVal = request.nextUrl.searchParams.get(acct.account_code);
     
     // Compute the net change for this account using the consistent logic
