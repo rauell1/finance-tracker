@@ -93,6 +93,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     message: "Accounts calibrated/calculated successfully",
     results,
-    accounts: updatedAccounts?.map(a => ({ name: a.name, code: a.account_code, opening: a.opening_balance }))
+    accounts: updatedAccounts?.map((a: any) => ({ name: a.name, code: a.account_code, opening: a.opening_balance }))
   });
 }
