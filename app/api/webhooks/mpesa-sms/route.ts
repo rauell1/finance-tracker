@@ -1712,6 +1712,24 @@ export async function GET(request: NextRequest) {
     const { data: cols } = await supabase.from("accounts").select("*").order("account_code");
     return NextResponse.json({ accounts: cols });
   }
+  if (request.nextUrl.searchParams.get("seed") === "1") {
+    const seedConfig = [
+      { code: "main", balance: 3142.26 },
+      { code: "bank_c", balance: 1463.46 },
+      { code: "bank_a", balance: 52.20 },
+      { code: "kcb_mpesa", balance: 11000.00 }
+    ];
+    const results = [];
+    const { data: accts } = await supabase.from("accounts").select("id, account_code");
+    for (const item of seedConfig) {
+      const dbAcc = (accts ?? []).find((a: any) => a.account_code === item.code);
+      if (dbAcc) {
+        await setBalance(supabase, dbAcc.id, item.balance);
+        results.push({ code: item.code, set_to: item.balance });
+      }
+    }
+    return NextResponse.json({ status: "seeded", results });
+  }
   const { data: accounts } = await supabase.from("accounts").select("account_code, name, opening_balance, currency_code").order("account_code");
   const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true });
   // ?diagnose=1 -> calculate exact balances using frontend query logic to check math
