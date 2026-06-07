@@ -1049,18 +1049,21 @@ function isPlaceholder(val: string): boolean {
 }
 
 function parseMacroDroidTimestamp(ts: string): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(ts)) return ts;
-  
-  try {
-    const parsed = new Date(ts);
+  if (!ts) return new Date().toISOString().split("T")[0];
+  const cleaned = ts.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+
+  // Handle millisecond Unix timestamp
+  if (/^\d+$/.test(cleaned)) {
+    const num = parseInt(cleaned, 10);
+    const parsed = new Date(num);
     if (!isNaN(parsed.getTime())) {
       return parsed.toISOString().split("T")[0];
     }
-  } catch {
-    // ignore
   }
 
-  const dmyMatch = ts.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
+  // Handle DD/MM/YYYY or DD-MM-YYYY (preferring day first)
+  const dmyMatch = cleaned.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
   if (dmyMatch) {
     const [_, d, m, y] = dmyMatch;
     const day = d.padStart(2, "0");
@@ -1071,6 +1074,13 @@ function parseMacroDroidTimestamp(ts: string): string {
     }
     return `${year}-${month}-${day}`;
   }
+
+  try {
+    const parsed = new Date(cleaned);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split("T")[0];
+    }
+  } catch {}
 
   return new Date().toISOString().split("T")[0];
 }
