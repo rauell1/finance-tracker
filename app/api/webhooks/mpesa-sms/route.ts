@@ -831,30 +831,59 @@ async function captureDebug(rawBody: string, contentType: string, extracted: str
   } catch { /* best effort */ }
 }
 
-export async function POST(request: NextRequest) {
-  const secret = request.nextUrl.searchParams.get("secret") ?? request.headers.get("x-webhook-secret") ?? request.headers.get("authorization")?.replace("Bearer ", "");
-  const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
-  if (!expectedSecret || secret !== expectedSecret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+function isPlaceholder(val: string): boolean {
+  if (!val) return false;
+  const v = val.trim();
+  return (
+    v === "" ||
+    v.includes("{notification_text}") ||
+    v.includes("[notification_text]") ||
+    v.includes("{date_time}") ||
+    v.includes("[date_time]") ||
+    v.includes("{queue_contents}") ||
+    v.includes("[queue_contents]") ||
+    v.includes("[lv=queue_contents]")
+  );
+}
 
-  // Capture raw body up-front (clone so extractSmsText can still read the stream)
-  const contentType = request.headers.get("content-type") ?? "none";
-  let rawBody = "";
-  try { rawBody = await request.clone().text(); } catch { /* */ }
-
-  let smsText = "";
-  try { smsText = await extractSmsText(request); } catch { return NextResponse.json({ error: "Could not read body" }, { status: 400 }); }
-  if (!smsText) {
-    await captureDebug(rawBody, contentType, "", "empty_body");
-    return NextResponse.json({ status: "ignored", reason: "empty_body", content_type: contentType, raw_preview: rawBody.slice(0, 120) });
+function parseMacroDroidTimestamp(ts: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ts)) return ts;
+  
+  try {
+    const parsed = new Date(ts);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split("T")[0];
+    }
+  } catch {
+    // ignore
   }
 
+  const dmyMatch = ts.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
+  if (dmyMatch) {
+    const [_, d, m, y] = dmyMatch;
+    const day = d.padStart(2, "0");
+    const month = m.padStart(2, "0");
+    let year = y;
+    if (year.length === 2) {
+      year = "20" + year;
+    }
+    return `${year}-${month}-${day}`;
+  }
+
+  return new Date().toISOString().split("T")[0];
+}
+
+async function processSingleSms(
+  supabase: AdminClient,
+  smsText: string,
+  timestamp?: string
+): Promise<{ status: string; reason?: string; transaction_id?: string; amount?: number; error?: string; [key: string]: any }> {
   // 1. SBM Bank Parsing
   const sbm = parseSbmSMS(smsText);
   if (sbm) {
-    const supabase = createAdminClient();
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
     const sbmAccount = (accts ?? []).find((a) => a.account_code === "bank_c");
-    if (!sbmAccount) return NextResponse.json({ error: "SBM Bank account (bank_c) not found" }, { status: 404 });
+    if (!sbmAccount) return { status: "failed", error: "SBM Bank account (bank_c) not found" };
     const userId = sbmAccount.user_id;
 
     // Dedup by receipt
@@ -868,24 +897,26 @@ export async function POST(request: NextRequest) {
         if (incorrectExpense) {
           await supabase.from("transactions").delete().eq("id", incorrectExpense.id);
         } else {
-          return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: sbm.receipt });
+          return { status: "ignored", reason: "duplicate", receipt: sbm.receipt };
         }
       }
     }
 
+    const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : sbm.occurredOn;
+
     if (sbm.kind === "transfer") {
       const mpesa = (accts ?? []).find((a) => a.account_code === "main");
-      if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
+      if (!mpesa) return { status: "failed", error: "MPESA account not found" };
 
       const { data: txn, error } = await supabase.from("transactions").insert({
         user_id: userId, account_id: mpesa.id, transfer_account_id: sbmAccount.id, category_id: null,
-        txn_type: "transfer", amount: sbm.amount, currency_code: "KES", occurred_on: sbm.occurredOn,
+        txn_type: "transfer", amount: sbm.amount, currency_code: "KES", occurred_on: occurredOn,
         description: sbm.description,
         metadata: { source: "sbm_webhook", sbm_receipt: sbm.receipt, counterparty: sbm.counterparty, raw_sms: smsText },
       }).select("id").single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return { status: "failed", error: error.message };
 
-      return NextResponse.json({ status: "created", kind: "transfer", transaction_id: txn.id, amount: sbm.amount });
+      return { status: "created", kind: "transfer", transaction_id: txn.id, amount: sbm.amount };
     }
 
     // Income / Expense
@@ -894,33 +925,34 @@ export async function POST(request: NextRequest) {
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: sbmAccount.id, category_id: category.id,
-      txn_type: sbm.kind, amount: sbm.amount, currency_code: "KES", occurred_on: sbm.occurredOn,
+      txn_type: sbm.kind, amount: sbm.amount, currency_code: "KES", occurred_on: occurredOn,
       description: sbm.description,
       metadata: { source: "sbm_webhook", sbm_receipt: sbm.receipt, counterparty: sbm.counterparty, raw_sms: smsText },
     }).select("id").single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return { status: "failed", error: error.message };
 
-    return NextResponse.json({ status: "created", kind: sbm.kind, transaction_id: txn.id, amount: sbm.amount, category: categoryName });
+    return { status: "created", kind: sbm.kind, transaction_id: txn.id, amount: sbm.amount, category: categoryName };
   }
 
   // 1b. DTB Bank Parsing
   const dtb = parseDtbSMS(smsText);
   if (dtb) {
-    const supabase = createAdminClient();
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
     const dtbAccount = (accts ?? []).find((a) => a.account_code === "bank_a");
-    if (!dtbAccount) return NextResponse.json({ error: "DTB Bank account (bank_a) not found" }, { status: 404 });
+    if (!dtbAccount) return { status: "failed", error: "DTB Bank account (bank_a) not found" };
     const userId = dtbAccount.user_id;
+
+    const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : dtb.occurredOn;
 
     // For Mobile Banking Debit alerts, check if duplicate by amount & date
     if (dtb.isMobileBankingAlert) {
       const { data: dup } = await supabase.from("transactions").select("id")
         .eq("user_id", userId)
         .eq("amount", dtb.amount)
-        .eq("occurred_on", dtb.occurredOn)
+        .eq("occurred_on", occurredOn)
         .or(`account_id.eq.${dtbAccount.id},transfer_account_id.eq.${dtbAccount.id}`);
       if (dup && dup.length > 0) {
-        return NextResponse.json({ status: "ignored", reason: "duplicate_by_amount_and_date", amount: dtb.amount });
+        return { status: "ignored", reason: "duplicate_by_amount_and_date", amount: dtb.amount };
       }
     }
 
@@ -931,13 +963,13 @@ export async function POST(request: NextRequest) {
         .or(`metadata->>dtb_receipt.eq.${dtb.receipt},metadata->>mpesa_receipt.eq.${dtb.receipt}`);
 
       if (existing && existing.length > 0) {
-        return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: dtb.receipt });
+        return { status: "ignored", reason: "duplicate", receipt: dtb.receipt };
       }
     }
 
     if (dtb.kind === "transfer") {
       const mpesa = (accts ?? []).find((a) => a.account_code === "main");
-      if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
+      if (!mpesa) return { status: "failed", error: "MPESA account not found" };
 
       const isOutflow = dtb.description === "Transfer to M-Pesa";
       const fromId = isOutflow ? dtbAccount.id : mpesa.id;
@@ -945,13 +977,13 @@ export async function POST(request: NextRequest) {
 
       const { data: txn, error } = await supabase.from("transactions").insert({
         user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
-        txn_type: "transfer", amount: dtb.amount, currency_code: "KES", occurred_on: dtb.occurredOn,
+        txn_type: "transfer", amount: dtb.amount, currency_code: "KES", occurred_on: occurredOn,
         description: dtb.description,
         metadata: { source: "dtb_webhook", dtb_receipt: dtb.receipt, counterparty: dtb.counterparty, raw_sms: smsText },
       }).select("id").single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return { status: "failed", error: error.message };
 
-      return NextResponse.json({ status: "created", kind: "transfer", transaction_id: txn.id, amount: dtb.amount });
+      return { status: "created", kind: "transfer", transaction_id: txn.id, amount: dtb.amount };
     }
 
     // Income / Expense
@@ -960,22 +992,21 @@ export async function POST(request: NextRequest) {
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: dtbAccount.id, category_id: category.id,
-      txn_type: dtb.kind, amount: dtb.amount, currency_code: "KES", occurred_on: dtb.occurredOn,
+      txn_type: dtb.kind, amount: dtb.amount, currency_code: "KES", occurred_on: occurredOn,
       description: dtb.description,
       metadata: { source: "dtb_webhook", dtb_receipt: dtb.receipt, counterparty: dtb.counterparty, raw_sms: smsText },
     }).select("id").single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return { status: "failed", error: error.message };
 
-    return NextResponse.json({ status: "created", kind: dtb.kind, transaction_id: txn.id, amount: dtb.amount, category: categoryName });
+    return { status: "created", kind: dtb.kind, transaction_id: txn.id, amount: dtb.amount, category: categoryName };
   }
 
   // 1c. I&M Bank Parsing
   const im = parseImSMS(smsText);
   if (im) {
-    const supabase = createAdminClient();
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
     const imAccount = (accts ?? []).find((a) => a.account_code === "bank_b");
-    if (!imAccount) return NextResponse.json({ error: "I&M Bank account (bank_b) not found" }, { status: 404 });
+    if (!imAccount) return { status: "failed", error: "I&M Bank account (bank_b) not found" };
     const userId = imAccount.user_id;
 
     // Dedup by receipt
@@ -985,13 +1016,15 @@ export async function POST(request: NextRequest) {
         .or(`metadata->>im_receipt.eq.${im.receipt},metadata->>mpesa_receipt.eq.${im.receipt}`);
 
       if (existing && existing.length > 0) {
-        return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: im.receipt });
+        return { status: "ignored", reason: "duplicate", receipt: im.receipt };
       }
     }
 
+    const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : im.occurredOn;
+
     if (im.kind === "transfer") {
       const mpesa = (accts ?? []).find((a) => a.account_code === "main");
-      if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
+      if (!mpesa) return { status: "failed", error: "MPESA account not found" };
 
       const isOutflow = im.description.toLowerCase().includes("transfer to");
       const fromId = isOutflow ? imAccount.id : mpesa.id;
@@ -999,13 +1032,13 @@ export async function POST(request: NextRequest) {
 
       const { data: txn, error } = await supabase.from("transactions").insert({
         user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
-        txn_type: "transfer", amount: im.amount, currency_code: "KES", occurred_on: im.occurredOn,
+        txn_type: "transfer", amount: im.amount, currency_code: "KES", occurred_on: occurredOn,
         description: im.description,
         metadata: { source: "im_webhook", im_receipt: im.receipt, counterparty: im.counterparty, raw_sms: smsText },
       }).select("id").single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return { status: "failed", error: error.message };
 
-      return NextResponse.json({ status: "created", kind: "transfer", transaction_id: txn.id, amount: im.amount });
+      return { status: "created", kind: "transfer", transaction_id: txn.id, amount: im.amount };
     }
 
     // Income / Expense
@@ -1014,119 +1047,115 @@ export async function POST(request: NextRequest) {
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: imAccount.id, category_id: category.id,
-      txn_type: im.kind, amount: im.amount, currency_code: "KES", occurred_on: im.occurredOn,
+      txn_type: im.kind, amount: im.amount, currency_code: "KES", occurred_on: occurredOn,
       description: im.description,
       metadata: { source: "im_webhook", im_receipt: im.receipt, counterparty: im.counterparty, raw_sms: smsText },
     }).select("id").single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return { status: "failed", error: error.message };
 
-    return NextResponse.json({ status: "created", kind: im.kind, transaction_id: txn.id, amount: im.amount, category: categoryName });
+    return { status: "created", kind: im.kind, transaction_id: txn.id, amount: im.amount, category: categoryName };
   }
 
   const p = parse(smsText);
   if (!p) {
-    await captureDebug(rawBody, contentType, smsText, "not_mpesa");
-    return NextResponse.json({ status: "ignored", reason: "not_mpesa", preview: smsText.slice(0, 120) });
+    return { status: "ignored", reason: "not_mpesa" };
   }
+
   if (p.kind === "fuliza") {
-    try {
-      const adminSb = createAdminClient();
-      const { data: mpesa } = await adminSb.from("accounts").select("id, user_id").eq("account_code", "main").single();
-      if (!mpesa) return NextResponse.json({ error: "Main M-Pesa account not found" }, { status: 404 });
-      const userId = mpesa.user_id;
+    const adminSb = supabase;
+    const { data: mpesa } = await adminSb.from("accounts").select("id, user_id").eq("account_code", "main").single();
+    if (!mpesa) return { status: "failed", error: "Main M-Pesa account not found" };
+    const userId = mpesa.user_id;
 
-      const outstanding = p.fulizaOutstanding ?? 0;
-      const fee = p.fulizaFee ?? 0;
-      const amount = p.fulizaAmount ?? 0;
+    const outstanding = p.fulizaOutstanding ?? 0;
+    const fee = p.fulizaFee ?? 0;
+    const amount = p.fulizaAmount ?? 0;
 
-      // Resolve occurredOn using parent transaction if it exists
-      let occurredOn = p.occurredOn;
-      if (p.receipt !== "UNKNOWN") {
-        const { data: parent } = await adminSb
-          .from("transactions")
-          .select("occurred_on")
-          .eq("user_id", userId)
-          .eq("metadata->>mpesa_receipt", p.receipt)
-          .maybeSingle();
-        if (parent) {
-          occurredOn = parent.occurred_on;
-        }
+    // Resolve occurredOn using parent transaction if it exists
+    let occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : p.occurredOn;
+    if (p.receipt !== "UNKNOWN") {
+      const { data: parent } = await adminSb
+        .from("transactions")
+        .select("occurred_on")
+        .eq("user_id", userId)
+        .eq("metadata->>mpesa_receipt", p.receipt)
+        .maybeSingle();
+      if (parent) {
+        occurredOn = parent.occurred_on;
       }
-
-      // 1. Auto-track Fuliza outstanding balance as a debt
-      await upsertAutoDebt(adminSb, userId, "fuliza", "Safaricom Fuliza", outstanding);
-
-      const inserted = [];
-
-      // 2. Log the Access Fee as an expense transaction
-      if (fee > 0 && p.receipt !== "UNKNOWN") {
-        const feeReceipt = p.receipt + "-fee";
-        const { data: existingFee } = await adminSb.from("transactions").select("id")
-          .eq("user_id", userId)
-          .contains("metadata", { mpesa_receipt: feeReceipt })
-          .maybeSingle();
-
-        if (!existingFee) {
-          const category = await getOrCreateCategory(adminSb, userId, "Other Expense", "expense");
-
-          if (category) {
-            const { data: txn } = await adminSb.from("transactions").insert({
-              user_id: userId,
-              account_id: mpesa.id,
-              category_id: category.id,
-              txn_type: "expense",
-              amount: fee,
-              currency_code: "KES",
-              occurred_on: occurredOn,
-              description: "Fuliza Access Fee",
-              metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, raw_sms: p.raw }
-            }).select("id").single();
-            if (txn) inserted.push({ type: "fee", id: txn.id, amount: fee });
-          }
-        }
-      }
-
-      // 3. Log the financed overdraft amount if the main transaction does not exist
-      if (amount > 0 && p.receipt !== "UNKNOWN") {
-        const { data: existingTxn } = await adminSb.from("transactions").select("id, metadata")
-          .eq("user_id", userId)
-          .contains("metadata", { mpesa_receipt: p.receipt })
-          .maybeSingle();
-
-        if (!existingTxn) {
-          const category = await getOrCreateCategory(adminSb, userId, "Other Expense", "expense");
-
-          if (category) {
-            const { data: txn } = await adminSb.from("transactions").insert({
-              user_id: userId,
-              account_id: mpesa.id,
-              category_id: category.id,
-              txn_type: "expense",
-              amount: amount,
-              currency_code: "KES",
-              occurred_on: occurredOn,
-              description: "Fuliza transaction (auto-generated)",
-              metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, is_auto_generated: true, raw_sms: p.raw }
-            }).select("id").single();
-            if (txn) inserted.push({ type: "overdraft", id: txn.id, amount: amount });
-          }
-        }
-      }
-
-      return NextResponse.json({ status: "created_fuliza", receipt: p.receipt, inserted });
-    } catch (err: any) {
-      console.warn("[fuliza parsing] failed:", err);
-      return NextResponse.json({ error: err.message }, { status: 500 });
     }
-  }
-  if (p.amount <= 0) return NextResponse.json({ status: "ignored", reason: "zero_amount" });
 
-  const supabase = createAdminClient();
+    // 1. Auto-track Fuliza outstanding balance as a debt
+    await upsertAutoDebt(adminSb, userId, "fuliza", "Safaricom Fuliza", outstanding);
+
+    const inserted = [];
+
+    // 2. Log the Access Fee as an expense transaction
+    if (fee > 0 && p.receipt !== "UNKNOWN") {
+      const feeReceipt = p.receipt + "-fee";
+      const { data: existingFee } = await adminSb.from("transactions").select("id")
+        .eq("user_id", userId)
+        .contains("metadata", { mpesa_receipt: feeReceipt })
+        .maybeSingle();
+
+      if (!existingFee) {
+        const category = await getOrCreateCategory(adminSb, userId, "Other Expense", "expense");
+
+        if (category) {
+          const { data: txn } = await adminSb.from("transactions").insert({
+            user_id: userId,
+            account_id: mpesa.id,
+            category_id: category.id,
+            txn_type: "expense",
+            amount: fee,
+            currency_code: "KES",
+            occurred_on: occurredOn,
+            description: "Fuliza Access Fee",
+            metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, raw_sms: p.raw }
+          }).select("id").single();
+          if (txn) inserted.push({ type: "fee", id: txn.id, amount: fee });
+        }
+      }
+    }
+
+    // 3. Log the financed overdraft amount if the main transaction does not exist
+    if (amount > 0 && p.receipt !== "UNKNOWN") {
+      const { data: existingTxn } = await adminSb.from("transactions").select("id, metadata")
+        .eq("user_id", userId)
+        .contains("metadata", { mpesa_receipt: p.receipt })
+        .maybeSingle();
+
+      if (!existingTxn) {
+        const category = await getOrCreateCategory(adminSb, userId, "Other Expense", "expense");
+
+        if (category) {
+          const { data: txn } = await adminSb.from("transactions").insert({
+            user_id: userId,
+            account_id: mpesa.id,
+            category_id: category.id,
+            txn_type: "expense",
+            amount: amount,
+            currency_code: "KES",
+            occurred_on: occurredOn,
+            description: "Fuliza transaction (auto-generated)",
+            metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, is_auto_generated: true, raw_sms: p.raw }
+          }).select("id").single();
+          if (txn) inserted.push({ type: "overdraft", id: txn.id, amount: amount });
+        }
+      }
+    }
+
+    return { status: "created_fuliza", receipt: p.receipt, inserted };
+  }
+
+  if (p.amount <= 0) return { status: "ignored", reason: "zero_amount" };
 
   const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
   const mpesa = (accts ?? []).find((a) => a.account_code === "main");
-  if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
+  if (!mpesa) return { status: "failed", error: "MPESA account not found" };
   const userId = mpesa.user_id;
+
+  const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : p.occurredOn;
 
   // Dedup / Update auto-generated
   if (p.receipt !== "UNKNOWN") {
@@ -1157,10 +1186,10 @@ export async function POST(request: NextRequest) {
           }
         }).eq("id", existing.id).select("id").single();
 
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        if (error) return { status: "failed", error: error.message };
         if (p.mpesaBal !== null) { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
 
-        return NextResponse.json({
+        return {
           status: "updated_auto_generated",
           kind: p.kind,
           transaction_id: updated.id,
@@ -1169,34 +1198,34 @@ export async function POST(request: NextRequest) {
           category: categoryName,
           counterparty: p.counterparty,
           balance_after: p.mpesaBal
-        });
+        };
       }
 
-      return NextResponse.json({ status: "ignored", reason: "duplicate", receipt: p.receipt });
+      return { status: "ignored", reason: "duplicate", receipt: p.receipt };
     }
   }
 
   // ── Transfers to/from savings sub-wallets ──
   if (p.txnType === "transfer" && p.savingsCode) {
     const savings = (accts ?? []).find((a) => a.account_code === p.savingsCode);
-    if (!savings) return NextResponse.json({ error: `${p.savingsCode} account not found` }, { status: 404 });
+    if (!savings) return { status: "failed", error: `${p.savingsCode} account not found` };
 
     const fromId = p.kind === "transfer_out" ? mpesa.id : savings.id;
     const toId   = p.kind === "transfer_out" ? savings.id : mpesa.id;
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
-      txn_type: "transfer", amount: p.amount, currency_code: "KES", occurred_on: p.occurredOn,
+      txn_type: "transfer", amount: p.amount, currency_code: "KES", occurred_on: occurredOn,
       description: p.description,
       metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, savings_balance: p.savingsBal, raw_sms: p.raw },
     }).select("id").single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return { status: "failed", error: error.message };
 
     // Sync both balances from the SMS
     if (p.mpesaBal !== null)   { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
     if (p.savingsBal !== null) { try { await setBalance(supabase, savings.id, p.savingsBal); } catch {} }
 
-    return NextResponse.json({ status: "created", kind: p.kind, transaction_id: txn.id, amount: p.amount, savings: p.savingsCode, mpesa_balance: p.mpesaBal, savings_balance: p.savingsBal });
+    return { status: "created", kind: p.kind, transaction_id: txn.id, amount: p.amount, savings: p.savingsCode, mpesa_balance: p.mpesaBal, savings_balance: p.savingsBal };
   }
 
   // ── Income / Expense ──
@@ -1205,18 +1234,18 @@ export async function POST(request: NextRequest) {
 
   const { data: txn, error } = await supabase.from("transactions").insert({
     user_id: userId, account_id: mpesa.id, category_id: category.id,
-    txn_type: p.txnType, amount: p.amount, currency_code: "KES", occurred_on: p.occurredOn,
+    txn_type: p.txnType, amount: p.amount, currency_code: "KES", occurred_on: occurredOn,
     description: p.description,
     metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, txn_cost: p.txnCost, needs_review: p.needsReview, raw_sms: p.raw },
   }).select("id").single();
-  if (error) return NextResponse.json({ error: error.message, raw: p.raw }, { status: 500 });
+  if (error) return { status: "failed", error: error.message };
 
   if (p.mpesaBal !== null) { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
 
   // Auto-match recurring obligations on expense txns
   if (p.txnType === "expense") {
     const searchText = `${p.description ?? ""} ${p.counterparty ?? ""} ${p.raw}`;
-    await tryAutoMatchObligation(supabase, userId, txn.id, p.occurredOn, searchText);
+    await tryAutoMatchObligation(supabase, userId, txn.id, occurredOn, searchText);
   }
 
   // Auto-track M-Shwari Loan / KCB M-PESA Overdraft outstanding balances, and Fuliza repayments
@@ -1237,10 +1266,159 @@ export async function POST(request: NextRequest) {
     console.warn("[auto-debt detection] failed:", err);
   }
 
-  return NextResponse.json({
+  return {
     status: "created", kind: p.kind, transaction_id: txn.id, amount: p.amount, type: p.txnType,
     category: categoryName, counterparty: p.counterparty, balance_after: p.mpesaBal, needs_review: p.needsReview,
+  };
+}
+
+export async function POST(request: NextRequest) {
+  const secret = request.nextUrl.searchParams.get("secret") ?? request.headers.get("x-webhook-secret") ?? request.headers.get("authorization")?.replace("Bearer ", "");
+  const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
+  if (!expectedSecret || secret !== expectedSecret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Capture raw body up-front (clone so extractSmsText can still read the stream)
+  const contentType = request.headers.get("content-type") ?? "none";
+  let rawBody = "";
+  try { rawBody = await request.clone().text(); } catch { /* */ }
+
+  // Detailed raw console logging as requested
+  console.log("[mpesa-sms webhook] Received POST request:", {
+    contentType,
+    rawBody: rawBody
   });
+
+  // Try parsing rawBody as JSON
+  let payload: any = null;
+  try {
+    if (rawBody.trim()) {
+      payload = JSON.parse(rawBody);
+    }
+  } catch (err) {
+    // Not JSON
+  }
+
+  // Check for placeholder strings in parsed payload
+  if (payload) {
+    const msg = payload.message || payload.body || payload.sms || payload.text || payload.msg || payload.content || payload.sms_body;
+    const ts = payload.timestamp;
+    const batch = payload.batch;
+
+    if (
+      (msg && isPlaceholder(msg)) ||
+      (ts && isPlaceholder(ts)) ||
+      (batch && (batch.trim() === "[lv=queue_contents]" || batch.trim() === "{queue_contents}" || batch.trim() === "[queue_contents]"))
+    ) {
+      console.warn("[mpesa-sms webhook] Rejected due to unresolved placeholders in JSON payload:", payload);
+      return NextResponse.json(
+        {
+          error: "Unresolved MacroDroid placeholder detected in payload",
+          received_payload: payload
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  const supabase = createAdminClient();
+
+  // Handle batch payload
+  if (payload && payload.batch) {
+    const batchContent = payload.batch;
+    const lines = batchContent.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+    const results = [];
+
+    console.log(`[mpesa-sms webhook] Processing batch of ${lines.length} lines`);
+
+    for (const line of lines) {
+      const parts = line.split("|||");
+      const smsText = parts[0]?.trim();
+      const timestamp = parts[1]?.trim();
+
+      if (!smsText || isPlaceholder(smsText)) {
+        results.push({ status: "ignored", reason: "empty_or_placeholder_line", line });
+        continue;
+      }
+
+      try {
+        const res = await processSingleSms(supabase, smsText, timestamp);
+        results.push({ line, ...res });
+      } catch (err: any) {
+        console.error(`[mpesa-sms webhook] Error processing batch line: ${line}`, err);
+        results.push({ line, status: "failed", error: err.message });
+      }
+    }
+
+    return NextResponse.json({
+      status: "processed",
+      batch_size: lines.length,
+      results,
+      received_payload: payload
+    });
+  }
+
+  // Handle single message payload
+  let smsText = "";
+  let timestamp = "";
+  if (payload) {
+    smsText = payload.message || payload.body || payload.sms || payload.text || payload.msg || payload.content || payload.sms_body || "";
+    timestamp = payload.timestamp || "";
+  }
+
+  // Fallback to extractSmsText for other content-types or if JSON properties didn't populate it
+  if (!smsText) {
+    try {
+      smsText = await extractSmsText(request);
+    } catch {
+      return NextResponse.json(
+        {
+          error: "Could not read body",
+          received_payload: rawBody
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  if (!smsText || isPlaceholder(smsText)) {
+    await captureDebug(rawBody, contentType, smsText || "", "empty_or_placeholder_body");
+    return NextResponse.json(
+      {
+        status: "ignored",
+        reason: "empty_or_placeholder_body",
+        content_type: contentType,
+        received_payload: payload || rawBody
+      },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const res = await processSingleSms(supabase, smsText, timestamp);
+    if (res.status === "failed") {
+      return NextResponse.json(
+        {
+          ...res,
+          received_payload: payload || rawBody
+        },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({
+      ...res,
+      received_payload: payload || rawBody
+    });
+  } catch (err: any) {
+    console.error("[mpesa-sms webhook] Unexpected processing error:", err);
+    return NextResponse.json(
+      {
+        status: "failed",
+        error: err.message,
+        received_payload: payload || rawBody
+      },
+      { status: 500 }
+    );
+  }
 }
 
 // ─── GET ─────────────────────────────────────────────────────────────────────
