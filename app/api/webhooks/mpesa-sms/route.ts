@@ -1504,14 +1504,14 @@ export async function GET(request: NextRequest) {
     if (!p) return NextResponse.json({ error: "Failed to parse SMS with new regexes" }, { status: 400 });
 
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
-    const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+    const mpesa = (accts ?? []).find((a: any) => a.account_code === "main");
     if (!mpesa) return NextResponse.json({ error: "M-Pesa account not found" }, { status: 404 });
     const userId = mpesa.user_id;
 
     let result = null;
 
     if (p.txnType === "transfer" && p.savingsCode) {
-      const savings = (accts ?? []).find((a) => a.account_code === p.savingsCode);
+      const savings = (accts ?? []).find((a: any) => a.account_code === p.savingsCode);
       if (!savings) return NextResponse.json({ error: `${p.savingsCode} account not found` }, { status: 404 });
 
       const fromId = p.kind === "transfer_out" ? mpesa.id : savings.id;
@@ -1551,8 +1551,8 @@ export async function GET(request: NextRequest) {
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
     if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
     
-    const mpesa = accts.find(a => a.account_code === "main");
-    const kcb = accts.find(a => a.account_code === "kcb_mpesa");
+    const mpesa = accts.find((a: any) => a.account_code === "main");
+    const kcb = accts.find((a: any) => a.account_code === "kcb_mpesa");
     if (!mpesa || !kcb) return NextResponse.json({ error: "Main or KCB account missing" }, { status: 500 });
     const userId = mpesa.user_id;
 
@@ -1693,7 +1693,7 @@ export async function GET(request: NextRequest) {
 
       // Handle transfers
       if (p.txnType === "transfer" && p.savingsCode) {
-        const savings = accts.find(a => a.account_code === p.savingsCode);
+        const savings = accts.find((a: any) => a.account_code === p.savingsCode);
         if (!savings) continue;
         const fromId = p.kind === "transfer_out" ? mpesa.id : savings.id;
         const toId   = p.kind === "transfer_out" ? savings.id : mpesa.id;
@@ -1758,8 +1758,8 @@ export async function GET(request: NextRequest) {
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
     if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
     
-    const sbmAccount = accts.find(a => a.account_code === "bank_c");
-    const mpesa = accts.find(a => a.account_code === "main");
+    const sbmAccount = accts.find((a: any) => a.account_code === "bank_c");
+    const mpesa = accts.find((a: any) => a.account_code === "main");
     if (!sbmAccount || !mpesa) return NextResponse.json({ error: "SBM Bank or M-Pesa account missing" }, { status: 500 });
     const userId = sbmAccount.user_id;
 
@@ -1799,7 +1799,7 @@ export async function GET(request: NextRequest) {
           .or(`metadata->>sbm_receipt.eq.${sbm.receipt},metadata->>mpesa_receipt.eq.${sbm.receipt}`);
 
         if (existing && existing.length > 0) {
-          const incorrectExpense = existing.find(t => t.txn_type === "expense" && sbm.kind === "transfer");
+          const incorrectExpense = existing.find((t: any) => t.txn_type === "expense" && sbm.kind === "transfer");
           if (incorrectExpense) {
             await supabase.from("transactions").delete().eq("id", incorrectExpense.id);
           } else {
@@ -1839,8 +1839,8 @@ export async function GET(request: NextRequest) {
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
     if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
 
-    const dtbAccount = accts.find(a => a.account_code === "bank_a");
-    const mpesa = accts.find(a => a.account_code === "main");
+    const dtbAccount = accts.find((a: any) => a.account_code === "bank_a");
+    const mpesa = accts.find((a: any) => a.account_code === "main");
     if (!dtbAccount || !mpesa) return NextResponse.json({ error: "DTB Bank or M-Pesa account missing" }, { status: 500 });
     const userId = dtbAccount.user_id;
 
@@ -1933,8 +1933,8 @@ export async function GET(request: NextRequest) {
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
     if (!accts || accts.length === 0) return NextResponse.json({ error: "No accounts found" }, { status: 500 });
 
-    const imAccount = accts.find(a => a.account_code === "bank_b");
-    const mpesa = accts.find(a => a.account_code === "main");
+    const imAccount = accts.find((a: any) => a.account_code === "bank_b");
+    const mpesa = accts.find((a: any) => a.account_code === "main");
     if (!imAccount || !mpesa) return NextResponse.json({ error: "I&M Bank or M-Pesa account missing" }, { status: 500 });
     const userId = imAccount.user_id;
 
