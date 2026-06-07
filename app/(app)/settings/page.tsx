@@ -6,6 +6,7 @@ import type { Account } from "@/types/domain";
 import { cn } from "@/lib/utils";
 import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet, RefreshCw } from "lucide-react";
 import { MpesaIntegrationGuide } from "@/components/dashboard/mpesa-integration-guide";
+import { BankIntegrationGuide } from "@/components/dashboard/bank-integration-guide";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -204,6 +205,7 @@ export default function SettingsPage() {
           </div>
 
           <MpesaIntegrationGuide />
+          <BankIntegrationGuide />
 
           {/* Data Tools */}
           <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
