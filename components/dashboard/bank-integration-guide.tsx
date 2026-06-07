@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Copy, Check, Smartphone, Key, FileText, RefreshCw, AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Copy, Check, Smartphone, Key, FileText, RefreshCw, AlertCircle, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 export function BankIntegrationGuide() {
@@ -8,9 +8,6 @@ export function BankIntegrationGuide() {
   const [revealed, setRevealed] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
-
-  // Masked display shown before reveal
-  const maskedUrl = "https://finance.rauell.systems/api/webhooks/mpesa-sms?secret=••••••••••••••••••••••••";
 
   async function handleReveal() {
     if (revealed && webhookUrl) {
@@ -90,39 +87,49 @@ export function BankIntegrationGuide() {
             <p className="text-xs text-[#33375C]/75 leading-relaxed pl-7">
               Use this target endpoint in your HTTP Request actions. Keep the secret token private.
             </p>
-            <div className="pl-7 mt-3">
-              <div className="flex items-center gap-2 w-full max-w-md bg-[#F0F0FF]/30 border border-[#E2E2FF] rounded-xl px-3.5 py-2">
-                <input
-                  type="text"
-                  value={revealed && webhookUrl ? webhookUrl : maskedUrl}
-                  readOnly
-                  className="flex-1 bg-transparent text-[11px] font-mono font-semibold text-[#33375C]/75 focus:outline-none select-all"
-                />
+            <div className="pl-7 mt-3 space-y-2">
+              {!revealed ? (
                 <button
                   onClick={handleReveal}
                   disabled={loadingUrl}
-                  title={revealed ? "Hide webhook URL" : "Reveal webhook URL"}
-                  className="h-8 w-8 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#F0F0FF] border border-[#E2E2FF] text-[#524CF2] hover:bg-[#E2E2FF] transition-colors disabled:opacity-50"
                 >
                   {loadingUrl ? (
-                    <Loader2 className="h-4 w-4 text-[#524CF2] animate-spin" />
-                  ) : revealed ? (
-                    <EyeOff className="h-4 w-4 text-[#524CF2]" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Eye className="h-4 w-4 text-slate-500" />
+                    <Lock className="h-4 w-4" />
                   )}
+                  {loadingUrl ? "Loading..." : "Reveal Webhook URL"}
                 </button>
-                <button
-                  onClick={handleCopy}
-                  title="Copy webhook URL"
-                  className="h-8 w-8 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors"
-                >
-                  {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-slate-500" />}
-                </button>
-              </div>
-              <p className="text-[10px] text-[#33375C]/50 mt-2 pl-0.5 flex items-center gap-1">
-                <Eye className="h-3 w-3 inline" /> Click the eye icon to reveal your secret URL. Keep it private.
-              </p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 w-full max-w-md bg-[#F0F0FF]/30 border border-[#E2E2FF] rounded-xl px-3.5 py-2">
+                    <input
+                      type="text"
+                      value={webhookUrl ?? ""}
+                      readOnly
+                      className="flex-1 bg-transparent text-[11px] font-mono font-semibold text-[#33375C]/75 focus:outline-none select-all"
+                    />
+                    <button
+                      onClick={handleCopy}
+                      title="Copy webhook URL"
+                      className="h-8 w-8 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors"
+                    >
+                      {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-slate-500" />}
+                    </button>
+                    <button
+                      onClick={() => { setRevealed(false); setWebhookUrl(null); }}
+                      title="Hide webhook URL"
+                      className="h-8 w-8 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors"
+                    >
+                      <EyeOff className="h-4 w-4 text-slate-400" />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                    <Lock className="h-3 w-3" /> Keep this URL private. Hide it when done.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <div className="md:col-span-2 flex justify-center">
