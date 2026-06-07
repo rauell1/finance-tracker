@@ -882,7 +882,7 @@ async function processSingleSms(
   const sbm = parseSbmSMS(smsText);
   if (sbm) {
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
-    const sbmAccount = (accts ?? []).find((a) => a.account_code === "bank_c");
+    const sbmAccount = (accts ?? []).find((a: any) => a.account_code === "bank_c");
     if (!sbmAccount) return { status: "failed", error: "SBM Bank account (bank_c) not found" };
     const userId = sbmAccount.user_id;
 
@@ -893,7 +893,7 @@ async function processSingleSms(
         .or(`metadata->>sbm_receipt.eq.${sbm.receipt},metadata->>mpesa_receipt.eq.${sbm.receipt}`);
 
       if (existing && existing.length > 0) {
-        const incorrectExpense = existing.find(t => t.txn_type === "expense" && sbm.kind === "transfer");
+        const incorrectExpense = existing.find((t: any) => t.txn_type === "expense" && sbm.kind === "transfer");
         if (incorrectExpense) {
           await supabase.from("transactions").delete().eq("id", incorrectExpense.id);
         } else {
@@ -905,7 +905,7 @@ async function processSingleSms(
     const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : sbm.occurredOn;
 
     if (sbm.kind === "transfer") {
-      const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+      const mpesa = (accts ?? []).find((a: any) => a.account_code === "main");
       if (!mpesa) return { status: "failed", error: "MPESA account not found" };
 
       const { data: txn, error } = await supabase.from("transactions").insert({
@@ -938,7 +938,7 @@ async function processSingleSms(
   const dtb = parseDtbSMS(smsText);
   if (dtb) {
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
-    const dtbAccount = (accts ?? []).find((a) => a.account_code === "bank_a");
+    const dtbAccount = (accts ?? []).find((a: any) => a.account_code === "bank_a");
     if (!dtbAccount) return { status: "failed", error: "DTB Bank account (bank_a) not found" };
     const userId = dtbAccount.user_id;
 
@@ -968,7 +968,7 @@ async function processSingleSms(
     }
 
     if (dtb.kind === "transfer") {
-      const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+      const mpesa = (accts ?? []).find((a: any) => a.account_code === "main");
       if (!mpesa) return { status: "failed", error: "MPESA account not found" };
 
       const isOutflow = dtb.description === "Transfer to M-Pesa";
@@ -1005,7 +1005,7 @@ async function processSingleSms(
   const im = parseImSMS(smsText);
   if (im) {
     const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
-    const imAccount = (accts ?? []).find((a) => a.account_code === "bank_b");
+    const imAccount = (accts ?? []).find((a: any) => a.account_code === "bank_b");
     if (!imAccount) return { status: "failed", error: "I&M Bank account (bank_b) not found" };
     const userId = imAccount.user_id;
 
@@ -1023,7 +1023,7 @@ async function processSingleSms(
     const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : im.occurredOn;
 
     if (im.kind === "transfer") {
-      const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+      const mpesa = (accts ?? []).find((a: any) => a.account_code === "main");
       if (!mpesa) return { status: "failed", error: "MPESA account not found" };
 
       const isOutflow = im.description.toLowerCase().includes("transfer to");
@@ -1151,7 +1151,7 @@ async function processSingleSms(
   if (p.amount <= 0) return { status: "ignored", reason: "zero_amount" };
 
   const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
-  const mpesa = (accts ?? []).find((a) => a.account_code === "main");
+  const mpesa = (accts ?? []).find((a: any) => a.account_code === "main");
   if (!mpesa) return { status: "failed", error: "MPESA account not found" };
   const userId = mpesa.user_id;
 
@@ -1207,7 +1207,7 @@ async function processSingleSms(
 
   // ── Transfers to/from savings sub-wallets ──
   if (p.txnType === "transfer" && p.savingsCode) {
-    const savings = (accts ?? []).find((a) => a.account_code === p.savingsCode);
+    const savings = (accts ?? []).find((a: any) => a.account_code === p.savingsCode);
     if (!savings) return { status: "failed", error: `${p.savingsCode} account not found` };
 
     const fromId = p.kind === "transfer_out" ? mpesa.id : savings.id;
