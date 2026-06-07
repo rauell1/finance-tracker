@@ -544,6 +544,208 @@ function parseImSMS(text: string): ParsedSbm | null {
   return null;
 }
 
+function cleanBankCounterparty(name: string): string {
+  return name
+    .replace(/\b\d{6,}\b/g, "")
+    .replace(/,\s*Inc/gi, " Inc")
+    .replace(/,\s*CO\b/gi, "")
+    .replace(/\s+CO\b/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/[.,\s]+$/, "")
+    .trim();
+}
+
+interface ParsedBankResult {
+  isIgnored?: boolean;
+  reason?: string;
+  amount?: number;
+  reference?: string;
+  counterparty?: string;
+  bank?: string;
+  type?: "income" | "expense";
+  accountNo?: string;
+  occurredOn?: string;
+}
+
+function parseBankSms(message: string, sender?: string): ParsedBankResult | null {
+  const text = message.trim();
+
+  if (
+    /OTP|valid for/i.test(text) ||
+    /closed|maintenance|upgrade|resume/i.test(text) ||
+    /Happy Birthday|appreciate you/i.test(text) ||
+    /branches will be closed/i.test(text) ||
+    /disruption|restored/i.test(text)
+  ) {
+    return { isIgnored: true, reason: "non_transactional" };
+  }
+
+  let bankName = "";
+  if (sender) {
+    const s = sender.toUpperCase();
+    if (s.includes("DTB")) bankName = "DTB";
+    else if (s.includes("SBMBANK") || s.includes("SBM")) bankName = "SBMBANK";
+    else if (s.includes("IANDMBANK") || s.includes("I&M") || s.includes("IM")) bankName = "IANDMBANK";
+  }
+
+  if (!bankName) {
+    if (/SBM\s*Bank|SBMBANK/i.test(text)) bankName = "SBMBANK";
+    else if (/I&M\s*Bank|IANDMBANK|IM\s*Bank/i.test(text)) bankName = "IANDMBANK";
+    else if (/DTB/i.test(text)) bankName = "DTB";
+  }
+
+  if (!bankName) return null;
+
+  let amount = 0;
+  const amountMatch = text.match(/(?:KES|Ksh)\s*([\d,]+\.?\d*)/i);
+  if (amountMatch) {
+    amount = parseFloat(amountMatch[1].replace(/,/g, ""));
+  } else {
+    return null;
+  }
+
+  let reference = "";
+  const mpesaRefMatch = text.match(/M-?Pesa\s+Ref(?:\s*No)?[:\s]+\b([A-Z0-9]{10})\b/i);
+  if (mpesaRefMatch) {
+    reference = mpesaRefMatch[1];
+  } else {
+    reference = `${bankName}-INTERNAL-${hashString(text)}`;
+  }
+
+  let accountNo = "";
+  const accMatch = text.match(/(?:account(?:\s+no)?\.?\s*(\S+)|acc(?:ount)?\s*(\S+)|card\s*(\S+))/i);
+  if (accMatch) {
+    accountNo = accMatch[1] || accMatch[2] || accMatch[3];
+  }
+
+  let type: "income" | "expense" = "expense";
+  let counterparty = "Unknown";
+
+  if (bankName === "SBMBANK") {
+    const sbmMatch = text.match(/Your M-Pesa payment of KES\s*([\d,]+\.?\d*) to (\S+) was successful/i);
+    if (sbmMatch) {
+      type = "income";
+      counterparty = sbmMatch[2];
+    }
+  } else if (bankName === "DTB") {
+    if (/debited/i.test(text)) {
+      type = "expense";
+      const dtbDebitMatch = text.match(/at\s+(.+?)\s+on\s+\d{1,2}\/\d{1,2}\/\d{2,4}/i);
+      if (dtbDebitMatch) {
+        counterparty = cleanBankCounterparty(dtbDebitMatch[1]);
+      }
+    } else if (/transferred/i.test(text)) {
+      type = "expense";
+      counterparty = "M-Pesa";
+    }
+  } else if (bankName === "IANDMBANK") {
+    if (/debited/i.test(text)) {
+      type = "expense";
+      const imDebitMatch = text.match(/at\s+(.+?)\s+on\s+\d{1,2}\/\d{1,2}\/\d{2,4}/i);
+      if (imDebitMatch) {
+        counterparty = cleanBankCounterparty(imDebitMatch[1]);
+      }
+    }
+  }
+
+  let occurredOn = new Date().toISOString().split("T")[0];
+  const dateMatch = text.match(/on\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  if (dateMatch) {
+    occurredOn = parseDate(dateMatch[1]);
+  }
+
+  return {
+    isIgnored: false,
+    amount,
+    reference,
+    counterparty,
+    bank: bankName,
+    type,
+    accountNo,
+    occurredOn
+  };
+}
+
+async function processSingleBankSms(
+  supabase: AdminClient,
+  smsText: string,
+  timestamp?: string,
+  sender?: string
+): Promise<{ status: string; reason?: string; transaction_id?: string; amount?: number; error?: string; [key: string]: any }> {
+  const parsed = parseBankSms(smsText, sender);
+  if (!parsed) {
+    return { status: "ignored", reason: "not_bank_sms" };
+  }
+
+  if (parsed.isIgnored) {
+    return { status: "ignored", reason: parsed.reason };
+  }
+
+  const { amount, reference, counterparty, bank, type, accountNo, occurredOn: parsedDate } = parsed;
+
+  if (!amount || amount <= 0) {
+    return { status: "ignored", reason: "zero_amount" };
+  }
+
+  const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : parsedDate!;
+  const accountCode = bank === "DTB" ? "bank_a" : bank === "IANDMBANK" ? "bank_b" : "bank_c";
+
+  const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+  const bankAccount = (accts ?? []).find((a: any) => a.account_code === accountCode);
+  if (!bankAccount) {
+    return { status: "failed", error: `${bank} account (${accountCode}) not found` };
+  }
+  const userId = bankAccount.user_id;
+
+  if (reference) {
+    const { data: existing } = await supabase.from("transactions").select("id")
+      .eq("user_id", userId)
+      .or(`metadata->>reference.eq.${reference},metadata->>mpesa_receipt.eq.${reference}`);
+
+    if (existing && existing.length > 0) {
+      return { status: "ignored", reason: "duplicate", reference };
+    }
+  }
+
+  const categoryName = "bank_transaction";
+  const category = await getOrCreateCategory(supabase, userId, categoryName, type!);
+
+  const { data: txn, error } = await supabase.from("transactions").insert({
+    user_id: userId,
+    account_id: bankAccount.id,
+    category_id: category.id,
+    txn_type: type,
+    amount: amount,
+    currency_code: "KES",
+    occurred_on: occurredOn,
+    description: `${bank} transaction: ${counterparty}`,
+    metadata: {
+      source: "bank_sms",
+      bank_transaction: true,
+      reference: reference,
+      bank: bank,
+      counterparty: counterparty,
+      account_no: accountNo,
+      raw_sms: smsText,
+      sender: sender
+    }
+  }).select("id").single();
+
+  if (error) {
+    return { status: "failed", error: error.message };
+  }
+
+  return {
+    status: "created",
+    source: "bank_sms",
+    bank: bank!,
+    amount: amount,
+    type: type!,
+    reference: reference!,
+    counterparty: counterparty!,
+    transaction_id: txn.id
+  };
+}
 
 function parse(rawText: string): Parsed | null {
   let text = cleanSms(rawText);
@@ -1321,6 +1523,86 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
+
+  // Handle Bank Sync batch payload
+  if (payload && payload.source === "bank_sync") {
+    const batchContent = payload.batch || "";
+    const lines = batchContent.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+    const results = [];
+
+    console.log(`[bank-sms webhook] Processing bank_sync batch of ${lines.length} lines`);
+
+    for (const line of lines) {
+      const parts = line.split("|||");
+      const smsText = parts[0]?.trim();
+      const timestamp = parts[1]?.trim();
+
+      if (!smsText || isPlaceholder(smsText)) {
+        results.push({ status: "ignored", reason: "empty_or_placeholder_line", line });
+        continue;
+      }
+
+      try {
+        const res = await processSingleBankSms(supabase, smsText, timestamp);
+        results.push({ line, ...res });
+      } catch (err: any) {
+        console.error(`[bank-sms webhook] Error processing batch line: ${line}`, err);
+        results.push({ line, status: "failed", error: err.message });
+      }
+    }
+
+    return NextResponse.json({
+      status: "processed",
+      batch_size: lines.length,
+      results,
+      received_payload: payload
+    });
+  }
+
+  // Handle Bank SMS single payload
+  if (payload && payload.source === "bank_sms") {
+    const smsText = payload.message || payload.body || payload.sms || payload.text || payload.msg || payload.content || payload.sms_body || "";
+    const timestamp = payload.timestamp || "";
+    const sender = payload.sender || "";
+
+    if (!smsText || isPlaceholder(smsText)) {
+      return NextResponse.json(
+        {
+          status: "ignored",
+          reason: "empty_or_placeholder_body",
+          received_payload: payload
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const res = await processSingleBankSms(supabase, smsText, timestamp, sender);
+      if (res.status === "failed") {
+        return NextResponse.json(
+          {
+            ...res,
+            received_payload: payload
+          },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({
+        ...res,
+        received_payload: payload
+      });
+    } catch (err: any) {
+      console.error("[bank-sms webhook] Unexpected processing error:", err);
+      return NextResponse.json(
+        {
+          status: "failed",
+          error: err.message,
+          received_payload: payload
+        },
+        { status: 500 }
+      );
+    }
+  }
 
   // Handle batch payload
   if (payload && payload.batch) {
