@@ -33,8 +33,10 @@ const P = {
   sbmEft:          /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s+Inward Clg EFT has been deposited to account ending with (\d+) on (\d{1,2}-\d{1,2}-\d{4})/i,
   sbmMobileCredit: /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s*,\s*has been credited to account ending (\d+) through MPESA Mobile Banking Terminal on (\d{1,2}-\d{1,2}-\d{4})/i,
   sbmMpesaPay:     /Your M-Pesa payment of KES\s*([\d,]+\.?\d*) to (\d+) was successful on (\d{1,2}\/\d{1,2}\/\d{2,4}).*?M-Pesa Ref:\s*\b([A-Z0-9]{10})\b/i,
+  sbmWithdrawal:   /Your MPESA withdrawal of KES\s*([\d,]+\.?\d*) to ([^.]+?) was successful at (\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2}:\d{2})\.\s*MPESA ref\s*\b([A-Z0-9]{10})\b/i,
+  sbmMpesaCredit:  /Dear\s+([^,]+?),\s*([^.]+?)\s+has sent you KES\.\s*([\d,]+\.?\d*) to your MPESA\.\s*Ref number\s*\b([A-Z0-9]{10})\b/i,
   // DTB Patterns
-  dtbPos: /ALERT: Your account no\. (\S+) has been debited with KES\s*([\d,]+\.?\d*) for a POS PURCHASE at ([^.]+?) on (\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+  dtbPos: /ALERT: Your account no\. (\S+) has been debited with KES\s*([\d,]+\.?\d*) for a POS PURCHASE at (.+?) on (\d{1,2}\/\d{1,2}\/\d{2,4})/i,
   dtbMobileBankingDebit: /ALERT: Your account no\. (\S+) has been debited with KES\s*([\d,]+\.?\d*) for a MOBILE BANKING TXN on (\d{1,2}\/\d{1,2}\/\d{2,4})/i,
   dtbFromMpesa: /successfully transferred KES\s*([\d,]+\.?\d*) from your M-?PESA to account:?\s*(\S+)\.(?:\s*Mpesa)?\s*Ref(?:\s*No)?[:\s]+\b([A-Z0-9]{10})\b/i,
   dtbToMpesa: /successfully transferred KES\s*([\d,]+\.?\d*) to\s+([^.]+?)\. M-?PESA Ref:\s*\b([A-Z0-9]{10})\b\. Ref No:\s*(\d+)/i,
@@ -70,11 +72,28 @@ function guessCategory(text: string, t: "income" | "expense"): string {
 }
 
 function guessMpesaCategory(text: string, t: "income" | "expense"): string {
-  const cat = guessCategory(text, t);
-  if (t === "income" && cat === "Other Income") {
-    return "Funds received";
+  if (t === "expense") {
+    if (/sent to .*?\d{9,12}/i.test(text) || /sent to .*?07\d{8}/i.test(text)) {
+      return "Send Money";
+    }
+    if (/Lipa na KCB/i.test(text)) {
+      return "Bill Payment";
+    }
+    if (/airtime/i.test(text)) {
+      return "Airtime";
+    }
   }
-  return cat;
+  if (t === "income") {
+    if (/worldremit|sendwave|remit/i.test(text)) {
+      return "Remittance";
+    }
+    const cat = guessCategory(text, t);
+    if (cat === "Other Income") {
+      return "Funds received";
+    }
+    return cat;
+  }
+  return guessCategory(text, t);
 }
 
 async function getOrCreateCategory(
@@ -169,7 +188,7 @@ interface Parsed {
   counterparty: string;
   occurredOn: string;
   txnType: "income" | "expense" | "transfer";
-  savingsCode?: "kcb_mpesa" | "mshwari";
+  savingsCode?: "kcb_mpesa" | "mshwari" | "bank_a" | "bank_b" | "bank_c";
   mpesaBal: number | null;
   savingsBal: number | null;
   txnCost: number | null;
@@ -281,6 +300,36 @@ function parseSbmSMS(text: string): ParsedSbm | null {
       description: "Transfer to SBM Bank",
       counterparty: "SBM Bank",
       occurredOn: parseSbmDate(mpesaPay[3]),
+    };
+  }
+
+  const withdrawal = text.match(P.sbmWithdrawal);
+  if (withdrawal) {
+    const amount = num(withdrawal[1]);
+    const cp = cleanName(withdrawal[2]);
+    const dateParts = withdrawal[3].split(".");
+    const date = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+    return {
+      kind: "transfer",
+      receipt: withdrawal[5],
+      amount,
+      description: "Transfer to M-Pesa",
+      counterparty: cp,
+      occurredOn: date,
+    };
+  }
+
+  const mpesaCredit = text.match(P.sbmMpesaCredit);
+  if (mpesaCredit) {
+    const amount = num(mpesaCredit[3]);
+    const cp = cleanName(mpesaCredit[2]);
+    return {
+      kind: "transfer",
+      receipt: mpesaCredit[4],
+      amount,
+      description: "Transfer from SBM Bank",
+      counterparty: cp,
+      occurredOn: new Date().toISOString().split("T")[0],
     };
   }
 
@@ -562,9 +611,12 @@ interface ParsedBankResult {
   reference?: string;
   counterparty?: string;
   bank?: string;
-  type?: "income" | "expense";
+  type?: "income" | "expense" | "transfer";
   accountNo?: string;
   occurredOn?: string;
+  fromAccountCode?: string;
+  toAccountCode?: string;
+  isMobileBankingAlert?: boolean;
 }
 
 function parseBankSms(message: string, sender?: string): ParsedBankResult | null {
@@ -596,74 +648,373 @@ function parseBankSms(message: string, sender?: string): ParsedBankResult | null
 
   if (!bankName) return null;
 
-  let amount = 0;
-  const amountMatch = text.match(/(?:KES|Ksh)\s*([\d,]+\.?\d*)/i);
-  if (amountMatch) {
-    amount = parseFloat(amountMatch[1].replace(/,/g, ""));
-  } else {
-    return null;
-  }
-
-  let reference = "";
-  const mpesaRefMatch = text.match(/M-?Pesa\s+Ref(?:\s*No)?[:\s]+\b([A-Z0-9]{10})\b/i);
-  if (mpesaRefMatch) {
-    reference = mpesaRefMatch[1];
-  } else {
-    reference = `${bankName}-INTERNAL-${hashString(text)}`;
-  }
-
-  let accountNo = "";
-  const accMatch = text.match(/(?:account(?:\s+no)?\.?\s*(\S+)|acc(?:ount)?\s*(\S+)|card\s*(\S+))/i);
-  if (accMatch) {
-    accountNo = accMatch[1] || accMatch[2] || accMatch[3];
-  }
-
-  let type: "income" | "expense" = "expense";
-  let counterparty = "Unknown";
-
   if (bankName === "SBMBANK") {
-    const sbmMatch = text.match(/Your M-Pesa payment of KES\s*([\d,]+\.?\d*) to (\S+) was successful/i);
-    if (sbmMatch) {
-      type = "income";
-      counterparty = sbmMatch[2];
+    const parsedSbm = parseSbmSMS(text);
+    if (parsedSbm) {
+      const isToMpesa = parsedSbm.description.includes("to M-Pesa") || parsedSbm.description.includes("from SBM Bank");
+      return {
+        isIgnored: false,
+        amount: parsedSbm.amount,
+        reference: parsedSbm.receipt,
+        counterparty: parsedSbm.counterparty,
+        bank: "SBMBANK",
+        type: parsedSbm.kind,
+        accountNo: parsedSbm.receipt.includes("SBM-CARD") ? parsedSbm.receipt.split("-")[2] : "",
+        occurredOn: parsedSbm.occurredOn,
+        fromAccountCode: parsedSbm.kind === "transfer" ? (isToMpesa ? "bank_c" : "main") : undefined,
+        toAccountCode: parsedSbm.kind === "transfer" ? (isToMpesa ? "main" : "bank_c") : undefined,
+      };
     }
   } else if (bankName === "DTB") {
-    if (/debited/i.test(text)) {
-      type = "expense";
-      const dtbDebitMatch = text.match(/at\s+(.+?)\s+on\s+\d{1,2}\/\d{1,2}\/\d{2,4}/i);
-      if (dtbDebitMatch) {
-        counterparty = cleanBankCounterparty(dtbDebitMatch[1]);
-      }
-    } else if (/transferred/i.test(text)) {
-      type = "expense";
-      counterparty = "M-Pesa";
+    const parsedDtb = parseDtbSMS(text);
+    if (parsedDtb) {
+      const isOutflow = parsedDtb.description === "Transfer to M-Pesa";
+      return {
+        isIgnored: false,
+        amount: parsedDtb.amount,
+        reference: parsedDtb.receipt,
+        counterparty: parsedDtb.counterparty,
+        bank: "DTB",
+        type: parsedDtb.kind,
+        accountNo: "",
+        occurredOn: parsedDtb.occurredOn,
+        fromAccountCode: parsedDtb.kind === "transfer" ? (isOutflow ? "bank_a" : "main") : undefined,
+        toAccountCode: parsedDtb.kind === "transfer" ? (isOutflow ? "main" : "bank_a") : undefined,
+        isMobileBankingAlert: parsedDtb.isMobileBankingAlert
+      };
     }
   } else if (bankName === "IANDMBANK") {
-    if (/debited/i.test(text)) {
-      type = "expense";
-      const imDebitMatch = text.match(/at\s+(.+?)\s+on\s+\d{1,2}\/\d{1,2}\/\d{2,4}/i);
-      if (imDebitMatch) {
-        counterparty = cleanBankCounterparty(imDebitMatch[1]);
-      }
+    const parsedIm = parseImSMS(text);
+    if (parsedIm) {
+      const isOutflow = parsedIm.description.toLowerCase().includes("transfer to") || parsedIm.description.toLowerCase().includes("pesalink transfer to m-pesa");
+      return {
+        isIgnored: false,
+        amount: parsedIm.amount,
+        reference: parsedIm.receipt,
+        counterparty: parsedIm.counterparty,
+        bank: "IANDMBANK",
+        type: parsedIm.kind,
+        accountNo: "",
+        occurredOn: parsedIm.occurredOn,
+        fromAccountCode: parsedIm.kind === "transfer" ? (isOutflow ? "bank_b" : "main") : undefined,
+        toAccountCode: parsedIm.kind === "transfer" ? (isOutflow ? "main" : "bank_b") : undefined,
+      };
     }
   }
 
-  let occurredOn = new Date().toISOString().split("T")[0];
-  const dateMatch = text.match(/on\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
-  if (dateMatch) {
-    occurredOn = parseDate(dateMatch[1]);
+  return null;
+}
+
+async function reconcileLinkedTransaction(
+  supabase: AdminClient,
+  ref: string,
+  incomingSource: string,
+  amount: number,
+  userId: string,
+  occurredOn: string,
+  rawSms: string,
+  fromAccountId: string,
+  toAccountId: string,
+  fromAccountCode: string,
+  toAccountCode: string,
+  description: string,
+  balanceAfter: number | null,
+  txnCost: number | null
+): Promise<{ status: string; reason?: string; transaction_id: string; counter_transaction_id?: string }> {
+  // Query all transactions with this ref
+  const { data: txns, error } = await supabase
+    .from("transactions")
+    .select("id, account_id, transfer_account_id, txn_type, metadata, occurred_on")
+    .eq("user_id", userId)
+    .or(`metadata->>mpesa_receipt.eq.${ref},metadata->>reference.eq.${ref},metadata->>sbm_receipt.eq.${ref},metadata->>dtb_receipt.eq.${ref},metadata->>im_receipt.eq.${ref}`);
+
+  if (error) {
+    console.error("[reconcile] Error fetching transactions:", error);
+    throw error;
   }
 
-  return {
-    isIgnored: false,
-    amount,
-    reference,
-    counterparty,
-    bank: bankName,
-    type,
-    accountNo,
-    occurredOn
+  // Check if we have any existing transaction
+  const existing = (txns ?? [])[0];
+  const isSavings = fromAccountCode === "kcb_mpesa" || fromAccountCode === "mshwari" ||
+                    toAccountCode === "kcb_mpesa" || toAccountCode === "mshwari";
+
+  if (!existing) {
+    if (isSavings) {
+      // Create both legs immediately
+      const { data: sourceTxn, error: insertErr1 } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          account_id: fromAccountId,
+          transfer_account_id: toAccountId,
+          txn_type: "transfer",
+          amount: amount,
+          currency_code: "KES",
+          occurred_on: occurredOn,
+          description: description,
+          metadata: {
+            source: incomingSource,
+            mpesa_receipt: ref,
+            reference: ref,
+            status: "fully_reconciled",
+            fully_reconciled: true,
+            raw_sms: rawSms,
+            balance_after: balanceAfter,
+            txn_cost: txnCost,
+            from_account_code: fromAccountCode,
+            to_account_code: toAccountCode
+          }
+        })
+        .select("id")
+        .single();
+
+      if (insertErr1) throw insertErr1;
+
+      const { data: counterTxn, error: insertErr2 } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          account_id: toAccountId,
+          transfer_account_id: fromAccountId,
+          txn_type: "transfer",
+          amount: amount,
+          currency_code: "KES",
+          occurred_on: occurredOn,
+          description: description,
+          metadata: {
+            source: incomingSource,
+            mpesa_receipt: ref,
+            reference: ref,
+            status: "fully_reconciled",
+            fully_reconciled: true,
+            is_transfer_counter: true,
+            raw_sms: rawSms,
+            from_account_code: fromAccountCode,
+            to_account_code: toAccountCode
+          }
+        })
+        .select("id")
+        .single();
+
+      if (insertErr2) throw insertErr2;
+
+      return { status: "created", transaction_id: sourceTxn.id, counter_transaction_id: counterTxn.id };
+    }
+
+    // Otherwise, insert only source leg as pending_reconciliation
+    const { data: newTxn, error: insertErr } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: userId,
+        account_id: fromAccountId,
+        transfer_account_id: null,
+        txn_type: "transfer",
+        amount: amount,
+        currency_code: "KES",
+        occurred_on: occurredOn,
+        description: description,
+        metadata: {
+          source: incomingSource,
+          mpesa_receipt: ref,
+          reference: ref,
+          status: "pending_reconciliation",
+          raw_sms: rawSms,
+          balance_after: balanceAfter,
+          txn_cost: txnCost,
+          from_account_code: fromAccountCode,
+          to_account_code: toAccountCode
+        }
+      })
+      .select("id")
+      .single();
+
+    if (insertErr) throw insertErr;
+
+    return { status: "created", transaction_id: newTxn.id };
+  }
+
+  // If the existing transaction is already a transfer:
+  if (existing.txn_type === "transfer") {
+    // Check if both source and counter leg exist
+    const sourceLeg = (txns ?? []).find(
+      (t: any) => t.account_id === fromAccountId &&
+           t.transfer_account_id === toAccountId &&
+           t.metadata &&
+           (t.metadata as any).is_transfer_counter !== true
+    );
+    const counterLeg = (txns ?? []).find(
+      (t: any) => t.account_id === toAccountId &&
+           t.transfer_account_id === fromAccountId &&
+           t.metadata &&
+           (t.metadata as any).is_transfer_counter === true
+    );
+
+    if (sourceLeg && counterLeg) {
+      return { status: "ignored", reason: "duplicate", transaction_id: sourceLeg.id };
+    }
+
+    if (sourceLeg && !counterLeg) {
+      // Source leg exists, counter leg does not.
+      // Check if it's from the same source
+      const meta = sourceLeg.metadata as Record<string, any>;
+      if (meta && meta.source === incomingSource) {
+        return { status: "ignored", reason: "duplicate", transaction_id: sourceLeg.id };
+      }
+
+      // Reconcile: Update source leg and insert counter leg
+      const updatedMeta: Record<string, any> = {
+        ...meta,
+        status: "fully_reconciled",
+        fully_reconciled: true,
+        from_account_code: fromAccountCode,
+        to_account_code: toAccountCode
+      };
+      if (balanceAfter !== null) updatedMeta.balance_after = balanceAfter;
+      if (txnCost !== null) updatedMeta.txn_cost = txnCost;
+      if (rawSms) updatedMeta.raw_sms_mpesa = rawSms;
+
+      await supabase
+        .from("transactions")
+        .update({ 
+          transfer_account_id: toAccountId,
+          metadata: updatedMeta 
+        })
+        .eq("id", sourceLeg.id);
+
+      const { data: newTxn, error: insertErr } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          account_id: toAccountId,
+          transfer_account_id: fromAccountId,
+          txn_type: "transfer",
+          amount: amount,
+          currency_code: "KES",
+          occurred_on: occurredOn,
+          description: description,
+          metadata: {
+            source: incomingSource,
+            mpesa_receipt: ref,
+            reference: ref,
+            status: "fully_reconciled",
+            fully_reconciled: true,
+            is_transfer_counter: true,
+            raw_sms: rawSms,
+            from_account_code: fromAccountCode,
+            to_account_code: toAccountCode
+          }
+        })
+        .select("id")
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      return { status: "reconciled", transaction_id: sourceLeg.id, counter_transaction_id: newTxn.id };
+    }
+
+    if (!sourceLeg && counterLeg) {
+      const meta = counterLeg.metadata as Record<string, any>;
+      const updatedMeta = {
+        ...meta,
+        status: "fully_reconciled",
+        fully_reconciled: true,
+        from_account_code: fromAccountCode,
+        to_account_code: toAccountCode
+      };
+      await supabase
+        .from("transactions")
+        .update({ metadata: updatedMeta })
+        .eq("id", counterLeg.id);
+
+      const { data: newTxn, error: insertErr } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          account_id: fromAccountId,
+          transfer_account_id: toAccountId,
+          txn_type: "transfer",
+          amount: amount,
+          currency_code: "KES",
+          occurred_on: occurredOn,
+          description: description,
+          metadata: {
+            source: incomingSource,
+            mpesa_receipt: ref,
+            reference: ref,
+            status: "fully_reconciled",
+            fully_reconciled: true,
+            raw_sms: rawSms,
+            balance_after: balanceAfter,
+            txn_cost: txnCost,
+            from_account_code: fromAccountCode,
+            to_account_code: toAccountCode
+          }
+        })
+        .select("id")
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      return { status: "reconciled", transaction_id: newTxn.id, counter_transaction_id: counterLeg.id };
+    }
+  }
+
+  // If the existing transaction is NOT a transfer (e.g. it was logged as income/expense),
+  // convert it to the transfer source leg, and insert the counter leg!
+  const meta = existing.metadata as Record<string, any>;
+  const updatedMeta: Record<string, any> = {
+    ...meta,
+    source: incomingSource,
+    status: "fully_reconciled",
+    fully_reconciled: true,
+    from_account_code: fromAccountCode,
+    to_account_code: toAccountCode
   };
+  if (balanceAfter !== null) updatedMeta.balance_after = balanceAfter;
+  if (txnCost !== null) updatedMeta.txn_cost = txnCost;
+  if (rawSms) updatedMeta.raw_sms_mpesa = rawSms;
+
+  await supabase
+    .from("transactions")
+    .update({
+      txn_type: "transfer",
+      account_id: fromAccountId,
+      transfer_account_id: toAccountId,
+      category_id: null,
+      description: description,
+      metadata: updatedMeta
+    })
+    .eq("id", existing.id);
+
+  const { data: newTxn, error: insertErr } = await supabase
+    .from("transactions")
+    .insert({
+      user_id: userId,
+      account_id: toAccountId,
+      transfer_account_id: fromAccountId,
+      txn_type: "transfer",
+      amount: amount,
+      currency_code: "KES",
+      occurred_on: occurredOn,
+      description: description,
+      metadata: {
+        source: incomingSource,
+        mpesa_receipt: ref,
+        reference: ref,
+        status: "fully_reconciled",
+        fully_reconciled: true,
+        is_transfer_counter: true,
+        raw_sms: rawSms,
+        from_account_code: fromAccountCode,
+        to_account_code: toAccountCode
+      }
+    })
+    .select("id")
+    .single();
+
+  if (insertErr) throw insertErr;
+
+  return { status: "reconciled", transaction_id: existing.id, counter_transaction_id: newTxn.id };
 }
 
 async function processSingleBankSms(
@@ -697,6 +1048,41 @@ async function processSingleBankSms(
   }
   const userId = bankAccount.user_id;
 
+  if (type === "transfer" && parsed.fromAccountCode && parsed.toAccountCode) {
+    const fromAcc = (accts ?? []).find((a: any) => a.account_code === parsed.fromAccountCode);
+    const toAcc = (accts ?? []).find((a: any) => a.account_code === parsed.toAccountCode);
+    if (!fromAcc || !toAcc) {
+      return { status: "failed", error: `Transfer accounts not found for ${parsed.fromAccountCode} -> ${parsed.toAccountCode}` };
+    }
+
+    const recResult = await reconcileLinkedTransaction(
+      supabase,
+      reference!,
+      "bank_sms",
+      amount,
+      userId,
+      occurredOn,
+      smsText,
+      fromAcc.id,
+      toAcc.id,
+      parsed.fromAccountCode,
+      parsed.toAccountCode,
+      `Transfer between ${fromAcc.name} and ${toAcc.name}`,
+      null,
+      null
+    );
+
+    const recStatus = recResult.status === "ignored" ? "ignored" : recResult.status === "reconciled" ? "reconciled" : "created";
+    return {
+      status: recStatus,
+      reason: recResult.status === "ignored" ? recResult.reason : undefined,
+      kind: "transfer",
+      amount: amount,
+      reference: reference,
+      transaction_id: recResult.transaction_id
+    };
+  }
+
   if (reference) {
     const { data: existing } = await supabase.from("transactions").select("id")
       .eq("user_id", userId)
@@ -708,7 +1094,7 @@ async function processSingleBankSms(
   }
 
   const categoryName = "bank_transaction";
-  const category = await getOrCreateCategory(supabase, userId, categoryName, type!);
+  const category = await getOrCreateCategory(supabase, userId, categoryName, (type === "transfer" ? "expense" : type) as "income" | "expense");
 
   const { data: txn, error } = await supabase.from("transactions").insert({
     user_id: userId,
@@ -741,6 +1127,7 @@ async function processSingleBankSms(
     bank: bank!,
     amount: amount,
     type: type!,
+    kind: type!,
     reference: reference!,
     counterparty: counterparty!,
     transaction_id: txn.id
@@ -823,10 +1210,30 @@ function parse(rawText: string): Parsed | null {
     return { ...base, kind: "income", amount: num(recv[1]), txnType: "income", savingsBal: null, counterparty: cp, description: `Received from ${cp}` };
   }
 
-  // Expense - sent/paid
+  // Expense - sent/paid (intercept bank transfers)
   const sp = text.match(P.sentPaid);
   if (sp) {
     const cp = cleanName(sp[2]);
+    const isBank = /sbm|dtb|i&m|i\s*and\s*m/i.test(cp) && text.includes("for account");
+    if (isBank) {
+      let code: "bank_a" | "bank_b" | "bank_c" | undefined = undefined;
+      if (/sbm/i.test(cp)) code = "bank_c";
+      else if (/dtb/i.test(cp)) code = "bank_a";
+      else if (/i&m|i\s*and\s*m/i.test(cp)) code = "bank_b";
+
+      if (code) {
+        return {
+          ...base,
+          kind: "transfer_out",
+          amount: num(sp[1]),
+          txnType: "transfer",
+          savingsCode: code,
+          savingsBal: null,
+          counterparty: cp,
+          description: `Transfer to ${cp}`
+        };
+      }
+    }
     return { ...base, kind: "expense", amount: num(sp[1]), txnType: "expense", savingsBal: null, counterparty: cp, description: `Paid to ${cp}` };
   }
 
@@ -1313,7 +1720,7 @@ async function processSingleSms(
             currency_code: "KES",
             occurred_on: occurredOn,
             description: "Fuliza Access Fee",
-            metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, raw_sms: p.raw }
+            metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, tag: "fuliza", raw_sms: p.raw }
           }).select("id").single();
           if (txn) inserted.push({ type: "fee", id: txn.id, amount: fee });
         }
@@ -1328,19 +1735,19 @@ async function processSingleSms(
         .maybeSingle();
 
       if (!existingTxn) {
-        const category = await getOrCreateCategory(adminSb, userId, "Other Expense", "expense");
+        const category = await getOrCreateCategory(adminSb, userId, "Other Income", "income");
 
         if (category) {
           const { data: txn } = await adminSb.from("transactions").insert({
             user_id: userId,
             account_id: mpesa.id,
             category_id: category.id,
-            txn_type: "expense",
+            txn_type: "income",
             amount: amount,
             currency_code: "KES",
             occurred_on: occurredOn,
-            description: "Fuliza transaction (auto-generated)",
-            metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, is_auto_generated: true, raw_sms: p.raw }
+            description: "Fuliza Drawdown",
+            metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, is_auto_generated: true, tag: "fuliza", raw_sms: p.raw }
           }).select("id").single();
           if (txn) inserted.push({ type: "overdraft", id: txn.id, amount: amount });
         }
@@ -1361,10 +1768,41 @@ async function processSingleSms(
 
   // Dedup / Update auto-generated
   if (p.receipt !== "UNKNOWN") {
-    const { data: existing } = await supabase.from("transactions").select("id, metadata")
+    const { data: existing } = await supabase.from("transactions").select("id, txn_type, metadata, account_id, transfer_account_id")
       .eq("user_id", userId).contains("metadata", { mpesa_receipt: p.receipt }).maybeSingle();
 
     if (existing) {
+      if (existing.txn_type === "transfer") {
+        const fromAccCode = existing.metadata.from_account_code || "main";
+        const toAccCode = existing.metadata.to_account_code || "bank_c";
+        const recResult = await reconcileLinkedTransaction(
+          supabase,
+          p.receipt,
+          "sms_webhook",
+          p.amount,
+          userId,
+          occurredOn,
+          p.raw,
+          existing.account_id,
+          existing.transfer_account_id,
+          fromAccCode,
+          toAccCode,
+          existing.description ?? p.description,
+          p.mpesaBal,
+          p.txnCost
+        );
+        if (p.mpesaBal !== null) { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
+
+        return {
+          status: recResult.status === "ignored" ? "ignored" : "reconciled",
+          reason: recResult.status === "ignored" ? recResult.reason : undefined,
+          kind: p.kind,
+          transaction_id: recResult.transaction_id,
+          amount: p.amount,
+          balance_after: p.mpesaBal
+        };
+      }
+
       const isAuto = (existing.metadata as Record<string, any>)?.is_auto_generated === true;
       if (isAuto) {
         // Update the auto-generated transaction with the correct main details!
@@ -1414,31 +1852,64 @@ async function processSingleSms(
 
     const fromId = p.kind === "transfer_out" ? mpesa.id : savings.id;
     const toId   = p.kind === "transfer_out" ? savings.id : mpesa.id;
+    const fromAccCode = p.kind === "transfer_out" ? "main" : p.savingsCode;
+    const toAccCode = p.kind === "transfer_out" ? p.savingsCode : "main";
 
-    const { data: txn, error } = await supabase.from("transactions").insert({
-      user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
-      txn_type: "transfer", amount: p.amount, currency_code: "KES", occurred_on: occurredOn,
-      description: p.description,
-      metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, savings_balance: p.savingsBal, raw_sms: p.raw },
-    }).select("id").single();
-    if (error) return { status: "failed", error: error.message };
+    const recResult = await reconcileLinkedTransaction(
+      supabase,
+      p.receipt,
+      "sms_webhook",
+      p.amount,
+      userId,
+      occurredOn,
+      p.raw,
+      fromId,
+      toId,
+      fromAccCode,
+      toAccCode,
+      p.description,
+      p.mpesaBal,
+      p.txnCost
+    );
 
     // Sync both balances from the SMS
     if (p.mpesaBal !== null)   { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
-    if (p.savingsBal !== null) { try { await setBalance(supabase, savings.id, p.savingsBal); } catch {} }
+    if (p.savingsBal !== null && p.savingsBal !== undefined) { try { await setBalance(supabase, savings.id, p.savingsBal); } catch {} }
 
-    return { status: "created", kind: p.kind, transaction_id: txn.id, amount: p.amount, savings: p.savingsCode, mpesa_balance: p.mpesaBal, savings_balance: p.savingsBal };
+    return {
+      status: recResult.status === "ignored" ? "ignored" : "created",
+      reason: recResult.status === "ignored" ? recResult.reason : undefined,
+      kind: p.kind,
+      transaction_id: recResult.transaction_id,
+      amount: p.amount,
+      savings: p.savingsCode,
+      mpesa_balance: p.mpesaBal,
+      savings_balance: p.savingsBal
+    };
   }
 
   // ── Income / Expense ──
   const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
   const category = await getOrCreateCategory(supabase, userId, categoryName, p.txnType as "income" | "expense");
 
+  const metadata: Record<string, any> = {
+    source: "sms_webhook",
+    mpesa_receipt: p.receipt,
+    counterparty: p.counterparty,
+    balance_after: p.mpesaBal,
+    txn_cost: p.txnCost,
+    needs_review: p.needsReview,
+    raw_sms: p.raw
+  };
+  if (p.description === "Fuliza repayment" || p.counterparty === "Fuliza M-Pesa") {
+    metadata.tag = "fuliza";
+  }
+
   const { data: txn, error } = await supabase.from("transactions").insert({
     user_id: userId, account_id: mpesa.id, category_id: category.id,
     txn_type: p.txnType, amount: p.amount, currency_code: "KES", occurred_on: occurredOn,
     description: p.description,
-    metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, counterparty: p.counterparty, balance_after: p.mpesaBal, txn_cost: p.txnCost, needs_review: p.needsReview, raw_sms: p.raw },
+    metadata: metadata,
   }).select("id").single();
   if (error) return { status: "failed", error: error.message };
 
@@ -1708,28 +2179,6 @@ export async function GET(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret");
   if (secret !== process.env.MPESA_WEBHOOK_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createAdminClient();
-  if (request.nextUrl.searchParams.get("checkschema") === "1") {
-    const { data: cols } = await supabase.from("accounts").select("*").order("account_code");
-    return NextResponse.json({ accounts: cols });
-  }
-  if (request.nextUrl.searchParams.get("seed") === "1") {
-    const seedConfig = [
-      { code: "main", balance: 3142.26 },
-      { code: "bank_c", balance: 1463.46 },
-      { code: "bank_a", balance: 52.20 },
-      { code: "kcb_mpesa", balance: 11000.00 }
-    ];
-    const results = [];
-    const { data: accts } = await supabase.from("accounts").select("id, account_code");
-    for (const item of seedConfig) {
-      const dbAcc = (accts ?? []).find((a: any) => a.account_code === item.code);
-      if (dbAcc) {
-        await setBalance(supabase, dbAcc.id, item.balance);
-        results.push({ code: item.code, set_to: item.balance });
-      }
-    }
-    return NextResponse.json({ status: "seeded", results });
-  }
   const { data: accounts } = await supabase.from("accounts").select("account_code, name, opening_balance, currency_code").order("account_code");
   const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true });
   // ?diagnose=1 -> calculate exact balances using frontend query logic to check math
@@ -1830,7 +2279,7 @@ export async function GET(request: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       if (p.mpesaBal !== null)   { await setBalance(supabase, mpesa.id, p.mpesaBal); }
-      if (p.savingsBal !== null) { await setBalance(supabase, savings.id, p.savingsBal); }
+      if (p.savingsBal !== null && p.savingsBal !== undefined) { await setBalance(supabase, savings.id, p.savingsBal); }
       result = { status: "reprocessed", id: newTxn.id, mpesa_balance: p.mpesaBal, savings_balance: p.savingsBal };
     } else {
       const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
