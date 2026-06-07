@@ -1708,6 +1708,10 @@ export async function GET(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret");
   if (secret !== process.env.MPESA_WEBHOOK_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createAdminClient();
+  if (request.nextUrl.searchParams.get("checkschema") === "1") {
+    const { data: cols } = await supabase.from("accounts").select("*").limit(1);
+    return NextResponse.json({ columns: Object.keys(cols?.[0] || {}), row: cols?.[0] });
+  }
   const { data: accounts } = await supabase.from("accounts").select("account_code, name, opening_balance, currency_code").order("account_code");
   const { count } = await supabase.from("transactions").select("id", { count: "exact", head: true });
   // ?diagnose=1 -> calculate exact balances using frontend query logic to check math
