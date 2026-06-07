@@ -1015,22 +1015,12 @@ async function tryAutoMatchObligation(
 }
 
 // ─── POST ───────────────────────────────────────────────────────────────────
-// Persist a raw payload for diagnosis (recoverable via GET ?debug=1). Best-effort.
+// Log a raw payload for diagnosis.
 async function captureDebug(rawBody: string, contentType: string, extracted: string, reason: string) {
-  try {
-    const supabase = createAdminClient();
-    const { data: mpesa } = await supabase.from("accounts").select("id, user_id").eq("account_code", "main").single();
-    if (!mpesa) return;
-    const { data: cat } = await supabase.from("categories").select("id").eq("user_id", mpesa.user_id).eq("type", "expense").limit(1).single();
-    if (!cat) return;
-    await supabase.from("transactions").insert({
-      user_id: mpesa.user_id, account_id: mpesa.id, category_id: cat.id,
-      txn_type: "expense", amount: 0.01, currency_code: "KES",
-      occurred_on: new Date().toISOString().split("T")[0],
-      description: `DEBUG ${reason}`,
-      metadata: { source: "webhook_debug", reason, content_type: contentType, raw_body: rawBody.slice(0, 500), extracted: extracted.slice(0, 300) },
-    });
-  } catch { /* best effort */ }
+  console.log(
+    `[captureDebug] reason: ${reason}, contentType: ${contentType}, ` +
+    `rawBody: ${rawBody.slice(0, 500)}, extracted: ${extracted.slice(0, 300)}`
+  );
 }
 
 function isPlaceholder(val: string): boolean {
