@@ -9,7 +9,7 @@ const P = {
   fulizaOutstanding: /total fuliza m-?pesa outstanding amount is\s*ksh\s*([\d,]+\.?\d*)/i,
   mshwariLoanOutstanding: /m-?shwari\s+loan[^.]*outstanding[^.]*ksh\s*([\d,]+\.?\d*)/i,
   kcbOverdraftOutstanding: /kcb m-?pesa[^.]*overdraft[^.]*ksh\s*([\d,]+\.?\d*)/i,
-  fulizaRepay:  /ksh\s*([\d,]+\.?\d*)\s+(?:from your m-pesa\s+)?has been used to\s+(?:fully\s+pay|repay)\s+(?:your\s+)?(?:outstanding\s+)?fuliza/i,
+  fulizaRepay:  /ksh\s*([\d,]+\.?\d*)\s+(?:from your m-?pesa\s+)?has been (?:used to\s+(?:fully\s+)?(?:pay|repay)|deducted(?:\s+from your m-?pesa)?\s+to\s+(?:pay|repay))\s+(?:your\s+)?(?:outstanding\s+)?fuliza/i,
   fulizaRepayRemaining: /(?:outstanding fuliza m-?pesa balance is|remaining fuliza outstanding balance is|outstanding balance is)\s*ksh\s*([\d,]+\.?\d*)/i,
   fulizaAmount: /fuliza m-?pesa amount is\s*ksh\s*([\d,]+\.?\d*)/i,
   fulizaAccessFee: /access fee charged\s*ksh\s*([\d,]+\.?\d*)/i,
@@ -646,7 +646,20 @@ function parseBankSms(message: string, sender?: string): ParsedBankResult | null
     else if (/DTB/i.test(text)) bankName = "DTB";
   }
 
-  if (!bankName) return null;
+  // Fallback: try all three bank parsers if bank name still unknown
+  if (!bankName) {
+    const trySbm = parseSbmSMS(text);
+    if (trySbm) bankName = "SBMBANK";
+    else {
+      const tryDtb = parseDtbSMS(text);
+      if (tryDtb) bankName = "DTB";
+      else {
+        const tryIm = parseImSMS(text);
+        if (tryIm) bankName = "IANDMBANK";
+      }
+    }
+    if (!bankName) return null;
+  }
 
   if (bankName === "SBMBANK") {
     const parsedSbm = parseSbmSMS(text);
@@ -1041,7 +1054,7 @@ async function processSingleBankSms(
   const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : parsedDate!;
   const accountCode = bank === "DTB" ? "bank_a" : bank === "IANDMBANK" ? "bank_b" : "bank_c";
 
-  const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code");
+  const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code, name");
   const bankAccount = (accts ?? []).find((a: any) => a.account_code === accountCode);
   if (!bankAccount) {
     return { status: "failed", error: `${bank} account (${accountCode}) not found` };
@@ -1067,7 +1080,7 @@ async function processSingleBankSms(
       toAcc.id,
       parsed.fromAccountCode,
       parsed.toAccountCode,
-      `Transfer between ${fromAcc.name} and ${toAcc.name}`,
+      `Transfer: ${fromAcc.name ?? parsed.fromAccountCode} → ${toAcc.name ?? parsed.toAccountCode}`,
       null,
       null
     );
@@ -1316,6 +1329,85 @@ async function setBalance(supabase: AdminClient, accountId: string, stated: numb
     }
   }
   await supabase.from("accounts").update({ opening_balance: stated - net }).eq("id", accountId);
+}
+
+// ─── Helpers for Fuliza auto-repayment inference ─────────────────────────────
+
+async function getLastMpesaBalance(supabase: AdminClient, accountId: string): Promise<number | null> {
+  const { data } = await supabase
+    .from("transactions")
+    .select("metadata")
+    .eq("account_id", accountId)
+    .not("metadata->>balance_after", "is", null)
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const bal = (data?.metadata as Record<string, any>)?.balance_after;
+  return bal != null ? Number(bal) : null;
+}
+
+async function inferFulizaRepayment(
+  supabase: AdminClient,
+  userId: string,
+  mpesaAccountId: string,
+  impliedRepaid: number,
+  occurredOn: string,
+  parentReceipt: string,
+  rawSms: string
+): Promise<void> {
+  try {
+    if (impliedRepaid < 0.5) return;
+
+    const { data: fulizaDebt } = await supabase
+      .from("debts")
+      .select("id, current_balance")
+      .eq("user_id", userId)
+      .eq("source_identifier", "fuliza")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!fulizaDebt || Number(fulizaDebt.current_balance) <= 0) return;
+
+    const actualRepaid = Math.min(Number(fulizaDebt.current_balance), impliedRepaid);
+
+    const repayReceipt = parentReceipt + "-fuliza-repay";
+    const { data: existing } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("user_id", userId)
+      .contains("metadata", { mpesa_receipt: repayReceipt })
+      .maybeSingle();
+    if (existing) return;
+
+    const category = await getOrCreateCategory(supabase, userId, "Other Expense", "expense");
+    await supabase.from("transactions").insert({
+      user_id: userId,
+      account_id: mpesaAccountId,
+      category_id: category.id,
+      txn_type: "expense",
+      amount: actualRepaid,
+      currency_code: "KES",
+      occurred_on: occurredOn,
+      description: "Fuliza auto-repayment (inferred)",
+      metadata: {
+        source: "sms_webhook",
+        mpesa_receipt: repayReceipt,
+        parent_receipt: parentReceipt,
+        tag: "fuliza",
+        inferred: true,
+        raw_sms: rawSms,
+      },
+    });
+
+    const newBalance = Math.max(0, Number(fulizaDebt.current_balance) - actualRepaid);
+    await supabase.from("debts").update({
+      current_balance: newBalance,
+      is_active: newBalance > 0,
+    }).eq("id", fulizaDebt.id);
+  } catch (err) {
+    console.warn("[inferFulizaRepayment] failed:", err);
+  }
 }
 
 // ─── Auto-debt upserts (Fuliza / M-Shwari Loan / KCB Overdraft) ─────────────
@@ -1855,6 +1947,12 @@ async function processSingleSms(
     const fromAccCode = p.kind === "transfer_out" ? "main" : p.savingsCode;
     const toAccCode = p.kind === "transfer_out" ? p.savingsCode : "main";
 
+    // Capture prior M-PESA balance before reconciling (needed for Fuliza inference on transfer_in)
+    let prevMpesaBalSavings: number | null = null;
+    if (p.kind === "transfer_in" && p.mpesaBal !== null) {
+      prevMpesaBalSavings = await getLastMpesaBalance(supabase, mpesa.id);
+    }
+
     const recResult = await reconcileLinkedTransaction(
       supabase,
       p.receipt,
@@ -1876,6 +1974,15 @@ async function processSingleSms(
     if (p.mpesaBal !== null)   { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
     if (p.savingsBal !== null && p.savingsBal !== undefined) { try { await setBalance(supabase, savings.id, p.savingsBal); } catch {} }
 
+    // Infer Fuliza auto-repayment: when KCB/M-Shwari → MPESA and balance is lower than expected
+    if (p.kind === "transfer_in" && p.mpesaBal !== null && prevMpesaBalSavings !== null) {
+      const expectedAfter = prevMpesaBalSavings + p.amount;
+      const implied = expectedAfter - p.mpesaBal;
+      if (implied >= 0.5) {
+        await inferFulizaRepayment(supabase, userId, mpesa.id, implied, occurredOn, p.receipt, p.raw);
+      }
+    }
+
     return {
       status: recResult.status === "ignored" ? "ignored" : "created",
       reason: recResult.status === "ignored" ? recResult.reason : undefined,
@@ -1892,6 +1999,12 @@ async function processSingleSms(
   const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
   const category = await getOrCreateCategory(supabase, userId, categoryName, p.txnType as "income" | "expense");
 
+  // Capture prior M-PESA balance before inserting income (needed for Fuliza inference)
+  let prevMpesaBalanceForInference: number | null = null;
+  if (p.kind === "income" && p.mpesaBal !== null) {
+    prevMpesaBalanceForInference = await getLastMpesaBalance(supabase, mpesa.id);
+  }
+
   const metadata: Record<string, any> = {
     source: "sms_webhook",
     mpesa_receipt: p.receipt,
@@ -1905,6 +2018,22 @@ async function processSingleSms(
     metadata.tag = "fuliza";
   }
 
+  // If this IS a Fuliza repayment SMS, delete any inferred duplicate for same day/amount
+  if (p.description === "Fuliza repayment" && p.mpesaBal !== null) {
+    try {
+      const { data: inferred } = await supabase
+        .from("transactions")
+        .select("id, amount")
+        .eq("user_id", userId)
+        .eq("occurred_on", occurredOn)
+        .eq("description", "Fuliza auto-repayment (inferred)")
+        .maybeSingle();
+      if (inferred && Math.abs(Number(inferred.amount) - p.amount) < 5.0) {
+        await supabase.from("transactions").delete().eq("id", inferred.id);
+      }
+    } catch { /* non-fatal */ }
+  }
+
   const { data: txn, error } = await supabase.from("transactions").insert({
     user_id: userId, account_id: mpesa.id, category_id: category.id,
     txn_type: p.txnType, amount: p.amount, currency_code: "KES", occurred_on: occurredOn,
@@ -1914,6 +2043,15 @@ async function processSingleSms(
   if (error) return { status: "failed", error: error.message };
 
   if (p.mpesaBal !== null) { try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch {} }
+
+  // Infer Fuliza auto-repayment when income received (e.g. received from someone)
+  if (p.kind === "income" && p.mpesaBal !== null && prevMpesaBalanceForInference !== null) {
+    const expectedAfter = prevMpesaBalanceForInference + p.amount - (p.txnCost ?? 0);
+    const implied = expectedAfter - p.mpesaBal;
+    if (implied >= 0.5) {
+      await inferFulizaRepayment(supabase, userId, mpesa.id, implied, occurredOn, p.receipt, p.raw);
+    }
+  }
 
   // Auto-match recurring obligations on expense txns
   if (p.txnType === "expense") {
