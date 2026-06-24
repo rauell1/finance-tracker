@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const NOT_FOUND = NextResponse.json({ error: "Not Found" }, { status: 404 });
+
 /**
  * Diagnostic echo endpoint — mirrors back exactly what MacroDroid sent.
  * Use this to verify your macro payload before pointing it at the real webhook.
  *
  * Protected by the same MPESA_WEBHOOK_SECRET query param.
+ * Disabled in production to avoid leaking request data.
  *
  * GET  /api/webhooks/test?secret=XXX  → health check
  * POST /api/webhooks/test?secret=XXX  → echoes body, headers, parsed JSON
  */
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") return NOT_FOUND;
   const secret = request.nextUrl.searchParams.get("secret");
   const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
   if (!expectedSecret || secret !== expectedSecret) {
@@ -23,6 +27,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") return NOT_FOUND;
   const secret = request.nextUrl.searchParams.get("secret") ??
     request.headers.get("x-webhook-secret") ??
     request.headers.get("authorization")?.replace("Bearer ", "");
@@ -35,12 +40,12 @@ export async function POST(request: NextRequest) {
   let rawBody = "";
   try { rawBody = await request.clone().text(); } catch { /* */ }
 
-  let parsed: any = null;
+  let parsed: Record<string, unknown> | null = null;
   let parseError: string | null = null;
   try {
-    if (rawBody.trim()) parsed = JSON.parse(rawBody);
-  } catch (e: any) {
-    parseError = e.message;
+    if (rawBody.trim()) parsed = JSON.parse(rawBody) as Record<string, unknown>;
+  } catch (e: unknown) {
+    parseError = e instanceof Error ? e.message : String(e);
   }
 
   // Detect unresolved MacroDroid placeholders
