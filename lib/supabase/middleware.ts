@@ -31,14 +31,25 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  const ALLOWED_EMAIL = "royokola3@gmail.com";
+
   // Use getUser() - never getSession() in middleware (avoids stale JWT)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Eject any session that doesn't belong to the allowed account
+  if (user && user.email?.toLowerCase() !== ALLOWED_EMAIL) {
+    await supabase.auth.signOut();
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("error", "unauthorized");
+    return NextResponse.redirect(url);
+  }
+
   const { pathname } = request.nextUrl;
 
-  const isAppRoute = ["/dashboard", "/transactions", "/budgets", "/analytics", "/settings"].some(
+  const isAppRoute = ["/dashboard", "/transactions", "/budgets", "/analytics", "/settings", "/debts", "/goals", "/recurring", "/reports"].some(
     (p) => pathname.startsWith(p)
   );
   const isAuthRoute = pathname === "/login" || pathname === "/register";

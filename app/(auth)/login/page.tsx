@@ -6,20 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/browser";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { TrendingUp, Lock } from "lucide-react";
+import { useState, Suspense } from "react";
 
-export default function LoginPage() {
+const ALLOWED_EMAIL = "royokola3@gmail.com";
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   });
 
+  const urlError = searchParams.get("error");
+
   async function onSubmit(data: LoginInput) {
+    if (data.email.toLowerCase() !== ALLOWED_EMAIL) {
+      toast.error("This is a private application. Access is restricted.");
+      return;
+    }
     setIsLoading(true);
     try {
       const supabase = createClient();
@@ -33,41 +41,53 @@ export default function LoginPage() {
   }
 
   return (
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-xl shadow-[#524CF2]/[0.06] p-7 sm:p-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Welcome back</h1>
+        <p className="text-sm text-[#33375C]/70 mt-1">Sign in to your FinTrack account</p>
+      </div>
+
+      {urlError === "unauthorized" && (
+        <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2.5 mb-4">
+          <Lock className="h-3.5 w-3.5 shrink-0" />
+          Access denied — this is a private application.
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-xs font-bold text-[#33375C] uppercase tracking-wider">Email</Label>
+          <Input id="email" type="email" placeholder="you@example.com" {...register("email")} />
+          {errors.email && <p className="text-xs text-rose-600">{errors.email.message}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className="text-xs font-bold text-[#33375C] uppercase tracking-wider">Password</Label>
+          <Input id="password" type="password" placeholder="••••••••" {...register("password")} />
+          {errors.password && <p className="text-xs text-rose-600">{errors.password.message}</p>}
+        </div>
+        <Button type="submit" className="w-full h-11 mt-2" disabled={isLoading}>
+          {isLoading ? "Signing in..." : "Sign In"}
+        </Button>
+      </form>
+      <p className="text-center text-xs text-[#33375C]/40 mt-5 flex items-center justify-center gap-1.5">
+        <Lock className="h-3 w-3" /> Private application — access restricted
+      </p>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <div className="w-full">
-      {/* Mobile-only logo */}
       <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
         <div className="h-10 w-10 rounded-xl bg-[#524CF2] flex items-center justify-center shadow-md shadow-[#524CF2]/20">
           <TrendingUp className="h-5 w-5 text-white" />
         </div>
         <span className="font-extrabold text-xl tracking-tight text-[#0A0D27]">FinTrack</span>
       </div>
-
-      <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-xl shadow-[#524CF2]/[0.06] p-7 sm:p-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Welcome back</h1>
-          <p className="text-sm text-[#33375C]/70 mt-1">Sign in to your FinTrack account</p>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-bold text-[#33375C] uppercase tracking-wider">Email</Label>
-            <Input id="email" type="email" placeholder="you@example.com" {...register("email")} />
-            {errors.email && <p className="text-xs text-rose-600">{errors.email.message}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-xs font-bold text-[#33375C] uppercase tracking-wider">Password</Label>
-            <Input id="password" type="password" placeholder="••••••••" {...register("password")} />
-            {errors.password && <p className="text-xs text-rose-600">{errors.password.message}</p>}
-          </div>
-          <Button type="submit" className="w-full h-11 mt-2" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign In"}
-          </Button>
-        </form>
-        <p className="text-center text-sm text-[#33375C]/70 mt-5">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-[#524CF2] font-semibold hover:underline">Create one</Link>
-        </p>
-      </div>
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
