@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { CookieOptions } from "@supabase/ssr";
+import { ALLOWED_EMAIL } from "@/lib/constants";
 
 const normalizeEnv = (value?: string) =>
   value?.replace(/^["']|["']$/g, "").trim();
@@ -30,8 +31,6 @@ export async function updateSession(request: NextRequest) {
       },
     },
   });
-
-  const ALLOWED_EMAIL = "royokola3@gmail.com";
 
   // Use getUser() - never getSession() in middleware (avoids stale JWT)
   const {

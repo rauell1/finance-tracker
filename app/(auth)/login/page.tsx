@@ -10,8 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { TrendingUp, Lock } from "lucide-react";
 import { useState, Suspense } from "react";
-
-const ALLOWED_EMAIL = "royokola3@gmail.com";
+import { ALLOWED_EMAIL } from "@/lib/constants";
 
 function LoginForm() {
   const router = useRouter();
