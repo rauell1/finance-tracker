@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       };
       const color = colorMap[row.category_name.toLowerCase()] ?? (row.txn_type === "income" ? "#10B981" : "#64748B");
       
-      const { data: newCat } = await supabase
+      const { data: newCat, error: catError } = await supabase
         .from("categories")
         .insert({
           user_id: user.id,
@@ -162,6 +162,9 @@ export async function POST(request: NextRequest) {
         })
         .select("id, name, type")
         .maybeSingle();
+      if (catError) {
+        console.error("[import/confirm] category creation failed:", catError.message);
+      }
 
       if (newCat) {
         cat = { id: newCat.id, type: newCat.type };

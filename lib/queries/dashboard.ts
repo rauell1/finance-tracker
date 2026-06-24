@@ -206,7 +206,8 @@ export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
     const start = d.toISOString().split("T")[0];
     d.setMonth(d.getMonth() + 1);
     const end = d.toISOString().split("T")[0];
-    const { data } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", start).lt("occurred_on", end);
+    const { data, error: trendError } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", start).lt("occurred_on", end);
+    if (trendError) throw trendError;
     let income = 0, expense = 0;
     for (const t of data ?? []) {
       const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
@@ -355,7 +356,8 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
 export async function detectRecurringExpenses() {
   const supabase = await createClient();
   const d = new Date(); d.setMonth(d.getMonth() - 6);
-  const { data } = await supabase.from("transactions").select("description, amount, occurred_on").eq("txn_type", "expense").gte("occurred_on", d.toISOString().split("T")[0]).not("description", "is", null);
+  const { data, error: recurError } = await supabase.from("transactions").select("description, amount, occurred_on").eq("txn_type", "expense").gte("occurred_on", d.toISOString().split("T")[0]).not("description", "is", null);
+  if (recurError) throw recurError;
   const groups = new Map<string, { desc: string; baseAmount: number; entries: { amount: number; month: string }[] }>();
   for (const r of data ?? []) {
     const norm = normalizeDescription(r.description); if (!norm) continue;
@@ -376,10 +378,14 @@ export async function detectSpendingSpikes() {
   const now = new Date();
   const curMonth = getMonthStart(now);
   const end = new Date(curMonth + "T00:00:00"); end.setMonth(end.getMonth() + 1);
-  const [{ data: cur }, { data: hist }] = await Promise.all([
+  const [curResult, histResult] = await Promise.all([
     supabase.from("transactions").select("category_id, amount, category:categories!category_id(name)").eq("txn_type", "expense").gte("occurred_on", curMonth).lt("occurred_on", end.toISOString().split("T")[0]),
     supabase.from("transactions").select("category_id, amount").eq("txn_type", "expense").gte("occurred_on", (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return getMonthStart(d); })()).lt("occurred_on", curMonth),
   ]);
+  if (curResult.error) throw curResult.error;
+  if (histResult.error) throw histResult.error;
+  const cur = curResult.data;
+  const hist = histResult.data;
   const curByCat = new Map<string, { name: string; amount: number }>();
   for (const r of cur ?? []) { const cat = (Array.isArray(r.category) ? r.category[0] : r.category) as { name: string }|null; const e = curByCat.get(r.category_id); if (e) e.amount += Number(r.amount); else curByCat.set(r.category_id, { name: cat?.name ?? "Other", amount: Number(r.amount) }); }
   const histByCat = new Map<string, number>();
@@ -394,7 +400,8 @@ export async function detectSpendingSpikes() {
 export async function detectBudgetLeaks() {
   const supabase = await createClient();
   const months = [0, 1, 2].map((i) => { const d = new Date(); d.setMonth(d.getMonth() - i); return getMonthStart(d); });
-  const { data: budgets } = await supabase.from("budgets").select("id, category_id, month_start, amount, category:categories!category_id(name)").in("month_start", months);
+  const { data: budgets, error: budgetsError } = await supabase.from("budgets").select("id, category_id, month_start, amount, category:categories!category_id(name)").in("month_start", months);
+  if (budgetsError) throw budgetsError;
   if (!budgets?.length) return [];
   const byCat = new Map<string, { name: string; months: { budget: number; month: string }[] }>();
   for (const b of budgets) {

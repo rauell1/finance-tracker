@@ -141,6 +141,7 @@ export async function GET() {
 
     return NextResponse.json(notifications);
   } catch (err) {
-    return NextResponse.json({ error: "Failed to load notifications" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Failed to load notifications";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

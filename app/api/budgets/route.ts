@@ -24,8 +24,9 @@ export async function GET(request: NextRequest) {
 
     const result = await getBudgets(month);
     return NextResponse.json(result);
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch budgets" }, { status: 500 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to fetch budgets";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -39,7 +40,8 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     const result = await createBudget({ user_id: user.id, ...parsed.data });
     return NextResponse.json(result, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Failed to create budget" }, { status: 500 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to create budget";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

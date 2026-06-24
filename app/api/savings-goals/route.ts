@@ -10,7 +10,8 @@ export async function GET() {
     const goals = await getSavingsGoals();
     return NextResponse.json(goals);
   } catch (err) {
-    return NextResponse.json({ error: "Failed to fetch goals" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Failed to fetch goals";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 

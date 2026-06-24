@@ -53,7 +53,8 @@ export async function getBudgetSuggestions(month?: string): Promise<BudgetSugges
     months.push(d.toISOString().split("T")[0]);
   }
 
-  const { data: cats } = await supabase.from("categories").select("id, name").eq("type", "expense");
+  const { data: cats, error: catsError } = await supabase.from("categories").select("id, name").eq("type", "expense");
+  if (catsError) throw catsError;
   if (!cats) return [];
 
   for (const cat of cats) {

@@ -81,10 +81,11 @@ export async function POST() {
 
       // 3. Update if we found a better match and it differs
       if (newCategoryId && newCategoryId !== txn.category_id) {
-        await supabase
+        const { error: updateError } = await supabase
           .from("transactions")
           .update({ category_id: newCategoryId })
           .eq("id", txn.id);
+        if (updateError) throw updateError;
         updated++;
       }
     }

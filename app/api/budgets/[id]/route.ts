@@ -11,8 +11,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const body = await request.json();
     await updateBudget(id, body);
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Failed to update budget" }, { status: 500 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to update budget";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -24,7 +25,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id } = await params;
     await deleteBudget(id);
     return new NextResponse(null, { status: 204 });
-  } catch {
-    return NextResponse.json({ error: "Failed to delete budget" }, { status: 500 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to delete budget";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -12,8 +12,9 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type") as "income" | "expense" | null;
     const categories = await getCategories(type ?? undefined);
     return NextResponse.json(categories);
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to fetch categories";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -25,7 +26,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const category = await createCategory(body);
     return NextResponse.json(category, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to create category";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

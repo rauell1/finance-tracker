@@ -10,7 +10,8 @@ export async function GET() {
 
     const accounts = await getAccounts();
     return NextResponse.json(accounts);
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch accounts" }, { status: 500 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to fetch accounts";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

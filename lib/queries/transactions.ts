@@ -137,15 +137,17 @@ export async function updateTransaction(id: string, updates: Record<string, unkn
 
 export async function deleteTransaction(id: string): Promise<void> {
   const supabase = await createClient();
-  const { data: txn } = await supabase.from("transactions").select("txn_type, metadata").eq("id", id).single();
+  const { data: txn, error: fetchError } = await supabase.from("transactions").select("txn_type, metadata").eq("id", id).single();
+  if (fetchError) throw fetchError;
   if (txn?.txn_type === "transfer" && txn.metadata) {
     const meta = txn.metadata as Record<string, unknown>;
     if (meta.transfer_group_id) {
-      await supabase
+      const { error: groupError } = await supabase
         .from("transactions")
         .delete()
         .eq("txn_type", "transfer")
         .contains("metadata", { transfer_group_id: meta.transfer_group_id });
+      if (groupError) throw groupError;
       return;
     }
   }

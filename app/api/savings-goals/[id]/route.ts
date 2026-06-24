@@ -12,7 +12,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await updateSavingsGoal(id, body);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: "Failed to update goal" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Failed to update goal";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -25,6 +26,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await deleteSavingsGoal(id);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
-    return NextResponse.json({ error: "Failed to delete goal" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Failed to delete goal";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

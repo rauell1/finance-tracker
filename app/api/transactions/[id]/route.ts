@@ -43,7 +43,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const result = await updateTransaction(id, body);
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to update transaction" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Failed to update transaction";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -56,6 +57,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await deleteTransaction(id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to delete transaction" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Failed to delete transaction";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

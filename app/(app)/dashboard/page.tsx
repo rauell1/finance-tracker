@@ -34,8 +34,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     getRecentTransactions(8),
     getBudgets(),
     generateInsights(),
-    getUpcomingObligations(7).catch(() => []),
-    getDebts().catch(() => []),
+    getUpcomingObligations(7).catch((err) => { console.error("[dashboard] getUpcomingObligations failed:", err); return []; }),
+    getDebts().catch((err) => { console.error("[dashboard] getDebts failed:", err); return []; }),
   ]);
 
   return (

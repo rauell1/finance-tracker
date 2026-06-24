@@ -1406,7 +1406,7 @@ async function inferFulizaRepayment(
       is_active: newBalance > 0,
     }).eq("id", fulizaDebt.id);
   } catch (err) {
-    console.warn("[inferFulizaRepayment] failed:", err);
+    console.error("[inferFulizaRepayment] failed:", err);
   }
 }
 
@@ -1448,7 +1448,7 @@ async function upsertAutoDebt(
       });
     }
   } catch (err) {
-    console.warn("[upsertAutoDebt] failed:", err);
+    console.error("[upsertAutoDebt] failed:", err);
   }
 }
 
@@ -1509,7 +1509,7 @@ async function tryAutoMatchObligation(
       }).eq("id", o.id);
     }
   } catch (err) {
-    console.warn("[tryAutoMatchObligation] failed:", err);
+    console.error("[tryAutoMatchObligation] failed:", err);
   }
 }
 
@@ -2074,7 +2074,7 @@ async function processSingleSms(
       await upsertAutoDebt(supabase, userId, "kcb_overdraft", "KCB M-PESA Overdraft", num(kcbM[1]));
     }
   } catch (err) {
-    console.warn("[auto-debt detection] failed:", err);
+    console.error("[auto-debt detection] failed:", err);
   }
 
   return {

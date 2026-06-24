@@ -18,8 +18,9 @@ export async function generateInsights(): Promise<InsightItem[]> {
     if (!insights.length) {
       insights.push({ id: "tip-good", type: "tip", severity: "info", title: "Financial Health Check", message: "No critical issues detected.", recommendation: "Consider increasing your emergency fund contributions.", evidence: {} });
     }
-  } catch {
-    insights.push({ id: "insight-error", type: "tip", severity: "info", title: "Insights Unavailable", message: "Add more transactions to unlock insights.", recommendation: "Track expenses for a few weeks.", evidence: {} });
+  } catch (error) {
+    console.error("[generateInsights] failed:", error);
+    insights.push({ id: "insight-error", type: "tip", severity: "info", title: "Insights Unavailable", message: "Could not generate insights at this time.", recommendation: "Please try again later.", evidence: {} });
   }
   return insights;
 }

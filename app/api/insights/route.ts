@@ -10,7 +10,8 @@ export async function GET() {
 
     const insights = await generateInsights();
     return NextResponse.json(insights);
-  } catch {
-    return NextResponse.json({ error: "Failed to generate insights" }, { status: 500 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to generate insights";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

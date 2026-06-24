@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     const result = await getTransactions(filters);
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Failed to fetch transactions";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     const result = await createTransaction({ user_id: user.id, ...parsed.data, description: parsed.data.description ?? null });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to create transaction" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Failed to create transaction";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -50,7 +50,8 @@ export async function updateSavingsGoal(id: string, updates: Record<string, unkn
   const supabase = await createClient();
   // Check if goal is completed
   if (typeof updates.current_amount === "number" && typeof updates.target_amount !== "number") {
-    const { data: goal } = await supabase.from("savings_goals").select("target_amount").eq("id", id).single();
+    const { data: goal, error: goalError } = await supabase.from("savings_goals").select("target_amount").eq("id", id).single();
+    if (goalError) throw goalError;
     if (goal && Number(updates.current_amount) >= Number(goal.target_amount)) {
       updates.is_completed = true;
     }
