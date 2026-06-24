@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Debt, DebtType } from "@/types/domain";
+import { findExpenseCategory } from "@/lib/queries/category-lookup";
 
 export async function getDebts(includeInactive = false): Promise<Debt[]> {
   const supabase = await createClient();
@@ -66,26 +67,7 @@ export async function recordPayment(
   const { data: debt, error: debtErr } = await supabase.from("debts").select("*").eq("id", id).single();
   if (debtErr || !debt) throw debtErr ?? new Error("Debt not found");
 
-  // Find "Other Expense" category for the user
-  const { data: cat } = await supabase
-    .from("categories")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("type", "expense")
-    .eq("name", "Other Expense")
-    .maybeSingle();
-  let categoryId = cat?.id;
-  if (!categoryId) {
-    const { data: fallback } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("type", "expense")
-      .limit(1)
-      .maybeSingle();
-    categoryId = fallback?.id;
-  }
-  if (!categoryId) throw new Error("No expense category available");
+  const categoryId = await findExpenseCategory(supabase, user.id);
 
   const occurred = occurredOn ?? new Date().toISOString().split("T")[0];
 

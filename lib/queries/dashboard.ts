@@ -1,21 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import type { KPIData, MonthlyTrend, CategoryBreakdown, AccountComparison } from "@/types/domain";
-import { getMonthStart, normalizeDescription, normalizeToTarget, type ExchangeRate } from "@/lib/utils";
-
-const DEFAULT_CURRENCY = "USD";
-
-async function getCurrencyContext(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { baseCurrency: DEFAULT_CURRENCY, rates: [] as ExchangeRate[] };
-  const [{ data: profile }, { data: rates }] = await Promise.all([
-    supabase.from("profiles").select("preferred_currency").eq("id", user.id).single(),
-    supabase.from("exchange_rates").select("base_currency, quote_currency, rate, valid_on").eq("user_id", user.id),
-  ]);
-  return {
-    baseCurrency: profile?.preferred_currency ?? DEFAULT_CURRENCY,
-    rates: (rates ?? []) as ExchangeRate[],
-  };
-}
+import { getMonthStart, normalizeDescription } from "@/lib/utils";
+import { getCurrencyContext, createNormalizer } from "@/lib/queries/currency-context";
+import { fetchAllPaginated } from "@/lib/queries/pagination";
+import { isFulizaRepayment } from "@/lib/queries/constants";
 
 function getPeriodDates(period: "month" | "quarter" | "year" | "all", monthParam?: string) {
   const now = new Date();
@@ -26,8 +14,8 @@ function getPeriodDates(period: "month" | "quarter" | "year" | "all", monthParam
   
   if (period === "quarter") {
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0-indexed
-    const quarterStartMonth = Math.floor(currentMonth / 3) * 3; // 0, 3, 6, 9
+    const currentMonth = now.getMonth();
+    const quarterStartMonth = Math.floor(currentMonth / 3) * 3;
     
     const start = new Date(currentYear, quarterStartMonth, 1);
     startStr = start.toISOString().split("T")[0];
@@ -72,77 +60,59 @@ function getPeriodDates(period: "month" | "quarter" | "year" | "all", monthParam
   return { startStr, endStr, prevStartStr, prevEndStr };
 }
 
+interface TxnRow {
+  txn_type: string;
+  amount: number | string;
+  description?: string;
+  currency_code?: string;
+  occurred_on?: string;
+}
+
+function sumByType(
+  rows: TxnRow[],
+  normalizeAmount: (amount: number, currencyCode?: string | null, occurredOn?: string) => number
+) {
+  let income = 0;
+  let expense = 0;
+  for (const t of rows) {
+    const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
+    if (t.txn_type === "income") {
+      income += normalized;
+    } else if (!isFulizaRepayment(t.description)) {
+      expense += normalized;
+    }
+  }
+  return { income, expense };
+}
+
 export async function getKPIData(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<KPIData> {
   const supabase = await createClient();
-  const { baseCurrency, rates } = await getCurrencyContext(supabase);
+  const ctx = await getCurrencyContext(supabase);
+  const normalizeAmount = createNormalizer(ctx);
   
   const { startStr, endStr, prevStartStr, prevEndStr } = getPeriodDates(period, month);
-  
-  const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
-    normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
-      rates,
-      validOn: occurredOn,
-      onMissing: "original",
-    });
 
-  let cur: any[] = [];
-  let curPage = 0;
-  const pageSize = 1000;
-  while (true) {
-    const { data, error: qErr } = await supabase
+  const cur = await fetchAllPaginated<TxnRow>(() =>
+    supabase
       .from("transactions")
       .select("txn_type, amount, description, currency_code, occurred_on")
       .in("txn_type", ["income", "expense"])
       .gte("occurred_on", startStr)
       .lt("occurred_on", endStr)
-      .range(curPage * pageSize, (curPage + 1) * pageSize - 1);
-    if (qErr) throw qErr;
-    if (!data || data.length === 0) break;
-    cur = cur.concat(data);
-    if (data.length < pageSize) break;
-    curPage++;
-  }
+  );
 
-  let monthlyIncome = 0, monthlyExpense = 0;
-  for (const t of cur ?? []) {
-    const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
-    if (t.txn_type === "income") {
-      monthlyIncome += normalized;
-    } else {
-      if (t.description !== "Fuliza repayment") {
-        monthlyExpense += normalized;
-      }
-    }
-  }
+  const { income: monthlyIncome, expense: monthlyExpense } = sumByType(cur, normalizeAmount);
 
-  let prevData: any[] = [];
-  let prevPage = 0;
-  while (true) {
-    const { data, error: qErr } = await supabase
+  const prevData = await fetchAllPaginated<TxnRow>(() =>
+    supabase
       .from("transactions")
       .select("txn_type, amount, description, currency_code, occurred_on")
       .in("txn_type", ["income", "expense"])
       .gte("occurred_on", prevStartStr)
       .lt("occurred_on", prevEndStr)
-      .range(prevPage * pageSize, (prevPage + 1) * pageSize - 1);
-    if (qErr) throw qErr;
-    if (!data || data.length === 0) break;
-    prevData = prevData.concat(data);
-    if (data.length < pageSize) break;
-    prevPage++;
-  }
+  );
 
-  let prevIncome = 0, prevExpense = 0;
-  for (const t of prevData ?? []) {
-    const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
-    if (t.txn_type === "income") {
-      prevIncome += normalized;
-    } else {
-      if (t.description !== "Fuliza repayment") {
-        prevExpense += normalized;
-      }
-    }
-  }
+  const { income: prevIncome, expense: prevExpense } = sumByType(prevData, normalizeAmount);
 
   const { data: accounts } = await supabase.from("accounts").select("id, opening_balance, currency_code").eq("is_archived", false);
   let totalBalance = (accounts ?? []).reduce(
@@ -151,23 +121,24 @@ export async function getKPIData(month?: string, period: "month" | "quarter" | "
   );
   const ids = (accounts ?? []).map((a) => a.id);
   if (ids.length > 0) {
-    let txns: any[] = [];
-    let page = 0;
-    while (true) {
-      const { data, error: qErr } = await supabase
+    const txns = await fetchAllPaginated<{
+      account_id: string;
+      transfer_account_id: string | null;
+      amount: number | string;
+      txn_type: string;
+      currency_code?: string;
+      occurred_on?: string;
+      metadata: Record<string, unknown> | null;
+    }>(() =>
+      supabase
         .from("transactions")
         .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, metadata")
         .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
         .lt("occurred_on", endStr)
-        .range(page * pageSize, (page + 1) * pageSize - 1);
-      if (qErr) throw qErr;
-      if (!data || data.length === 0) break;
-      txns = txns.concat(data);
-      if (data.length < pageSize) break;
-      page++;
-    }
-    for (const t of txns ?? []) {
-      const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+    );
+
+    for (const t of txns) {
+      const isCounter = t.metadata && (t.metadata as Record<string, unknown>).is_transfer_counter === true;
       if (isCounter) continue;
 
       const amt = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
@@ -193,13 +164,8 @@ export async function getKPIData(month?: string, period: "month" | "quarter" | "
 
 export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
   const supabase = await createClient();
-  const { baseCurrency, rates } = await getCurrencyContext(supabase);
-  const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
-    normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
-      rates,
-      validOn: occurredOn,
-      onMissing: "original",
-    });
+  const ctx = await getCurrencyContext(supabase);
+  const normalizeAmount = createNormalizer(ctx);
   const trends: MonthlyTrend[] = [];
   for (let i = months - 1; i >= 0; i--) {
     const d = new Date(); d.setMonth(d.getMonth() - i); d.setDate(1);
@@ -207,17 +173,7 @@ export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
     d.setMonth(d.getMonth() + 1);
     const end = d.toISOString().split("T")[0];
     const { data } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", start).lt("occurred_on", end);
-    let income = 0, expense = 0;
-    for (const t of data ?? []) {
-      const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
-      if (t.txn_type === "income") {
-        income += normalized;
-      } else {
-        if (t.description !== "Fuliza repayment") {
-          expense += normalized;
-        }
-      }
-    }
+    const { income, expense } = sumByType((data ?? []) as TxnRow[], normalizeAmount);
     trends.push({ month: start.slice(0, 7), income, expense, net: income - expense });
   }
   return trends;
@@ -225,38 +181,31 @@ export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
 
 export async function getCategoryBreakdown(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<CategoryBreakdown[]> {
   const supabase = await createClient();
-  const { baseCurrency, rates } = await getCurrencyContext(supabase);
-  const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
-    normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
-      rates,
-      validOn: occurredOn,
-      onMissing: "original",
-    });
+  const ctx = await getCurrencyContext(supabase);
+  const normalizeAmount = createNormalizer(ctx);
   
   const { startStr, endStr } = getPeriodDates(period, month);
 
-  let data: any[] = [];
-  let page = 0;
-  const pageSize = 1000;
-  while (true) {
-    const { data: pageData, error: qErr } = await supabase
+  const data = await fetchAllPaginated<{
+    category_id: string;
+    amount: number | string;
+    description?: string;
+    currency_code?: string;
+    occurred_on?: string;
+    category: { name: string; color: string } | { name: string; color: string }[] | null;
+  }>(() =>
+    supabase
       .from("transactions")
       .select("category_id, amount, description, currency_code, occurred_on, category:categories!category_id(name, color)")
       .eq("txn_type", "expense")
       .gte("occurred_on", startStr)
       .lt("occurred_on", endStr)
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-    if (qErr) throw qErr;
-    if (!pageData || pageData.length === 0) break;
-    data = data.concat(pageData);
-    if (pageData.length < pageSize) break;
-    page++;
-  }
+  );
 
   const map = new Map<string, { name: string; color: string; amount: number }>();
   let total = 0;
-  for (const r of data ?? []) {
-    if (r.description === "Fuliza repayment") continue;
+  for (const r of data) {
+    if (isFulizaRepayment(r.description)) continue;
     const cat = (Array.isArray(r.category) ? r.category[0] : r.category) as { name: string; color: string } | null;
     const amt = normalizeAmount(Number(r.amount), r.currency_code, r.occurred_on); total += amt;
     const e = map.get(r.category_id);
@@ -268,13 +217,8 @@ export async function getCategoryBreakdown(month?: string, period: "month" | "qu
 
 export async function getAccountComparison(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<AccountComparison[]> {
   const supabase = await createClient();
-  const { baseCurrency, rates } = await getCurrencyContext(supabase);
-  const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
-    normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
-      rates,
-      validOn: occurredOn,
-      onMissing: "original",
-    });
+  const ctx = await getCurrencyContext(supabase);
+  const normalizeAmount = createNormalizer(ctx);
   
   const { startStr, endStr } = getPeriodDates(period, month);
 
@@ -284,22 +228,22 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
   const ids = accounts.map((a) => a.id);
   if (ids.length === 0) return [];
 
-  let txns: any[] = [];
-  let page = 0;
-  const pageSize = 1000;
-  while (true) {
-    const { data, error: qErr } = await supabase
+  const txns = await fetchAllPaginated<{
+    account_id: string;
+    transfer_account_id: string | null;
+    amount: number | string;
+    txn_type: string;
+    currency_code?: string;
+    occurred_on: string;
+    description?: string;
+    metadata: Record<string, unknown> | null;
+  }>(() =>
+    supabase
       .from("transactions")
       .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, description, metadata")
       .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
       .lt("occurred_on", endStr)
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-    if (qErr) throw qErr;
-    if (!data || data.length === 0) break;
-    txns = txns.concat(data);
-    if (data.length < pageSize) break;
-    page++;
-  }
+  );
 
   const results: AccountComparison[] = [];
   for (const a of accounts) {
@@ -308,8 +252,8 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
     let lifetimeIncome = 0;
     let lifetimeExpense = 0;
 
-    for (const t of txns ?? []) {
-      const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
+    for (const t of txns) {
+      const isCounter = t.metadata && (t.metadata as Record<string, unknown>).is_transfer_counter === true;
       if (isCounter) continue;
 
       const amt = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
@@ -319,19 +263,17 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
         lifetimeIncome += amt;
         if (isCurrentPeriod) income += amt;
       } else if (t.txn_type === "expense" && t.account_id === a.id) {
-        if (t.description !== "Fuliza repayment") {
+        if (!isFulizaRepayment(t.description)) {
           lifetimeExpense += amt;
           if (isCurrentPeriod) expense += amt;
         } else {
-          lifetimeExpense += amt; // Include Fuliza repayment in lifetime expense to calculate cash balance correctly
+          lifetimeExpense += amt;
         }
       } else if (t.txn_type === "transfer") {
-        // Outflow from a: when account_id === a.id
         if (t.account_id === a.id) {
           lifetimeExpense += amt;
           if (isCurrentPeriod) expense += amt;
         }
-        // Inflow to a: when transfer_account_id === a.id
         if (t.transfer_account_id === a.id) {
           lifetimeIncome += amt;
           if (isCurrentPeriod) income += amt;
@@ -352,6 +294,7 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
   }
   return results;
 }
+
 export async function detectRecurringExpenses() {
   const supabase = await createClient();
   const d = new Date(); d.setMonth(d.getMonth() - 6);
@@ -371,6 +314,7 @@ export async function detectRecurringExpenses() {
     return { description: g.desc, amount: g.baseAmount, count: months.length, months, totalSpent: g.entries.reduce((s, e) => s + e.amount, 0) };
   }).sort((a, b) => b.totalSpent - a.totalSpent);
 }
+
 export async function detectSpendingSpikes() {
   const supabase = await createClient();
   const now = new Date();
@@ -391,6 +335,7 @@ export async function detectSpendingSpikes() {
   }
   return spikes.sort((a, b) => b.increase_pct - a.increase_pct);
 }
+
 export async function detectBudgetLeaks() {
   const supabase = await createClient();
   const months = [0, 1, 2].map((i) => { const d = new Date(); d.setMonth(d.getMonth() - i); return getMonthStart(d); });
@@ -409,7 +354,7 @@ export async function detectBudgetLeaks() {
     for (const m of info.months.sort((a, b) => b.month.localeCompare(a.month))) {
       const e = new Date(m.month + "T00:00:00"); e.setMonth(e.getMonth() + 1);
       const { data } = await supabase.from("transactions").select("amount, description").eq("category_id", id).eq("txn_type", "expense").gte("occurred_on", m.month).lt("occurred_on", e.toISOString().split("T")[0]);
-      const spent = (data ?? []).filter(t => t.description !== "Fuliza repayment").reduce((s, t) => s + Number(t.amount), 0);
+      const spent = (data ?? []).filter(t => !isFulizaRepayment(t.description)).reduce((s, t) => s + Number(t.amount), 0);
       if (spent - m.budget > 0) { over++; if (over === 1) latest = spent - m.budget; } else break;
     }
     if (over >= 2) results.push({ category_name: info.name, consecutive_over: over, latest_overspend: latest });

@@ -1,61 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withAuth } from "@/lib/api-utils";
 import { updateTransaction, deleteTransaction } from "@/lib/queries";
+import { NextResponse } from "next/server";
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { id } = await params;
-    const body = await request.json();
+export const PATCH = withAuth(async ({ user, supabase, request, params }) => {
+  const body = await request.json();
 
-    // If category_id is being changed, learn from this edit
-    if (body.category_id) {
-      const { data: txn } = await supabase
-        .from("transactions")
-        .select("category_id, metadata")
-        .eq("id", id)
-        .single();
+  // If category_id is being changed, learn from this edit
+  if (body.category_id) {
+    const { data: txn } = await supabase
+      .from("transactions")
+      .select("category_id, metadata")
+      .eq("id", params.id)
+      .single();
 
-      if (txn && txn.category_id !== body.category_id) {
-        const meta = (txn.metadata ?? {}) as Record<string, unknown>;
-        const counterparty = (meta.counterparty as string) ?? null;
-        if (counterparty && counterparty.length > 1) {
-          const pattern = counterparty.toLowerCase().trim();
-          // Upsert: delete any existing mapping for same pattern, then insert
-          await supabase
-            .from("category_mappings")
-            .delete()
-            .eq("user_id", user.id)
-            .eq("counterparty_pattern", pattern);
-          await supabase
-            .from("category_mappings")
-            .insert({
-              user_id: user.id,
-              counterparty_pattern: pattern,
-              category_id: body.category_id,
-            });
-        }
+    if (txn && txn.category_id !== body.category_id) {
+      const meta = (txn.metadata ?? {}) as Record<string, unknown>;
+      const counterparty = (meta.counterparty as string) ?? null;
+      if (counterparty && counterparty.length > 1) {
+        const pattern = counterparty.toLowerCase().trim();
+        await supabase
+          .from("category_mappings")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("counterparty_pattern", pattern);
+        await supabase
+          .from("category_mappings")
+          .insert({
+            user_id: user.id,
+            counterparty_pattern: pattern,
+            category_id: body.category_id,
+          });
       }
     }
-
-    const result = await updateTransaction(id, body);
-    return NextResponse.json(result);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update transaction" }, { status: 500 });
   }
-}
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { id } = await params;
-    await deleteTransaction(id);
-    return new NextResponse(null, { status: 204 });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete transaction" }, { status: 500 });
-  }
-}
+  const result = await updateTransaction(params.id, body);
+  return NextResponse.json(result);
+}, "Failed to update transaction");
+
+export const DELETE = withAuth(async ({ params }) => {
+  await deleteTransaction(params.id);
+  return new NextResponse(null, { status: 204 });
+}, "Failed to delete transaction");

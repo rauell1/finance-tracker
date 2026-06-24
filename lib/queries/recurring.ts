@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { RecurringObligation, ObligationType, Recurrence } from "@/types/domain";
+import { findExpenseCategory } from "@/lib/queries/category-lookup";
 
 const SELECT =
   "id, user_id, obligation_type, name, category_id, account_id, amount, currency_code, recurrence, due_day_of_month, next_due_date, match_keywords, notes, is_active, last_paid_date, last_transaction_id, created_at, updated_at, " +
@@ -139,14 +140,7 @@ export async function markAsPaid(
 
   let categoryId = obl.category_id;
   if (!categoryId) {
-    const { data: cat } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("type", "expense")
-      .eq("name", "Other Expense")
-      .maybeSingle();
-    if (cat) categoryId = cat.id;
+    categoryId = await findExpenseCategory(supabase, user.id);
   }
 
   const occurredOn = opts.occurred_on ?? new Date().toISOString().split("T")[0];
