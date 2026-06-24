@@ -17,14 +17,11 @@ type AuthHandler = (ctx: AuthContext) => Promise<NextResponse>;
  * Higher-order wrapper that handles the auth guard and try/catch boilerplate
  * shared across all API route handlers.
  */
-export function withAuth(
-  handler: AuthHandler,
-  errorMessage = "Internal server error"
-) {
-  return async (
+export function withAuth(handler: AuthHandler, errorMessage = "Internal server error") {
+  async function routeHandler(
     request: NextRequest,
-    context?: { params?: Promise<Record<string, string>> }
-  ): Promise<NextResponse> => {
+    segmentData: { params: Promise<Record<string, string>> }
+  ): Promise<NextResponse> {
     try {
       const supabase = await createClient();
       const {
@@ -33,7 +30,7 @@ export function withAuth(
       if (!user)
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-      const params = context?.params ? await context.params : {};
+      const params = segmentData?.params ? await segmentData.params : {};
       return await handler({ user, supabase, request, params });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -42,5 +39,6 @@ export function withAuth(
         { status: 500 }
       );
     }
-  };
+  }
+  return routeHandler;
 }
