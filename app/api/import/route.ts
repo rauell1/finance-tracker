@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { parseCsvLine, parseCsv } from "@/lib/parsers/csv";
+import { parseDateStr } from "@/lib/parsers/date";
+import { categorise, extractCounterparty } from "@/lib/parsers/categorise";
 
 // Polyfill DOMMatrix for pdf-parse server-side compatibility in Node.js environment
 if (typeof global !== "undefined" && !(global as any).DOMMatrix) {
@@ -18,102 +21,15 @@ export interface ParsedRow {
   balance_after?: number | null;
 }
 
-// Extract the establishment/merchant from an M-Pesa "Details" string.
-// e.g. "Pay Bill to KPLC PREPAID" → "KPLC PREPAID"
-//      "Customer Transfer to JOHN DOE" → "JOHN DOE"
-//      "Merchant Payment to NAIVAS" → "NAIVAS"
-function extractCounterparty(details: string): string {
-  if (!details) return "Unknown";
-  const cleaned = details
-    .replace(/^(pay bill (online )?to|merchant payment (online )?to|customer (transfer|payment) (of funds )?(to|from)|funds received from|business payment from|buy goods (and services )?to|withdrawal (charge|at)|airtime purchase|m-?shwari|kcb m-?pesa)\s*/i, "")
-    .replace(/\b\d{9,12}\b/g, "")
-    .replace(/-\s*\d+/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return cleaned || details.trim();
-}
+
 
 const MAX_ROWS = 500;
 
-// ── M-Pesa auto-categorisation ────────────────────────────────────────────────
-function categorise(description: string, txnType: "income" | "expense", isMpesa = false): string {
-  const d = description.toLowerCase();
-  if (/kplc|kenya power|safaricom|airtel|telkom/.test(d)) return "Utilities";
-  if (/naivas|carrefour|quickmart|chandarana/.test(d)) return "Food & Dining";
-  if (/uber|bolt|faras|matatu/.test(d)) return "Transport";
-  if (/netflix|spotify|showmax|dstv/.test(d)) return "Subscriptions";
-  if (/nhif|hospital|clinic|pharmacy|chemist/.test(d)) return "Healthcare";
-  if (/school|fees|university|college|tuition/.test(d)) return "Education";
-  if (/airbnb|hotel|flight|kenya airways|jambojet/.test(d)) return "Travel";
-  if (/salary|payroll|wages/.test(d)) return "Salary";
-  if (/freelance|upwork|fiverr/.test(d)) return "Freelance";
-  return txnType === "income" ? (isMpesa ? "Funds received" : "Other Income") : "Other Expense";
-}
 
-// ── Date parsing ──────────────────────────────────────────────────────────────
-// ── Date parsing ──────────────────────────────────────────────────────────────
-function parseDateStr(s: string): string | null {
-  s = s.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  
-  // DD-MMM-YYYY (e.g. 15-May-2026)
-  const dMmmY = s.match(/^(\d{1,2})[-/]([A-Za-z]{3})[-/](\d{4})/);
-  if (dMmmY) {
-    const [, d, mStr, y] = dMmmY;
-    const months: Record<string, string> = {
-      jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
-      jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12"
-    };
-    const m = months[mStr.toLowerCase()];
-    if (m) return `${y}-${m}-${d.padStart(2, "0")}`;
-  }
-  
-  // DD/MM/YYYY or DD-MM-YYYY
-  const parts = s.split(/[-/]/).map(Number);
-  if (parts.length === 3) {
-    if (parts[0] > 100) {
-      return `${parts[0]}-${String(parts[1]).padStart(2, "0")}-${String(parts[2]).padStart(2, "0")}`;
-    }
-    const [d, m, y] = parts;
-    const yr = y < 100 ? 2000 + y : y;
-    return `${yr}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  }
-  
-  return null;
-}
 
-function parseDate(raw: string): string | null {
-  return parseDateStr(raw);
-}
 
-// ── CSV parser (handles quoted fields) ────────────────────────────────────────
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let cur = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
-      else inQuotes = !inQuotes;
-    } else if (ch === "," && !inQuotes) {
-      result.push(cur.trim());
-      cur = "";
-    } else {
-      cur += ch;
-    }
-  }
-  result.push(cur.trim());
-  return result;
-}
 
-function parseCsv(text: string): { headers: string[]; rows: string[][] } {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const headers = parseCsvLine(lines[0]);
-  const rows = lines.slice(1).map(parseCsvLine);
-  return { headers, rows };
-}
+
 
 // ── M-Pesa CSV parser ─────────────────────────────────────────────────────────────
 function parseMpesa(headers: string[], rows: string[][]): ParsedRow[] {
