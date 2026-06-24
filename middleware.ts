@@ -11,18 +11,18 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const userAgent = request.headers.get('user-agent') || '';
 
-  // Always allow search engine crawlers
-  if (BOT_PATTERN.test(userAgent)) {
+  const isPublicPath =
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/webhooks/') ||
+    pathname.match(/\.(svg|png|jpg|jpeg|ico|webp|json|xml|txt|css|js|html)$/) != null ||
+    PUBLIC_PATHS.some(p => pathname === p);
+
+  // Allow bots only on public paths to prevent UA-spoofed auth bypass
+  if (BOT_PATTERN.test(userAgent) && isPublicPath) {
     return NextResponse.next();
   }
 
-  // Always allow static assets, public files, and Next.js internals
-  if (
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/api/webhooks/') ||
-    pathname.match(/\.(svg|png|jpg|jpeg|ico|webp|json|xml|txt|css|js|html)$/) ||
-    PUBLIC_PATHS.some(p => pathname === p)
-  ) {
+  if (isPublicPath) {
     return NextResponse.next();
   }
 
