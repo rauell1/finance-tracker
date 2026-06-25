@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Account } from "@/types/domain";
 
+const FULIZA_MAX = 1500;
+const MPESA_CODE = "main";
+
 const accountMeta: Record<string, { label: string; icon: typeof Wallet; accent: string; ring: string; bg: string }> = {
   main:      { label: "M-Pesa",    icon: Smartphone, accent: "text-emerald-600", ring: "bg-emerald-500", bg: "bg-emerald-50" },
   kcb_mpesa: { label: "KCB M-Pesa", icon: PiggyBank, accent: "text-green-600",   ring: "bg-green-500",   bg: "bg-green-50" },
@@ -42,6 +45,14 @@ function AccountCard({ account, onUpdated }: { account: Account; onUpdated: (id:
     const target = parseFloat(value.replace(/,/g, ""));
     if (isNaN(target)) {
       toast.error("Enter a valid number");
+      return;
+    }
+    if (account.account_code !== MPESA_CODE && target < 0) {
+      toast.error("Bank accounts cannot have a negative balance");
+      return;
+    }
+    if (account.account_code === MPESA_CODE && target < -FULIZA_MAX) {
+      toast.error(`M-PESA cannot go below −KES ${FULIZA_MAX} (Fuliza limit)`);
       return;
     }
     setSaving(true);
