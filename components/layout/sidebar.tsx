@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, ArrowLeftRight, Target, BarChart2,
   Settings, LogOut, TrendingUp, X, Receipt, Landmark,
-  Crosshair, FileText
+  Crosshair, FileText, ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
@@ -21,6 +21,7 @@ const navItems = [
   { href: "/analytics", label: "Analytics", icon: BarChart2 },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/admin", label: "Admin", icon: ShieldCheck },
 ];
 
 interface SidebarProps {
