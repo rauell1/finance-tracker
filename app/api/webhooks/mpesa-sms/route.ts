@@ -2076,6 +2076,9 @@ async function processSingleSms(
     if (p.description === "Fuliza repayment") {
       const remaining = p.fulizaOutstanding ?? 0;
       await upsertAutoDebt(supabase, userId, "fuliza", "Safaricom Fuliza", remaining);
+    } else if (p.mpesaBal !== null && p.mpesaBal >= 1) {
+      // Positive M-PESA balance means Safaricom has already auto-deducted all Fuliza
+      await upsertAutoDebt(supabase, userId, "fuliza", "Safaricom Fuliza", 0);
     }
     const mshwariM = p.raw.match(P.mshwariLoanOutstanding);
     if (mshwariM) {
