@@ -820,7 +820,7 @@ async function reconcileLinkedTransaction(
       .insert({
         user_id: userId,
         account_id: fromAccountId,
-        transfer_account_id: null,
+        transfer_account_id: toAccountId ?? null,
         txn_type: "transfer",
         amount: amount,
         currency_code: "KES",
@@ -1867,6 +1867,11 @@ async function processSingleSms(
       if (existing.txn_type === "transfer") {
         const fromAccCode = existing.metadata.from_account_code || "main";
         const toAccCode = existing.metadata.to_account_code || "bank_c";
+        // Resolve toAccountId by code in case the pending leg was stored with transfer_account_id: null
+        const resolvedToAccountId =
+          existing.transfer_account_id ??
+          (accts ?? []).find((a: any) => a.account_code === toAccCode)?.id ??
+          null;
         const recResult = await reconcileLinkedTransaction(
           supabase,
           p.receipt,
@@ -1876,7 +1881,7 @@ async function processSingleSms(
           occurredOn,
           p.raw,
           existing.account_id,
-          existing.transfer_account_id,
+          resolvedToAccountId,
           fromAccCode,
           toAccCode,
           existing.description ?? p.description,
