@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 const FULIZA_MAX = 1500;
 
@@ -19,30 +18,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const admin = createAdminClient();
-
-  // Resolve userId from the MPESA account (same pattern as webhook)
-  const { data: mpesa } = await admin
-    .from("accounts")
-    .select("user_id")
-    .eq("account_code", "main")
-    .single();
-  if (!mpesa) return NextResponse.json({ error: "MPESA account not found" }, { status: 404 });
-  const userId = mpesa.user_id;
-
   const isActive = balance > 0;
 
-  // Upsert Fuliza debt — same logic as upsertAutoDebt in the webhook
-  const { data: existing } = await admin
+  // Upsert Fuliza debt for the signed-in user — RLS handles the user_id filter
+  const { data: existing } = await supabase
     .from("debts")
     .select("id, principal")
-    .eq("user_id", userId)
     .eq("source_identifier", "fuliza")
     .maybeSingle();
 
   let debt;
   if (existing) {
-    const { data: updated, error } = await admin
+    const { data: updated, error } = await supabase
       .from("debts")
       .update({
         creditor: "Safaricom Fuliza",
@@ -58,10 +45,10 @@ export async function POST(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     debt = updated;
   } else {
-    const { data: created, error } = await admin
+    const { data: created, error } = await supabase
       .from("debts")
       .insert({
-        user_id: userId,
+        user_id: user.id,
         creditor: "Safaricom Fuliza",
         debt_type: "fuliza",
         principal: balance,

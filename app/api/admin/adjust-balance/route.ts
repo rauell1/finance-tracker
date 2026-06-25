@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
-  // Auth check — only the signed-in owner can call this
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,12 +13,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "account_id and target_balance are required" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-
-  // Fetch the account
-  const { data: acct, error: acctErr } = await admin
+  // Fetch the account — RLS ensures this belongs to the signed-in user
+  const { data: acct, error: acctErr } = await supabase
     .from("accounts")
-    .select("id, account_code, name, opening_balance, user_id")
+    .select("id, account_code, name, opening_balance")
     .eq("id", account_id)
     .single();
 
@@ -28,11 +24,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
-  // Compute the net transaction delta for this account (same logic as getAccounts / calibrate)
+  // Compute net transaction delta for this account (same logic as getAccounts)
   let txns: any[] = [];
   let page = 0;
   while (true) {
-    const { data, error } = await admin
+    const { data, error } = await supabase
       .from("transactions")
       .select("account_id, transfer_account_id, amount, txn_type, metadata")
       .or(`account_id.eq.${acct.id},transfer_account_id.eq.${acct.id}`)
@@ -59,7 +55,7 @@ export async function POST(request: NextRequest) {
   const old_opening = Number(acct.opening_balance);
   const new_opening = target_balance - net;
 
-  const { error: updateErr } = await admin
+  const { error: updateErr } = await supabase
     .from("accounts")
     .update({ opening_balance: new_opening, updated_at: new Date().toISOString() })
     .eq("id", acct.id);
