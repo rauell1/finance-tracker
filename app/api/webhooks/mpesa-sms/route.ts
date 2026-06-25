@@ -9,7 +9,7 @@ const P = {
   fulizaOutstanding: /total fuliza m-?pesa outstanding amount is\s*ksh\s*([\d,]+\.?\d*)/i,
   mshwariLoanOutstanding: /m-?shwari\s+loan[^.]*outstanding[^.]*ksh\s*([\d,]+\.?\d*)/i,
   kcbOverdraftOutstanding: /kcb m-?pesa[^.]*overdraft[^.]*ksh\s*([\d,]+\.?\d*)/i,
-  fulizaRepay:  /ksh\s*([\d,]+\.?\d*)\s+(?:from your m-?pesa\s+)?has been (?:used to\s+(?:fully\s+)?(?:pay|repay)|deducted(?:\s+from your m-?pesa)?\s+to\s+(?:pay|repay))\s+(?:your\s+)?(?:outstanding\s+)?fuliza/i,
+  fulizaRepay:  /ksh\s*([\d,]+\.?\d*)\s+(?:from your m-?pesa\s+)?has been (?:used to\s+(?:fully\s+|partially\s+)?(?:pay|repay)|deducted(?:\s+from your m-?pesa)?\s+to\s+(?:pay|repay))\s+(?:your\s+)?(?:outstanding\s+)?fuliza/i,
   fulizaRepayRemaining: /(?:outstanding fuliza m-?pesa balance is|remaining fuliza outstanding balance is|outstanding balance is)\s*ksh\s*([\d,]+\.?\d*)/i,
   fulizaFullyRepaid:   /available fuliza m-?pesa limit is\s*ksh\s*([\d,]+\.?\d*)/i,
   fulizaAmount: /fuliza m-?pesa amount is\s*ksh\s*([\d,]+\.?\d*)/i,
@@ -1212,10 +1212,14 @@ function parse(rawText: string): Parsed | null {
   // Fuliza repayment line
   const fulizaRepay = text.match(P.fulizaRepay);
   if (fulizaRepay) {
-    const remainingM    = text.match(P.fulizaRepayRemaining);
-    const fullyRepaidM  = text.match(P.fulizaFullyRepaid);
-    // "outstanding balance is KshX" → X remaining; "Available limit is KshX" in repayment SMS → fully cleared
-    const remainingBal  = remainingM ? num(remainingM[1]) : fullyRepaidM ? 0 : 0;
+    const remainingM   = text.match(P.fulizaRepayRemaining); // "outstanding balance is Ksh X" → X owed
+    const availLimitM  = text.match(P.fulizaFullyRepaid);    // "Available Fuliza limit is Ksh X" → 1500-X owed
+    let remainingBal = 0;
+    if (remainingM) {
+      remainingBal = num(remainingM[1]);
+    } else if (availLimitM) {
+      remainingBal = Math.max(0, 1500 - num(availLimitM[1])); // partial: e.g. limit=621.53 → owed=878.47; full: limit=1500 → owed=0
+    }
     return { ...base, kind: "expense", amount: num(fulizaRepay[1]), txnType: "expense", savingsBal: null, counterparty: "Fuliza M-Pesa", description: "Fuliza repayment", fulizaOutstanding: remainingBal };
   }
 
@@ -2107,11 +2111,25 @@ export async function POST(request: NextRequest) {
     rawBody: rawBody
   });
 
-  // Try parsing rawBody as JSON
+  // Try parsing rawBody as JSON — sanitise literal newlines inside string values first,
+  // since MacroDroid forwards Fuliza SMS with a real \n between receipt and body.
+  function sanitizeJsonNewlines(raw: string): string {
+    let inStr = false, esc = false, out = "";
+    for (const ch of raw) {
+      if (esc) { esc = false; out += ch; continue; }
+      if (ch === "\\" && inStr) { esc = true; out += ch; continue; }
+      if (ch === '"') { inStr = !inStr; out += ch; continue; }
+      if (inStr && ch === "\n") { out += "\\n"; continue; }
+      if (inStr && ch === "\r") { out += "\\r"; continue; }
+      out += ch;
+    }
+    return out;
+  }
+
   let payload: any = null;
   try {
     if (rawBody.trim()) {
-      payload = JSON.parse(rawBody);
+      payload = JSON.parse(sanitizeJsonNewlines(rawBody));
     }
   } catch (err) {
     // Not JSON
