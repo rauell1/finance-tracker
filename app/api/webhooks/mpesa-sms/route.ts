@@ -11,6 +11,7 @@ const P = {
   kcbOverdraftOutstanding: /kcb m-?pesa[^.]*overdraft[^.]*ksh\s*([\d,]+\.?\d*)/i,
   fulizaRepay:  /ksh\s*([\d,]+\.?\d*)\s+(?:from your m-?pesa\s+)?has been (?:used to\s+(?:fully\s+)?(?:pay|repay)|deducted(?:\s+from your m-?pesa)?\s+to\s+(?:pay|repay))\s+(?:your\s+)?(?:outstanding\s+)?fuliza/i,
   fulizaRepayRemaining: /(?:outstanding fuliza m-?pesa balance is|remaining fuliza outstanding balance is|outstanding balance is)\s*ksh\s*([\d,]+\.?\d*)/i,
+  fulizaFullyRepaid:   /available fuliza m-?pesa limit is\s*ksh\s*([\d,]+\.?\d*)/i,
   fulizaAmount: /fuliza m-?pesa amount is\s*ksh\s*([\d,]+\.?\d*)/i,
   fulizaAccessFee: /access fee charged\s*ksh\s*([\d,]+\.?\d*)/i,
   received:     /received ksh([\d,]+\.?\d*) from ([^.]+?)(?=\s*\d{6,}|\s+on \d|\.)/i,
@@ -1211,8 +1212,10 @@ function parse(rawText: string): Parsed | null {
   // Fuliza repayment line
   const fulizaRepay = text.match(P.fulizaRepay);
   if (fulizaRepay) {
-    const remainingM = text.match(P.fulizaRepayRemaining);
-    const remainingBal = remainingM ? num(remainingM[1]) : 0;
+    const remainingM    = text.match(P.fulizaRepayRemaining);
+    const fullyRepaidM  = text.match(P.fulizaFullyRepaid);
+    // "outstanding balance is KshX" → X remaining; "Available limit is KshX" in repayment SMS → fully cleared
+    const remainingBal  = remainingM ? num(remainingM[1]) : fullyRepaidM ? 0 : 0;
     return { ...base, kind: "expense", amount: num(fulizaRepay[1]), txnType: "expense", savingsBal: null, counterparty: "Fuliza M-Pesa", description: "Fuliza repayment", fulizaOutstanding: remainingBal };
   }
 
