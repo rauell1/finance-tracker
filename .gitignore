@@ -1,12 +1,18 @@
 node_modules/
 .next/
-.env.local
-.env
-*.env
 dist/
 build/
 .DS_Store
-
 .vercel
-.env*.local
 scratch/
+
+# All env files — never commit real secrets
+.env
+.env.local
+.env.*
+*.env
+*.env.local
+
+# Vercel CLI env dumps (all variants: .local, .prod.local, prod2, prod3, etc.)
+.env.vercel
+.env.vercel.*
