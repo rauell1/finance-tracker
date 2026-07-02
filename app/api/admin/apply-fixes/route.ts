@@ -106,5 +106,13 @@ export async function POST(request: NextRequest) {
     };
   }
 
+  // Step 3: report webhook_logs contents for verification
+  const { data: logs, error: logsErr } = await supabase
+    .from("webhook_logs")
+    .select("id, reason, sms_text, created_at")
+    .order("created_at", { ascending: false })
+    .limit(5);
+  report.webhook_logs = logsErr ? `failed: ${logsErr.message}` : logs;
+
   return NextResponse.json(report);
 }
