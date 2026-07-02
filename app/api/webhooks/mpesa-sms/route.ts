@@ -1539,12 +1539,13 @@ async function logWebhook(
   reason: string
 ) {
   try {
-    await supabase.from("webhook_logs").insert({
+    const { error } = await supabase.from("webhook_logs").insert({
       raw_body: rawBody.slice(0, 4000),
       content_type: contentType,
       sms_text: smsText.slice(0, 2000),
       reason,
     });
+    if (error) console.warn("[logWebhook] insert failed:", error.message);
   } catch (err) {
     console.warn("[logWebhook] failed to persist webhook log:", err);
   }
