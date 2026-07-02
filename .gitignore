@@ -16,3 +16,5 @@ scratch/
 # Vercel CLI env dumps (all variants: .local, .prod.local, prod2, prod3, etc.)
 .env.vercel
 .env.vercel.*
+
+.vercel

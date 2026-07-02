@@ -1529,6 +1529,27 @@ async function captureDebug(rawBody: string, contentType: string, extracted: str
   );
 }
 
+// Persist every webhook delivery that didn't produce a transaction, so
+// unmatched or malformed SMS can be reviewed and replayed later.
+async function logWebhook(
+  supabase: AdminClient,
+  rawBody: string,
+  contentType: string,
+  smsText: string,
+  reason: string
+) {
+  try {
+    await supabase.from("webhook_logs").insert({
+      raw_body: rawBody.slice(0, 4000),
+      content_type: contentType,
+      sms_text: smsText.slice(0, 2000),
+      reason,
+    });
+  } catch (err) {
+    console.warn("[logWebhook] failed to persist webhook log:", err);
+  }
+}
+
 function isPlaceholder(val: string): boolean {
   if (!val) return false;
   const v = val.trim();
@@ -2150,13 +2171,12 @@ export async function POST(request: NextRequest) {
       (batch && (batch.trim() === "[lv=queue_contents]" || batch.trim() === "{queue_contents}" || batch.trim() === "[queue_contents]"))
     ) {
       console.warn("[mpesa-sms webhook] Rejected due to unresolved placeholders in JSON payload:", payload);
-      return NextResponse.json(
-        {
-          error: "Unresolved MacroDroid placeholder detected in payload",
-          received_payload: payload
-        },
-        { status: 400 }
-      );
+      // 200 so MacroDroid doesn't treat this as a delivery failure and retry
+      return NextResponse.json({
+        status: "ignored",
+        reason: "unresolved_macrodroid_placeholder",
+        received_payload: payload
+      });
     }
   }
 
@@ -2204,14 +2224,13 @@ export async function POST(request: NextRequest) {
     const sender = payload.sender || "";
 
     if (!smsText || isPlaceholder(smsText)) {
-      return NextResponse.json(
-        {
-          status: "ignored",
-          reason: "empty_or_placeholder_body",
-          received_payload: payload
-        },
-        { status: 400 }
-      );
+      await logWebhook(supabase, rawBody, contentType, smsText || "", "empty_or_placeholder_body");
+      // 200 so MacroDroid doesn't treat this as a delivery failure and retry
+      return NextResponse.json({
+        status: "ignored",
+        reason: "empty_or_placeholder_body",
+        received_payload: payload
+      });
     }
 
     try {
@@ -2302,20 +2321,20 @@ export async function POST(request: NextRequest) {
 
   if (!smsText || isPlaceholder(smsText)) {
     await captureDebug(rawBody, contentType, smsText || "", "empty_or_placeholder_body");
-    return NextResponse.json(
-      {
-        status: "ignored",
-        reason: "empty_or_placeholder_body",
-        content_type: contentType,
-        received_payload: payload || rawBody
-      },
-      { status: 400 }
-    );
+    await logWebhook(supabase, rawBody, contentType, smsText || "", "empty_or_placeholder_body");
+    // 200 so MacroDroid doesn't treat this as a delivery failure and retry
+    return NextResponse.json({
+      status: "ignored",
+      reason: "empty_or_placeholder_body",
+      content_type: contentType,
+      received_payload: payload || rawBody
+    });
   }
 
   try {
     const res = await processSingleSms(supabase, smsText, timestamp);
     if (res.status === "failed") {
+      await logWebhook(supabase, rawBody, contentType, smsText, `failed: ${res.error ?? "unknown"}`);
       return NextResponse.json(
         {
           ...res,
@@ -2324,12 +2343,16 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+    if (res.status === "ignored" && res.reason === "not_mpesa") {
+      await logWebhook(supabase, rawBody, contentType, smsText, "not_mpesa");
+    }
     return NextResponse.json({
       ...res,
       received_payload: payload || rawBody
     });
   } catch (err: any) {
     console.error("[mpesa-sms webhook] Unexpected processing error:", err);
+    await logWebhook(supabase, rawBody, contentType, smsText, `exception: ${err.message}`);
     return NextResponse.json(
       {
         status: "failed",

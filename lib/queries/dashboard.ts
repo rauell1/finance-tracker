@@ -1,10 +1,14 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { KPIData, MonthlyTrend, CategoryBreakdown, AccountComparison } from "@/types/domain";
 import { getMonthStart, normalizeDescription, normalizeToTarget, type ExchangeRate } from "@/lib/utils";
 
 const DEFAULT_CURRENCY = "USD";
 
-async function getCurrencyContext(supabase: Awaited<ReturnType<typeof createClient>>) {
+// cache() memoizes per server request, so the auth/profile/rates lookups run
+// once per page render instead of once per dashboard query.
+const getCurrencyContext = cache(async () => {
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { baseCurrency: DEFAULT_CURRENCY, rates: [] as ExchangeRate[] };
   const [{ data: profile }, { data: rates }] = await Promise.all([
@@ -15,7 +19,7 @@ async function getCurrencyContext(supabase: Awaited<ReturnType<typeof createClie
     baseCurrency: profile?.preferred_currency ?? DEFAULT_CURRENCY,
     rates: (rates ?? []) as ExchangeRate[],
   };
-}
+});
 
 function getPeriodDates(period: "month" | "quarter" | "year" | "all", monthParam?: string) {
   const now = new Date();
@@ -74,7 +78,7 @@ function getPeriodDates(period: "month" | "quarter" | "year" | "all", monthParam
 
 export async function getKPIData(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<KPIData> {
   const supabase = await createClient();
-  const { baseCurrency, rates } = await getCurrencyContext(supabase);
+  const { baseCurrency, rates } = await getCurrencyContext();
   
   const { startStr, endStr, prevStartStr, prevEndStr } = getPeriodDates(period, month);
   
@@ -193,39 +197,62 @@ export async function getKPIData(month?: string, period: "month" | "quarter" | "
 
 export async function getMonthlyTrend(months = 6): Promise<MonthlyTrend[]> {
   const supabase = await createClient();
-  const { baseCurrency, rates } = await getCurrencyContext(supabase);
+  const { baseCurrency, rates } = await getCurrencyContext();
   const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
     normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
       rates,
       validOn: occurredOn,
       onMissing: "original",
     });
+  // Single ranged query covering all months, grouped in JS
+  const rangeStart = new Date(); rangeStart.setMonth(rangeStart.getMonth() - (months - 1)); rangeStart.setDate(1);
+  const rangeStartStr = rangeStart.toISOString().split("T")[0];
+  const rangeEnd = new Date(); rangeEnd.setDate(1); rangeEnd.setMonth(rangeEnd.getMonth() + 1);
+  const rangeEndStr = rangeEnd.toISOString().split("T")[0];
+
+  let rows: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data } = await supabase
+      .from("transactions")
+      .select("txn_type, amount, description, currency_code, occurred_on")
+      .in("txn_type", ["income", "expense"])
+      .gte("occurred_on", rangeStartStr)
+      .lt("occurred_on", rangeEndStr)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (!data || data.length === 0) break;
+    rows = rows.concat(data);
+    if (data.length < pageSize) break;
+    page++;
+  }
+
+  const byMonth = new Map<string, { income: number; expense: number }>();
+  for (const t of rows) {
+    const month = String(t.occurred_on).slice(0, 7);
+    const e = byMonth.get(month) ?? { income: 0, expense: 0 };
+    const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
+    if (t.txn_type === "income") {
+      e.income += normalized;
+    } else if (t.description !== "Fuliza repayment") {
+      e.expense += normalized;
+    }
+    byMonth.set(month, e);
+  }
+
   const trends: MonthlyTrend[] = [];
   for (let i = months - 1; i >= 0; i--) {
     const d = new Date(); d.setMonth(d.getMonth() - i); d.setDate(1);
-    const start = d.toISOString().split("T")[0];
-    d.setMonth(d.getMonth() + 1);
-    const end = d.toISOString().split("T")[0];
-    const { data } = await supabase.from("transactions").select("txn_type, amount, description, currency_code, occurred_on").in("txn_type", ["income","expense"]).gte("occurred_on", start).lt("occurred_on", end);
-    let income = 0, expense = 0;
-    for (const t of data ?? []) {
-      const normalized = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
-      if (t.txn_type === "income") {
-        income += normalized;
-      } else {
-        if (t.description !== "Fuliza repayment") {
-          expense += normalized;
-        }
-      }
-    }
-    trends.push({ month: start.slice(0, 7), income, expense, net: income - expense });
+    const month = d.toISOString().split("T")[0].slice(0, 7);
+    const e = byMonth.get(month) ?? { income: 0, expense: 0 };
+    trends.push({ month, income: e.income, expense: e.expense, net: e.income - e.expense });
   }
   return trends;
 }
 
 export async function getCategoryBreakdown(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<CategoryBreakdown[]> {
   const supabase = await createClient();
-  const { baseCurrency, rates } = await getCurrencyContext(supabase);
+  const { baseCurrency, rates } = await getCurrencyContext();
   const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
     normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
       rates,
@@ -268,7 +295,7 @@ export async function getCategoryBreakdown(month?: string, period: "month" | "qu
 
 export async function getAccountComparison(month?: string, period: "month" | "quarter" | "year" | "all" = "month"): Promise<AccountComparison[]> {
   const supabase = await createClient();
-  const { baseCurrency, rates } = await getCurrencyContext(supabase);
+  const { baseCurrency, rates } = await getCurrencyContext();
   const normalizeAmount = (amount: number, currencyCode?: string | null, occurredOn?: string) =>
     normalizeToTarget(amount, currencyCode || baseCurrency, baseCurrency, {
       rates,

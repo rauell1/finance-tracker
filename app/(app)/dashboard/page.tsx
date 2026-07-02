@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import {
   getKPIData, getMonthlyTrend, getCategoryBreakdown, getAccountComparison,
   getRecentTransactions, getBudgets, generateInsights,
-  getUpcomingObligations, getDebts,
+  getUpcomingObligations, getDebts, getSavingsGoals,
 } from "@/lib/queries";
 import { KPICards } from "@/components/dashboard/kpi-cards";
 import { AccountBalanceCards } from "@/components/dashboard/account-balance-cards";
@@ -26,7 +27,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const period = (params.period as "month" | "quarter" | "year" | "all") ?? "month";
 
-  const [kpi, trend, categoryBreakdown, accountComparison, recentTxns, budgets, insights, upcoming, debts] = await Promise.all([
+  const [kpi, trend, categoryBreakdown, accountComparison, recentTxns, budgets, insights, upcoming, debts, savingsGoals] = await Promise.all([
     getKPIData(undefined, period),
     getMonthlyTrend(6),
     getCategoryBreakdown(undefined, period),
@@ -36,6 +37,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     generateInsights(),
     getUpcomingObligations(7).catch(() => []),
     getDebts().catch(() => []),
+    getSavingsGoals().catch(() => []),
   ]);
 
   return (
@@ -46,7 +48,9 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           <h1 className="text-2xl sm:text-3xl font-bold text-[#0A0D27] tracking-tight">Dashboard</h1>
           <p className="text-sm text-[#33375C]/60 mt-1">Your real-time wealth overview</p>
         </div>
-        <PeriodSelector />
+        <Suspense fallback={<div className="h-10 w-72 rounded-2xl bg-[#F0F0FF]/50 border border-[#E2E2FF]" />}>
+          <PeriodSelector />
+        </Suspense>
       </div>
 
       {/* KPI cards */}
@@ -88,7 +92,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       </div>
 
       {/* Savings Goals */}
-      <SavingsProgress />
+      <SavingsProgress goals={savingsGoals} />
 
       {/* Insights */}
       <InsightsPanel insights={insights} />

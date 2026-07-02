@@ -1,21 +1,14 @@
-"use client";
-import { useQuery } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/utils";
 import { PiggyBank } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 import type { SavingsGoal } from "@/types/domain";
 
-export function SavingsProgress() {
-  const { data: goals = [] } = useQuery<SavingsGoal[]>({
-    queryKey: ["savings-goals"],
-    queryFn: async () => {
-      const res = await fetch("/api/savings-goals");
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
+interface SavingsProgressProps {
+  goals: SavingsGoal[];
+}
 
+export function SavingsProgress({ goals }: SavingsProgressProps) {
   const active = goals.filter((g) => !g.is_completed).slice(0, 3);
   if (active.length === 0) return null;
 

@@ -1,4 +1,5 @@
 import type { InsightItem } from "@/types/domain";
+import { formatCurrency } from "@/lib/utils";
 import { detectRecurringExpenses, detectSpendingSpikes, detectBudgetLeaks } from "@/lib/queries/dashboard";
 export async function generateInsights(): Promise<InsightItem[]> {
   const insights: InsightItem[] = [];
@@ -7,7 +8,7 @@ export async function generateInsights(): Promise<InsightItem[]> {
       detectRecurringExpenses(), detectSpendingSpikes(), detectBudgetLeaks()
     ]);
     for (const item of recurring.slice(0, 5)) {
-      insights.push({ id: `recurring-${item.description.slice(0, 20)}`, type: "recurring", severity: "info", title: "Recurring Charge Detected", message: `"${item.description}" appears ${item.count} months at ~$${item.amount.toFixed(2)}.`, recommendation: "Review if this subscription is still needed.", evidence: item, potential_savings: item.amount });
+      insights.push({ id: `recurring-${item.description.slice(0, 20)}`, type: "recurring", severity: "info", title: "Recurring Charge Detected", message: `"${item.description}" appears ${item.count} months at ~${formatCurrency(item.amount)}.`, recommendation: "Review if this subscription is still needed.", evidence: item, potential_savings: item.amount });
     }
     for (const item of spikes.slice(0, 3)) {
       insights.push({ id: `spike-${item.category_name}`, type: "spike", severity: item.increase_pct >= 50 ? "critical" : "warning", title: "Spending Spike Alert", message: `${item.category_name} is ${item.increase_pct.toFixed(0)}% above 3-month average.`, recommendation: `Review your ${item.category_name.toLowerCase()} expenses.`, evidence: item, potential_savings: item.current_amount - item.avg_amount });
