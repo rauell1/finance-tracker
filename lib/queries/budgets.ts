@@ -53,35 +53,67 @@ export async function getBudgetSuggestions(month?: string): Promise<BudgetSugges
     months.push(d.toISOString().split("T")[0]);
   }
 
+  const oldestMonth = months[months.length - 1];
+  const newestMonth = months[0];
+  const newestMonthEnd = new Date(newestMonth + "T00:00:00");
+  newestMonthEnd.setMonth(newestMonthEnd.getMonth() + 1);
+  const newestMonthEndStr = newestMonthEnd.toISOString().split("T")[0];
+
   const { data: cats } = await supabase.from("categories").select("id, name").eq("type", "expense");
   if (!cats) return [];
+
+  const catIds = cats.map((c) => c.id);
+  if (catIds.length === 0) return [];
+
+  // Query all transactions in a single bulk query
+  const { data: allTxns, error: qErr } = await supabase
+    .from("transactions")
+    .select("category_id, amount, occurred_on")
+    .eq("txn_type", "expense")
+    .in("category_id", catIds)
+    .gte("occurred_on", oldestMonth)
+    .lt("occurred_on", newestMonthEndStr);
+
+  if (qErr) throw qErr;
+
+  // Group and sum in memory by category and month prefix (YYYY-MM)
+  const spendMap = new Map<string, Map<string, number>>();
+  for (const catId of catIds) {
+    spendMap.set(catId, new Map<string, number>());
+  }
+
+  for (const t of allTxns ?? []) {
+    const mStart = t.occurred_on.slice(0, 7) + "-01";
+    const catMap = spendMap.get(t.category_id);
+    if (catMap) {
+      catMap.set(mStart, (catMap.get(mStart) ?? 0) + Number(t.amount));
+    }
+  }
 
   for (const cat of cats) {
     let total = 0;
     let monthCount = 0;
+    const catMap = spendMap.get(cat.id);
+
     for (const m of months) {
-      const end = new Date(m + "T00:00:00");
-      end.setMonth(end.getMonth() + 1);
-      const { data } = await supabase
-        .from("transactions")
-        .select("amount")
-        .eq("category_id", cat.id)
-        .eq("txn_type", "expense")
-        .gte("occurred_on", m)
-        .lt("occurred_on", end.toISOString().split("T")[0]);
-      const sum = (data ?? []).reduce((s, t) => s + Number(t.amount), 0);
-      if (sum > 0) { total += sum; monthCount++; }
+      const sum = catMap?.get(m) ?? 0;
+      if (sum > 0) {
+        total += sum;
+        monthCount++;
+      }
     }
+
     if (monthCount >= 2) {
       const avg = total / monthCount;
       suggestions.push({
         category_id: cat.id,
         category_name: cat.name,
         avg_spend: Math.round(avg),
-        suggested_amount: Math.round(avg * 1.1), // 10% buffer
+        suggested_amount: Math.round(avg * 1.1),
       });
     }
   }
+
   return suggestions.sort((a, b) => b.avg_spend - a.avg_spend);
 }
 

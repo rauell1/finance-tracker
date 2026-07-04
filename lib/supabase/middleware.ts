@@ -31,7 +31,7 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const ALLOWED_EMAIL = "royokola3@gmail.com";
+  const ALLOWED_EMAIL = (process.env.ALLOWED_EMAIL || "royokola3@gmail.com").toLowerCase();
 
   // Use getUser() - never getSession() in middleware (avoids stale JWT)
   const {

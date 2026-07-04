@@ -12,7 +12,13 @@ const ACCOUNT_COLORS: Record<string, string> = {
 };
 
 export default async function AnalyticsPage() {
-  const [trend, breakdown, accounts, kpi, merchants, accountSpend, incomeSources] = await Promise.all([
+  // Last month KPI for comparison
+  const now = new Date();
+  now.setMonth(now.getMonth() - 1);
+  now.setDate(1);
+  const lastMonthStr = now.toISOString().split("T")[0];
+
+  const [trend, breakdown, accounts, kpi, merchants, accountSpend, incomeSources, lastKpi] = await Promise.all([
     getMonthlyTrend(12),
     getCategoryBreakdown(),
     getAccountComparison(),
@@ -20,17 +26,11 @@ export default async function AnalyticsPage() {
     getMerchantSpend(),
     getAccountSpend(),
     getIncomeSources(),
+    getKPIData(lastMonthStr),
   ]);
 
   const maxMerchant = merchants[0]?.total ?? 1;
   const maxIncome = incomeSources[0]?.total ?? 1;
-
-  // Last month KPI for comparison
-  const now = new Date();
-  now.setMonth(now.getMonth() - 1);
-  now.setDate(1);
-  const lastMonthStr = now.toISOString().split("T")[0];
-  const lastKpi = await getKPIData(lastMonthStr);
 
   const statCards = [
     {

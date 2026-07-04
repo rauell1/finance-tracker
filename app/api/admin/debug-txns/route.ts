@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import crypto from "crypto";
 
 export async function GET(request: NextRequest) {
-  const secret = request.nextUrl.searchParams.get("secret");
-  const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
-  if (!expectedSecret || secret !== expectedSecret) {
+  // 1. Enforce user session authentication
+  const userClient = await createClient();
+  const { data: { user }, error: userErr } = await userClient.auth.getUser();
+
+  const allowedEmail = (process.env.ALLOWED_EMAIL || "royokola3@gmail.com").toLowerCase();
+  if (userErr || !user || user.email?.toLowerCase() !== allowedEmail) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // 2. Validate token securely if provided (timing-attack resistant)
+  const secret = request.nextUrl.searchParams.get("secret") ?? request.headers.get("x-webhook-secret");
+  const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
+  
+  if (expectedSecret && secret) {
+    const a = Buffer.from(secret);
+    const b = Buffer.from(expectedSecret);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 403 });
+    }
+  } else if (!expectedSecret) {
+    return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
   }
 
   const supabase = createAdminClient();

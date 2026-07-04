@@ -1,21 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-const CATEGORY_RULES: { pattern: RegExp; category: string; type: "income" | "expense" }[] = [
-  { pattern: /kplc|kenya power|umeme|power|token|stima/i, category: "Utilities", type: "expense" },
-  { pattern: /safaricom|airtel|telkom|faiba|airtime|bundle|data/i, category: "Utilities", type: "expense" },
-  { pattern: /water|nawasco|gas|k-?gas|progas/i, category: "Utilities", type: "expense" },
-  { pattern: /naivas|carrefour|quickmart|chandarana|tuskys|uchumi|cleanshelf|eatery|eateries|restaurant|cafe|wineries|savor|kitchen|food|grill|fries/i, category: "Food & Dining", type: "expense" },
-  { pattern: /uber|bolt|faras|little|indriver|matatu|fare|sgr|fuel|petrol|shell|total|rubis/i, category: "Transport", type: "expense" },
-  { pattern: /netflix|spotify|showmax|dstv|gotv|youtube|subscription/i, category: "Subscriptions", type: "expense" },
-  { pattern: /nhif|sha|hospital|clinic|pharmacy|chemist|medical|dawa/i, category: "Healthcare", type: "expense" },
-  { pattern: /school|fees|university|college|tuition|academy/i, category: "Education", type: "expense" },
-  { pattern: /airbnb|hotel|lodge|kenya airways|jambojet|flight/i, category: "Travel", type: "expense" },
-  { pattern: /rent|landlord|caretaker/i, category: "Housing", type: "expense" },
-  { pattern: /salary|payroll|wages|payslip/i, category: "Salary", type: "income" },
-  { pattern: /freelance|upwork|fiverr|consult/i, category: "Freelance", type: "income" },
-  { pattern: /dividend|interest|investment|returns|sacco/i, category: "Investment", type: "income" },
-];
+import { CATEGORY_RULES } from "@/lib/parsers/sms";
 
 export async function POST() {
   try {

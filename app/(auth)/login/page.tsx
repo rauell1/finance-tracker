@@ -11,8 +11,6 @@ import { toast } from "sonner";
 import { TrendingUp, Lock } from "lucide-react";
 import { useState, Suspense } from "react";
 
-const ALLOWED_EMAIL = "royokola3@gmail.com";
-
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -24,10 +22,6 @@ function LoginForm() {
   const urlError = searchParams.get("error");
 
   async function onSubmit(data: LoginInput) {
-    if (data.email.toLowerCase() !== ALLOWED_EMAIL) {
-      toast.error("This is a private application. Access is restricted.");
-      return;
-    }
     setIsLoading(true);
     try {
       const supabase = createClient();

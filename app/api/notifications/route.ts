@@ -72,16 +72,28 @@ export async function GET() {
       .eq("month_start", monthStart)
       .eq("txn_type", "expense");
 
-    for (const b of budgets ?? []) {
-      const { data: txns } = await supabase
+    const catIds = (budgets ?? []).map((b) => b.category_id);
+    const spentMap = new Map<string, number>();
+    for (const id of catIds) spentMap.set(id, 0);
+
+    if (catIds.length > 0) {
+      const { data: txns, error: qErr } = await supabase
         .from("transactions")
-        .select("amount")
-        .eq("category_id", b.category_id)
+        .select("category_id, amount")
+        .in("category_id", catIds)
         .eq("txn_type", "expense")
         .gte("occurred_on", monthStart)
         .lt("occurred_on", monthEnd.toISOString().split("T")[0]);
 
-      const spent = (txns ?? []).reduce((s, t) => s + Number(t.amount), 0);
+      if (qErr) throw qErr;
+
+      for (const t of txns ?? []) {
+        spentMap.set(t.category_id, (spentMap.get(t.category_id) ?? 0) + Number(t.amount));
+      }
+    }
+
+    for (const b of budgets ?? []) {
+      const spent = spentMap.get(b.category_id) ?? 0;
       const pct = Number(b.amount) > 0 ? (spent / Number(b.amount)) * 100 : 0;
 
       if (pct >= 80) {
