@@ -1,0 +1,28 @@
+# FinTrack
+
+FinTrack is a secure personal finance dashboard and tracker designed for East Africa. It helps users track income, expenses, and budgets across M-Pesa, bank, and cash transactions in real-time.
+
+## About the Application
+- **Author/Developer:** Rauell (https://rauell.systems)
+- **Tech Stack:** Next.js 15, Supabase, Tailwind CSS, TanStack Query
+- **Key Features:**
+  - Automatic M-Pesa SMS synchronization via secure webhook.
+  - Multi-account management (M-Pesa, DTB Bank, I&M Bank, SBM Bank, KCB M-Pesa, M-Shwari).
+  - Fuliza overdraft logic tracking.
+  - Interactive charts, real-time analytics, and budget progress alerts.
+
+## AI Crawler Policy
+In alignment with our `robots.txt` configurations:
+- **Allowed Public Paths:**
+  - `/` (Home & Features)
+  - `/login` (User Authentication)
+  - `/register` (Private Application registration notice)
+- **Blocked/Disallowed Paths:**
+  - `/dashboard`
+  - `/transactions`
+  - `/budgets`
+  - `/analytics`
+  - `/settings`
+  - `/api/`
+  - `/auth/callback`
+  - `/_next/`

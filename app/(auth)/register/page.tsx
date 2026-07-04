@@ -1,7 +1,37 @@
-"use client";
 import Link from "next/link";
 import { TrendingUp, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Private Registration | FinTrack",
+  description:
+    "FinTrack is a private personal finance tracker. Access is restricted and public registration is disabled.",
+  alternates: {
+    canonical: "https://finance.rauell.systems/register",
+  },
+  openGraph: {
+    title: "Private Registration | FinTrack",
+    description:
+      "FinTrack registration is restricted to authorized personal use only.",
+    url: "https://finance.rauell.systems/register",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "FinTrack Private Registration",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Private Registration | FinTrack",
+    description:
+      "FinTrack registration is restricted to authorized personal use only.",
+    images: ["/og-image.png"],
+  },
+};
 
 export default function RegisterPage() {
   return (
