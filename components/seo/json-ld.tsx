@@ -3,7 +3,7 @@ export function JsonLd() {
     '@context': 'https://schema.org',
     '@graph': [
       {
-        '@type': 'WebApplication',
+        '@type': 'SoftwareApplication',
         '@id': 'https://finance.rauell.systems/#webapp',
         name: 'FinTrack',
         url: 'https://finance.rauell.systems',
@@ -13,6 +13,7 @@ export function JsonLd() {
         operatingSystem: 'Web',
         browserRequirements: 'Requires JavaScript',
         inLanguage: 'en-KE',
+        image: 'https://finance.rauell.systems/og-image.png',
         offers: {
           '@type': 'Offer',
           price: '0',
@@ -20,16 +21,23 @@ export function JsonLd() {
           availability: 'https://schema.org/InStock',
         },
         author: {
-          '@type': 'Person',
           '@id': 'https://rauell.systems/#person',
-          name: 'Rauell',
-          url: 'https://rauell.systems',
-          address: {
-            '@type': 'PostalAddress',
-            addressLocality: 'Nakuru',
-            addressRegion: 'Nakuru County',
-            addressCountry: 'KE',
-          },
+        },
+        publisher: {
+          '@id': 'https://finance.rauell.systems/#organization',
+        },
+      },
+      {
+        '@type': 'Organization',
+        '@id': 'https://finance.rauell.systems/#organization',
+        name: 'FinTrack',
+        url: 'https://finance.rauell.systems',
+        logo: 'https://finance.rauell.systems/icon-192.svg',
+        image: 'https://finance.rauell.systems/og-image.png',
+        description:
+          'Personal finance tracker built for East Africa — track M-Pesa, bank, and cash transactions in real-time.',
+        founder: {
+          '@id': 'https://rauell.systems/#person',
         },
       },
       {
@@ -53,7 +61,7 @@ export function JsonLd() {
         name: 'FinTrack',
         description: 'Personal finance dashboard for East Africa',
         publisher: {
-          '@id': 'https://rauell.systems/#person',
+          '@id': 'https://finance.rauell.systems/#organization',
         },
         potentialAction: {
           '@type': 'SearchAction',
@@ -82,7 +90,9 @@ export function JsonLd() {
   return (
     <script
       type="application/ld+json"
+      // eslint-disable-next-line react/no-danger -- safe: static JSON.stringify of hardcoded schema
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   )
 }
+
