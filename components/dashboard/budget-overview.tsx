@@ -9,8 +9,8 @@ interface BudgetOverviewProps {
 
 const progressColors = {
   safe: "bg-gradient-to-r from-[#524CF2]/80 to-[#524CF2] shadow-sm shadow-[#524CF2]/20",
-  warning: "bg-gradient-to-r from-amber-550 via-amber-450 to-yellow-400 shadow-sm shadow-amber-500/20",
-  over: "bg-gradient-to-r from-rose-550 via-rose-500 to-red-500 shadow-sm shadow-rose-500/20",
+  warning: "bg-gradient-to-r from-amber-500 to-yellow-400 shadow-sm shadow-amber-500/20",
+  over: "bg-gradient-to-r from-rose-600 to-red-500 shadow-sm shadow-rose-500/20",
 };
 
 const statusBadge = {
@@ -24,17 +24,17 @@ export function BudgetOverview({ budgets }: BudgetOverviewProps) {
   const onTrack = displayed.filter((b) => b.status === "safe").length;
 
   return (
-    <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
         <div>
-          <h2 className="font-extrabold text-[#0A0D27] tracking-tight text-base">Budget Limits</h2>
+          <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Budget Limits</h2>
           {displayed.length > 0 && (
             <p className="text-xs text-[#33375C]/60 mt-1 font-semibold">
               {onTrack} of {displayed.length} limits on track
             </p>
           )}
         </div>
-        <Link href="/budgets" className="text-xs text-[#524CF2] font-black hover:text-[#625DF1] transition-colors">
+        <Link href="/budgets" className="text-xs text-[#524CF2] font-semibold hover:text-[#625DF1] transition-colors">
           Manage →
         </Link>
       </div>

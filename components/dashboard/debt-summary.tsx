@@ -12,12 +12,12 @@ export function DebtSummary({ debts }: Props) {
   const displayed = debts.slice(0, 5);
 
   return (
-    <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
         <div>
           <div className="flex items-center gap-2">
             <Landmark className="h-4 w-4 text-[#524CF2]" />
-            <h2 className="font-extrabold text-[#0A0D27] tracking-tight text-base">Outstanding Debts</h2>
+            <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Outstanding Debts</h2>
           </div>
           {debts.length > 0 && (
             <p className={cn("text-lg font-bold mt-1.5", total > 0 ? "text-rose-600" : "text-emerald-600")}>
@@ -25,7 +25,7 @@ export function DebtSummary({ debts }: Props) {
             </p>
           )}
         </div>
-        <Link href="/debts" className="text-xs text-[#524CF2] font-black hover:text-[#625DF1] transition-colors">
+        <Link href="/debts" className="text-xs text-[#524CF2] font-semibold hover:text-[#625DF1] transition-colors">
           Manage →
         </Link>
       </div>

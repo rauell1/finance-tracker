@@ -43,7 +43,7 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
   }
 
   return (
-    <header className="bg-white/90 border-b border-[#E2E2FF] sticky top-0 z-30 backdrop-blur-md text-[#0A0D27]">
+    <header className="bg-white/80 border-b border-[#E2E2FF]/60 sticky top-0 z-30 backdrop-blur-xl text-[#0A0D27]">
       <div className="flex items-center h-16 px-4 sm:px-6 gap-3">
         {/* Hamburger (mobile/tablet) */}
         <Button
@@ -73,7 +73,7 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
           {/* Quick add */}
           <button
             onClick={() => setQuickAddOpen(true)}
-            className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-lg bg-[#524CF2] text-white text-xs sm:text-sm font-semibold hover:bg-[#625DF1] transition-colors shadow-sm shadow-[#524CF2]/15"
+            className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-xl bg-gradient-to-b from-[#625DF1] to-[#4A44E0] text-white text-xs sm:text-sm font-semibold hover:from-[#6B66F5] hover:to-[#524CF2] transition-all shadow-md shadow-[#524CF2]/20 active:scale-[0.97]"
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Add</span>
@@ -85,10 +85,10 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="h-9 w-9 rounded-xl bg-[#524CF2] text-white text-xs font-bold flex items-center justify-center shadow-sm hover:bg-[#625DF1] transition-colors focus:outline-none"
+              className="h-9 w-9 rounded-full bg-gradient-to-br from-[#625DF1] to-[#3B35C4] text-white text-xs font-bold flex items-center justify-center shadow-md shadow-[#524CF2]/20 hover:scale-105 transition-transform focus:outline-none ring-2 ring-white/60"
               aria-label="User menu"
             >
-              FT
+              RO
             </button>
             {userMenuOpen && (
               <>

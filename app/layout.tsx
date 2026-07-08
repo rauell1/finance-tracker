@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Figtree } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { Toaster } from "sonner";
@@ -7,7 +7,7 @@ import { ServiceWorkerRegistrar } from "@/components/layout/sw-registrar";
 import { ThemeScript } from "@/components/layout/theme-script";
 import { JsonLd } from "@/components/seo/json-ld";
 
-const inter = Inter({ subsets: ["latin"] });
+const figtree = Figtree({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://finance.rauell.systems'),
@@ -100,7 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <JsonLd />
       </head>
-      <body className={inter.className}>
+      <body className={figtree.className}>
         <ThemeScript />
         <QueryProvider>
           {children}

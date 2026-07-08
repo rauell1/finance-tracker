@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import {
   getKPIData, getMonthlyTrend, getCategoryBreakdown, getAccountComparison,
   getRecentTransactions, getBudgets, generateInsights,
@@ -13,9 +12,9 @@ import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
 import { DebtSummary } from "@/components/dashboard/debt-summary";
 import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
-import { Wallet } from "lucide-react";
+import { Wallet, AlertCircle } from "lucide-react";
 import { SavingsProgress } from "@/components/dashboard/savings-progress";
-import { PeriodSelector } from "@/components/dashboard/period-selector";
+import { HeroBanner } from "@/components/dashboard/hero-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -40,18 +39,28 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     getSavingsGoals().catch(() => []),
   ]);
 
+  const criticalInsight = insights.find((i) => i.severity === "critical");
+
   return (
     <div className="space-y-6 sm:space-y-7">
-      {/* Heading + Period Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#0A0D27] tracking-tight">Dashboard</h1>
-          <p className="text-sm text-[#33375C]/60 mt-1">Your real-time wealth overview</p>
+      {/* Hero: greeting + net worth + Fuliza status + period selector */}
+      <HeroBanner
+        totalBalance={kpi.totalBalance}
+        netCashflow={kpi.netCashflow}
+        debts={debts}
+        period={period}
+      />
+
+      {/* Critical insight callout */}
+      {criticalInsight && (
+        <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50/70 dark:bg-rose-500/10 dark:border-rose-500/25 px-4 py-3.5">
+          <AlertCircle className="h-4.5 w-4.5 text-rose-500 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-rose-700 dark:text-rose-300">{criticalInsight.title}</p>
+            <p className="text-xs text-rose-600/90 dark:text-rose-300/80 mt-0.5 font-medium">{criticalInsight.message}</p>
+          </div>
         </div>
-        <Suspense fallback={<div className="h-10 w-72 rounded-2xl bg-[#F0F0FF]/50 border border-[#E2E2FF]" />}>
-          <PeriodSelector />
-        </Suspense>
-      </div>
+      )}
 
       {/* KPI cards */}
       <KPICards data={kpi} period={period} />
@@ -60,7 +69,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       <section>
         <div className="flex items-center gap-2 mb-3.5">
           <Wallet className="h-4 w-4 text-[#524CF2]" />
-          <h2 className="text-sm font-semibold text-[#0A0D27]">Account Balances</h2>
+          <h2 className="text-sm font-bold text-[#0A0D27]">Account Balances</h2>
         </div>
         <AccountBalanceCards accounts={accountComparison} />
       </section>

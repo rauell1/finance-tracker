@@ -13,8 +13,8 @@ export function SavingsProgress({ goals }: SavingsProgressProps) {
   if (active.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20 flex items-center justify-between">
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#E2E2FF] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <PiggyBank className="h-4 w-4 text-[#524CF2]" />
           <h3 className="font-semibold text-[#0A0D27] text-sm">Savings Goals</h3>

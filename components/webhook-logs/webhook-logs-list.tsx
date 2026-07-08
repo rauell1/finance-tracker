@@ -133,9 +133,9 @@ function LogRow({ log }: { log: WebhookLog }) {
 
 export function WebhookLogsList({ logs }: { logs: WebhookLog[] }) {
   return (
-    <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
-        <h2 className="font-extrabold text-[#0A0D27] tracking-tight text-base">Unprocessed Deliveries</h2>
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
+        <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Unprocessed Deliveries</h2>
         <span className="text-xs font-bold text-[#33375C]/50">{logs.length} log{logs.length === 1 ? "" : "s"}</span>
       </div>
 

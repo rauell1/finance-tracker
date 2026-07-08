@@ -44,11 +44,11 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
   }));
 
   return (
-    <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
         <div>
-          <h2 className="font-extrabold text-[#0A0D27] tracking-tight text-base">Cash Flow Analytics</h2>
-          <p className="text-xs text-[#33375C]/60 mt-1 font-semibold">Monthly comparison of inflows vs outflows</p>
+          <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Cash Flow Analytics</h2>
+          <p className="text-xs text-[#33375C]/60 mt-1 font-medium">Monthly comparison of inflows vs outflows</p>
         </div>
         <div className="flex rounded-xl border border-[#E2E2FF] overflow-hidden bg-[#F0F0FF]/40 p-[2px]">
           {PERIOD_OPTIONS.map((opt) => (

@@ -26,10 +26,10 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
   const total = data.reduce((sum, d) => sum + d.amount, 0);
 
   return (
-    <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-      <div className="px-6 py-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
-        <h2 className="font-extrabold text-[#0A0D27] tracking-tight text-base">Category Allocation</h2>
-        <p className="text-xs text-[#33375C]/60 mt-1 font-semibold">Breakdown of outbound payments this month</p>
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
+      <div className="px-6 py-5 border-b border-[#E2E2FF]">
+        <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Category Allocation</h2>
+        <p className="text-xs text-[#33375C]/60 mt-1 font-medium">Breakdown of outbound payments this month</p>
       </div>
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-[#33375C]/50">

@@ -46,13 +46,13 @@ export function UpcomingBills({ obligations }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
         <div className="flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-[#524CF2]" />
-          <h2 className="font-extrabold text-[#0A0D27] tracking-tight text-base">Due This Week</h2>
+          <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Due This Week</h2>
         </div>
-        <Link href="/recurring" className="text-xs text-[#524CF2] font-black hover:text-[#625DF1] transition-colors">
+        <Link href="/recurring" className="text-xs text-[#524CF2] font-semibold hover:text-[#625DF1] transition-colors">
           View all →
         </Link>
       </div>
