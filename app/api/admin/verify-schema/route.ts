@@ -144,13 +144,12 @@ export async function GET(request: NextRequest) {
       LIMIT 15
     `);
 
-    // 8. Search for any whatsapp transactions
-    const whatsappTxns = await client.query(`
-      SELECT id, description, amount, occurred_on, txn_type, account_id 
+    // 8. Search for recent transactions overall
+    const recentTxns = await client.query(`
+      SELECT id, description, amount, occurred_on, txn_type, account_id, category_id, metadata
       FROM public.transactions 
-      WHERE description ILIKE '%whatsapp%' OR metadata::text ILIKE '%whatsapp%'
-      ORDER BY occurred_on DESC
-      LIMIT 10
+      ORDER BY created_at DESC
+      LIMIT 15
     `);
 
     await client.end();
@@ -158,7 +157,7 @@ export async function GET(request: NextRequest) {
       migration_007: migrationResults,
       profiles_columns: profileCols.rows,
       recent_webhook_logs: recentLogs.rows,
-      whatsapp_transactions: whatsappTxns.rows,
+      recent_transactions: recentTxns.rows,
       tables: tables.rows.map((r: any) => r.table_name),
       row_counts: counts.rows,
       rls_status: rls.rows,
