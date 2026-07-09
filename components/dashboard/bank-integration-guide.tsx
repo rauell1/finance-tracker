@@ -17,12 +17,14 @@ export function BankIntegrationGuide() {
     setLoadingUrl(true);
     try {
       const res = await fetch("/api/settings/webhook-url");
-      if (!res.ok) throw new Error("Unauthorized");
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail ?? data.error ?? `HTTP ${res.status}`);
+      }
       setWebhookUrl(data.webhookUrl);
       setRevealed(true);
-    } catch {
-      toast.error("Could not load webhook URL. Please refresh and try again.");
+    } catch (e) {
+      toast.error(`Could not load webhook URL: ${(e as Error).message}`);
     } finally {
       setLoadingUrl(false);
     }
