@@ -12,6 +12,7 @@ export async function GET() {
     const { data, error } = await admin
       .from("webhook_logs")
       .select("id, raw_body, content_type, sms_text, reason, created_at, replayed_at, replay_result")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

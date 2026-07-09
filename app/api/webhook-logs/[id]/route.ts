@@ -13,7 +13,7 @@ export async function DELETE(
 
     const { id } = await params;
     const admin = createAdminClient();
-    const { error } = await admin.from("webhook_logs").delete().eq("id", id);
+    const { error } = await admin.from("webhook_logs").delete().eq("id", id).eq("user_id", user.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ status: "deleted", id });

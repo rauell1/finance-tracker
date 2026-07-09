@@ -14,14 +14,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const secret = process.env.MPESA_WEBHOOK_SECRET;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://finance.rauell.systems";
+  const { data: profile, error: profileErr } = await supabase
+    .from("profiles")
+    .select("webhook_token")
+    .eq("id", user.id)
+    .single();
 
-  if (!secret) {
-    return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
+  if (profileErr || !profile?.webhook_token) {
+    return NextResponse.json({ error: "Webhook token not found" }, { status: 500 });
   }
 
-  const webhookUrl = `${baseUrl}/api/webhooks/mpesa-sms?secret=${secret}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://finance.rauell.systems";
+  const webhookUrl = `${baseUrl}/api/webhooks/mpesa-sms?token=${profile.webhook_token}`;
 
   return NextResponse.json({ webhookUrl });
 }
