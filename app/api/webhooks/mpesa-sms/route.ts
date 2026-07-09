@@ -1031,6 +1031,107 @@ async function reconcileLinkedTransaction(
   return { status: "reconciled", transaction_id: existing.id, counter_transaction_id: newTxn.id };
 }
 
+interface NvidiaParsedResult {
+  is_transaction: boolean;
+  amount: number;
+  currency: string;
+  type: "income" | "expense" | "transfer";
+  counterparty: string;
+  reference: string;
+  bank_name: string;
+  bank_code: string;
+  from_account_code?: string;
+  to_account_code?: string;
+  stated_balance: number | null;
+  transaction_cost: number | null;
+  occurred_on?: string;
+}
+
+async function parseBankSmsWithNvidia(smsText: string, sender?: string): Promise<NvidiaParsedResult | null> {
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) {
+    console.log("[nvidia-parser] NVIDIA_API_KEY is missing. Skipping LLM parser.");
+    return null;
+  }
+
+  // Pre-filter to prevent calling LLM on non-transaction texts
+  const transactionKeywords = [
+    "ksh", "kes", "usd", "eur", "gbp", "confirmed", "sent to", "paid to", 
+    "transferred", "debited", "credited", "withdrawn", "received", "payment", 
+    "alert", "tx", "txn", "reference", "ref:", "buy goods", "paybill"
+  ];
+  const hasKeyword = transactionKeywords.some(kw => smsText.toLowerCase().includes(kw));
+  if (!hasKeyword) {
+    console.log("[nvidia-parser] Message does not contain transaction keywords. Skipping LLM.");
+    return null;
+  }
+
+  const systemPrompt = `You are a financial transaction parser. You receive SMS alerts from banks or mobile money in Kenya.
+Your job is to parse the transaction details into a strict JSON format.
+
+Output JSON schema:
+{
+  "is_transaction": boolean, // true if it is a financial transaction (credit, debit, sent, received, paid, withdrawal, transfer). false if it is OTP, spam, marketing, or general info.
+  "amount": number, // transaction amount (positive number)
+  "currency": "KES" or other currency code, // default is KES
+  "type": "income" | "expense" | "transfer", // income if money is deposited/received; expense if paid/spent/withdrawn; transfer if moving money between accounts (e.g. Bank to M-Pesa)
+  "counterparty": string, // recipient or sender name (clean up extra symbols/phone numbers)
+  "reference": string, // receipt or reference ID (alphanumeric, e.g. UG9LAAI4Z0, FT26079...)
+  "bank_name": string, // official name of the bank/wallet (e.g. "KCB Bank", "Equity Bank", "Absa Bank", "Co-operative Bank", "Family Bank")
+  "bank_code": string, // lowercase identifier slug (e.g. "kcb", "equity", "absa", "coop", "family")
+  "from_account_code": string | null, // if transfer, source account code (e.g. "equity", "main")
+  "to_account_code": string | null, // if transfer, destination account code (e.g. "main", "equity")
+  "stated_balance": number | null, // final account balance if mentioned
+  "transaction_cost": number | null // cost charged if mentioned
+}
+
+Rules:
+1. Respond ONLY with a valid JSON block.
+2. If the text does not contain a financial transaction, set "is_transaction" to false.
+3. Be highly accurate with figures and names.`;
+
+  try {
+    const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "meta/llama-3.1-70b-instruct",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `SMS Sender: ${sender || "Unknown"}\nSMS Text: "${smsText}"` }
+        ],
+        temperature: 0.1,
+        max_tokens: 500
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("[nvidia-parser] NVIDIA API returned error:", res.status, errText);
+      return null;
+    }
+
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content?.trim();
+    if (!content) return null;
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn("[nvidia-parser] NVIDIA output did not contain JSON block:", content);
+      return null;
+    }
+
+    const parsed: NvidiaParsedResult = JSON.parse(jsonMatch[0]);
+    return parsed;
+  } catch (err) {
+    console.error("[nvidia-parser] Unexpected parsing error:", err);
+    return null;
+  }
+}
+
 async function processSingleBankSms(
   supabase: AdminClient,
   smsText: string,
@@ -1038,36 +1139,113 @@ async function processSingleBankSms(
   timestamp?: string,
   sender?: string
 ): Promise<{ status: string; reason?: string; transaction_id?: string; amount?: number; error?: string; [key: string]: any }> {
-  const parsed = parseBankSms(smsText, sender);
+  let parsed = parseBankSms(smsText, sender);
+  let isLlmParsed = false;
+
   if (!parsed) {
-    return { status: "ignored", reason: "not_bank_sms" };
+    // Call NVIDIA LLM fallback if regex fails
+    const llmRes = await parseBankSmsWithNvidia(smsText, sender);
+    if (llmRes && llmRes.is_transaction && llmRes.amount > 0) {
+      parsed = {
+        amount: llmRes.amount,
+        reference: llmRes.reference || "UNKNOWN",
+        counterparty: llmRes.counterparty || "Unknown Merchant",
+        bank: llmRes.bank_name || "Unknown Bank",
+        bankCode: llmRes.bank_code || "unknown_bank",
+        type: llmRes.type || "expense",
+        occurredOn: timestamp ? parseMacroDroidTimestamp(timestamp) : (llmRes.occurred_on || new Date().toISOString().split("T")[0]),
+        fromAccountCode: llmRes.type === "transfer" ? (llmRes.from_account_code || "bank_c") : undefined,
+        toAccountCode: llmRes.type === "transfer" ? (llmRes.to_account_code || "main") : undefined,
+        isIgnored: false,
+        reason: "",
+        currency: llmRes.currency || "KES",
+        stated_balance: llmRes.stated_balance,
+        transaction_cost: llmRes.transaction_cost
+      } as any;
+      isLlmParsed = true;
+    } else {
+      return { status: "ignored", reason: "not_bank_sms" };
+    }
   }
 
-  if (parsed.isIgnored) {
-    return { status: "ignored", reason: parsed.reason };
+  const parsedResult = parsed!;
+
+  if (parsedResult.isIgnored) {
+    return { status: "ignored", reason: parsedResult.reason };
   }
 
-  const { amount, reference, counterparty, bank, type, accountNo, occurredOn: parsedDate } = parsed;
+  const { amount, reference, counterparty, bank, type, accountNo, occurredOn: parsedDate } = parsedResult;
 
   if (!amount || amount <= 0) {
     return { status: "ignored", reason: "zero_amount" };
   }
 
   const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : parsedDate!;
-  const accountCode = bank === "DTB" ? "bank_a" : bank === "IANDMBANK" ? "bank_b" : "bank_c";
+  const accountCode = isLlmParsed ? (parsedResult as any).bankCode : (bank === "DTB" ? "bank_a" : bank === "IANDMBANK" ? "bank_b" : "bank_c");
 
   const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code, name").eq("user_id", targetUserId);
-  const bankAccount = (accts ?? []).find((a: any) => a.account_code === accountCode);
+  let bankAccount = (accts ?? []).find((a: any) => a.account_code === accountCode);
+  
   if (!bankAccount) {
-    return { status: "failed", error: `${bank} account (${accountCode}) not found` };
+    if (isLlmParsed) {
+      // Dynamic auto-creation of custom bank account
+      const friendlyName = (parsedResult as any).bank || `${accountCode.toUpperCase()} Bank`;
+      const { data: newAcc, error: createAccErr } = await supabase
+        .from("accounts")
+        .insert({
+          user_id: targetUserId,
+          account_code: accountCode,
+          name: friendlyName,
+          currency_code: (parsedResult as any).currency || "KES",
+          opening_balance: 0,
+          current_balance: 0
+        })
+        .select("id, name, user_id")
+        .single();
+
+      if (createAccErr) {
+        return { status: "failed", error: `Failed to auto-create account for ${friendlyName}: ${createAccErr.message}` };
+      }
+      bankAccount = { id: newAcc.id, name: newAcc.name, user_id: newAcc.user_id, account_code: accountCode };
+    } else {
+      return { status: "failed", error: `${bank} account (${accountCode}) not found` };
+    }
   }
   const userId = bankAccount.user_id;
 
-  if (type === "transfer" && parsed.fromAccountCode && parsed.toAccountCode) {
-    const fromAcc = (accts ?? []).find((a: any) => a.account_code === parsed.fromAccountCode);
-    const toAcc = (accts ?? []).find((a: any) => a.account_code === parsed.toAccountCode);
+  if (type === "transfer" && parsedResult.fromAccountCode && parsedResult.toAccountCode) {
+    let fromAcc = (accts ?? []).find((a: any) => a.account_code === parsedResult.fromAccountCode);
+    if (!fromAcc && isLlmParsed) {
+      const fromName = parsedResult.fromAccountCode === "main" ? "MPESA" : `${parsedResult.fromAccountCode.toUpperCase()} Bank`;
+      const { data: newAcc, error: err } = await supabase.from("accounts").insert({
+        user_id: targetUserId,
+        account_code: parsedResult.fromAccountCode,
+        name: fromName,
+        currency_code: (parsedResult as any).currency || "KES",
+        opening_balance: 0,
+        current_balance: 0
+      }).select("id, name").single();
+      if (err) return { status: "failed", error: `Failed to auto-create source account: ${err.message}` };
+      fromAcc = { id: newAcc.id, name: newAcc.name, account_code: parsedResult.fromAccountCode };
+    }
+
+    let toAcc = (accts ?? []).find((a: any) => a.account_code === parsedResult.toAccountCode);
+    if (!toAcc && isLlmParsed) {
+      const toName = parsedResult.toAccountCode === "main" ? "MPESA" : `${parsedResult.toAccountCode.toUpperCase()} Bank`;
+      const { data: newAcc, error: err } = await supabase.from("accounts").insert({
+        user_id: targetUserId,
+        account_code: parsedResult.toAccountCode,
+        name: toName,
+        currency_code: (parsedResult as any).currency || "KES",
+        opening_balance: 0,
+        current_balance: 0
+      }).select("id, name").single();
+      if (err) return { status: "failed", error: `Failed to auto-create destination account: ${err.message}` };
+      toAcc = { id: newAcc.id, name: newAcc.name, account_code: parsedResult.toAccountCode };
+    }
+
     if (!fromAcc || !toAcc) {
-      return { status: "failed", error: `Transfer accounts not found for ${parsed.fromAccountCode} -> ${parsed.toAccountCode}` };
+      return { status: "failed", error: `Transfer accounts not found for ${parsedResult.fromAccountCode} -> ${parsedResult.toAccountCode}` };
     }
 
     const recResult = await reconcileLinkedTransaction(
@@ -1080,12 +1258,21 @@ async function processSingleBankSms(
       smsText,
       fromAcc.id,
       toAcc.id,
-      parsed.fromAccountCode,
-      parsed.toAccountCode,
-      `Transfer: ${fromAcc.name ?? parsed.fromAccountCode} → ${toAcc.name ?? parsed.toAccountCode}`,
-      null,
-      null
+      parsedResult.fromAccountCode,
+      parsedResult.toAccountCode,
+      `Transfer: ${fromAcc.name ?? parsedResult.fromAccountCode} → ${toAcc.name ?? parsedResult.toAccountCode}`,
+      (parsedResult as any).stated_balance ?? null,
+      (parsedResult as any).transaction_cost ?? null
     );
+
+    if (isLlmParsed) {
+      // Save learning data log for model refinement
+      try {
+        await logWebhook(supabase, smsText, "text/plain", smsText, `llm_learned:${accountCode}`, targetUserId);
+      } catch (e) {
+        console.warn("[mpesa-sms webhook] Failed to save learning log:", e);
+      }
+    }
 
     const recStatus = recResult.status === "ignored" ? "ignored" : recResult.status === "reconciled" ? "reconciled" : "created";
     return {
@@ -1117,18 +1304,20 @@ async function processSingleBankSms(
     category_id: category.id,
     txn_type: type,
     amount: amount,
-    currency_code: "KES",
+    currency_code: (parsedResult as any).currency || "KES",
     occurred_on: occurredOn,
-    description: `${bank} transaction: ${counterparty}`,
+    description: isLlmParsed ? `${(parsedResult as any).bank} transaction: ${counterparty}` : `${bank} transaction: ${counterparty}`,
     metadata: {
       source: "bank_sms",
       bank_transaction: true,
       reference: reference,
-      bank: bank,
+      bank: isLlmParsed ? accountCode : bank,
       counterparty: counterparty,
       account_no: accountNo,
       raw_sms: smsText,
-      sender: sender
+      sender: sender,
+      parsed_by_llm: isLlmParsed,
+      llm_model: isLlmParsed ? "meta/llama-3.1-70b-instruct" : undefined
     }
   }).select("id").single();
 
@@ -1136,10 +1325,19 @@ async function processSingleBankSms(
     return { status: "failed", error: error.message };
   }
 
+  if (isLlmParsed) {
+    // Save learning data log for model refinement
+    try {
+      await logWebhook(supabase, smsText, "text/plain", smsText, `llm_learned:${accountCode}`, targetUserId);
+    } catch (e) {
+      console.warn("[mpesa-sms webhook] Failed to save learning log:", e);
+    }
+  }
+
   return {
     status: "created",
     source: "bank_sms",
-    bank: bank!,
+    bank: isLlmParsed ? (parsedResult as any).bank : bank!,
     amount: amount,
     type: type!,
     kind: type!,
@@ -2386,7 +2584,13 @@ export async function POST(request: NextRequest) {
         }
 
         try {
-          const res = await processSingleSms(supabase, lineSmsText, targetUserId, lineTimestamp);
+          let res = await processSingleSms(supabase, lineSmsText, targetUserId, lineTimestamp);
+          if (res.status === "ignored" && res.reason === "not_mpesa") {
+            const bankRes = await processSingleBankSms(supabase, lineSmsText, targetUserId, lineTimestamp);
+            if (bankRes.status !== "ignored" || bankRes.reason !== "not_bank_sms") {
+              res = bankRes;
+            }
+          }
           results.push({ line, ...res });
           if (res.status === "failed") {
             await logWebhook(supabase, line, contentType, lineSmsText, `failed (batch): ${res.error ?? "unknown"}`, targetUserId);
@@ -2417,7 +2621,13 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    const res = await processSingleSms(supabase, smsText, targetUserId, timestamp);
+    let res = await processSingleSms(supabase, smsText, targetUserId, timestamp);
+    if (res.status === "ignored" && res.reason === "not_mpesa") {
+      const bankRes = await processSingleBankSms(supabase, smsText, targetUserId, timestamp);
+      if (bankRes.status !== "ignored" || bankRes.reason !== "not_bank_sms") {
+        res = bankRes;
+      }
+    }
     if (res.status === "failed") {
       await logWebhook(supabase, rawBody, contentType, smsText, `failed: ${res.error ?? "unknown"}`, targetUserId);
     } else if (res.status === "ignored" && res.reason === "not_mpesa") {

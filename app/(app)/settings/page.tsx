@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { formatCurrency } from "@/lib/utils";
 import type { Account } from "@/types/domain";
 import { cn } from "@/lib/utils";
-import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet, RefreshCw } from "lucide-react";
+import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet, RefreshCw, Trash2, Plus, X } from "lucide-react";
 import { MpesaIntegrationGuide } from "@/components/dashboard/mpesa-integration-guide";
 import { BankIntegrationGuide } from "@/components/dashboard/bank-integration-guide";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,12 +20,12 @@ const accountIcons: Record<string, typeof Wallet> = {
 };
 
 const accountColors: Record<string, string> = {
-  main: "bg-emerald-50 text-emerald-600",
-  kcb_mpesa: "bg-green-50 text-green-600",
-  mshwari: "bg-teal-50 text-teal-600",
-  bank_a: "bg-blue-50 text-blue-600",
-  bank_b: "bg-violet-50 text-violet-600",
-  bank_c: "bg-amber-50 text-amber-600",
+  main: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400",
+  kcb_mpesa: "bg-green-50 text-green-600 dark:bg-green-950/30 dark:text-green-400",
+  mshwari: "bg-teal-50 text-teal-600 dark:bg-teal-950/30 dark:text-teal-400",
+  bank_a: "bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400",
+  bank_b: "bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400",
+  bank_c: "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400",
 };
 
 interface Profile {
@@ -45,6 +45,15 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [recategorizing, setRecategorizing] = useState(false);
+
+  // Custom Account Creation State
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newAccName, setNewAccName] = useState("");
+  const [newAccCode, setNewAccCode] = useState("");
+  const [newAccCurrency, setNewAccCurrency] = useState("KES");
+  const [newAccBalance, setNewAccBalance] = useState("0");
+  const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -81,6 +90,79 @@ export default function SettingsPage() {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  // Handle auto-generating account code from name
+  function handleNameChange(name: string) {
+    setNewAccName(name);
+    // Slugify: lowercase, letters/numbers/underscores only
+    const slug = name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_]/g, "");
+    setNewAccCode(slug);
+  }
+
+  async function handleCreateAccount(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newAccName || !newAccCode) {
+      toast.error("Please enter a Name and Code");
+      return;
+    }
+    setCreating(true);
+
+    try {
+      const res = await fetch("/api/settings/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newAccName,
+          account_code: newAccCode,
+          currency_code: newAccCurrency,
+          opening_balance: parseFloat(newAccBalance) || 0
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAccounts((prev) => [...prev, data].sort((a, b) => a.account_code.localeCompare(b.account_code)));
+        toast.success(`Account "${newAccName}" created successfully!`);
+        setShowAddForm(false);
+        setNewAccName("");
+        setNewAccCode("");
+        setNewAccBalance("0");
+      } else {
+        toast.error(data.error ?? "Failed to create account");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleDeleteAccount(id: string, name: string) {
+    if (!confirm(`Are you sure you want to delete "${name}"? This will delete all of its transactions permanently!`)) {
+      return;
+    }
+    setDeletingId(id);
+
+    try {
+      const res = await fetch(`/api/settings/accounts?id=${id}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAccounts((prev) => prev.filter((a) => a.id !== id));
+        toast.success(`Account "${name}" deleted`);
+      } else {
+        toast.error(data.error ?? "Failed to delete account");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const initials = fullName
@@ -167,10 +249,88 @@ export default function SettingsPage() {
         {/* Accounts column (right) */}
         <div className="lg:col-span-3">
           <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
-              <h2 className="font-semibold text-[#0A0D27] text-sm">Linked Accounts</h2>
-              <p className="text-xs text-[#33375C]/60 mt-0.5">Your wallets &amp; bank accounts</p>
+            <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20 flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-[#0A0D27] text-sm">Linked Accounts</h2>
+                <p className="text-xs text-[#33375C]/60 mt-0.5">Your wallets &amp; bank accounts</p>
+              </div>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="h-8 px-3 rounded-lg bg-[#524CF2] text-white hover:bg-[#625DF1] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-[#524CF2]/10"
+              >
+                {showAddForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                {showAddForm ? "Cancel" : "Add Account"}
+              </button>
             </div>
+
+            {/* Add Account Inline Form */}
+            {showAddForm && (
+              <form onSubmit={handleCreateAccount} className="p-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/10 space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#33375C]/80">Create Custom Account</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider mb-1">
+                      Account / Bank Name
+                    </label>
+                    <input
+                      required
+                      placeholder="e.g. Equity Bank"
+                      value={newAccName}
+                      onChange={(e) => handleNameChange(e.target.value)}
+                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider mb-1">
+                      Account Code (unique identifier)
+                    </label>
+                    <input
+                      required
+                      placeholder="e.g. equity"
+                      value={newAccCode}
+                      onChange={(e) => setNewAccCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider mb-1">
+                      Currency
+                    </label>
+                    <select
+                      value={newAccCurrency}
+                      onChange={(e) => setNewAccCurrency(e.target.value)}
+                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                    >
+                      <option value="KES">KES - Kenyan Shilling</option>
+                      <option value="USD">USD - US Dollar</option>
+                      <option value="EUR">EUR - Euro</option>
+                      <option value="GBP">GBP - British Pound</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider mb-1">
+                      Opening Balance
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="0"
+                      value={newAccBalance}
+                      onChange={(e) => setNewAccBalance(e.target.value)}
+                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-sm disabled:opacity-50"
+                >
+                  {creating ? "Creating..." : "Save Account"}
+                </button>
+              </form>
+            )}
+
             <div className="divide-y divide-[#E2E2FF]">
               {loading ? (
                 <div className="p-5 space-y-3">
@@ -186,10 +346,11 @@ export default function SettingsPage() {
               ) : (
                 accounts.map((account) => {
                   const Icon = accountIcons[account.account_code] ?? Wallet;
+                  const isProtected = account.account_code === "main";
                   return (
                     <div key={account.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#F0F0FF]/20 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", accountColors[account.account_code] ?? "bg-[#F0F0FF] text-[#524CF2]")}>
+                        <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", accountColors[account.account_code] ?? "bg-[#F0F0FF] text-[#524CF2] dark:bg-[#F0F0FF]/10")}>
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
@@ -197,7 +358,23 @@ export default function SettingsPage() {
                           <p className="text-xs text-[#33375C]/60 mt-0.5">{account.currency_code} · {account.account_code}</p>
                         </div>
                       </div>
-                      <p className="font-bold text-[#0A0D27] text-sm shrink-0">{formatCurrency(account.current_balance)}</p>
+                      <div className="flex items-center gap-4">
+                        <p className="font-bold text-[#0A0D27] text-sm shrink-0">{formatCurrency(account.current_balance)}</p>
+                        {!isProtected && (
+                          <button
+                            onClick={() => handleDeleteAccount(account.id, account.name)}
+                            disabled={deletingId === account.id}
+                            className="h-8 w-8 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                            title="Delete Account"
+                          >
+                            {deletingId === account.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin text-red-500" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })
