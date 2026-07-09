@@ -2184,37 +2184,54 @@ async function processSingleSms(
 
 export async function POST(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token") ?? request.nextUrl.searchParams.get("secret") ?? request.headers.get("x-webhook-secret") ?? request.headers.get("authorization")?.replace("Bearer ", "");
-  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  
   const supabase = createAdminClient();
   let targetUserId = "";
 
-  // Check if token matches the legacy global secret
-  const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
-  if (expectedSecret && token === expectedSecret) {
-    const { data: mpesa } = await supabase.from("accounts").select("user_id").eq("account_code", "main").limit(1);
-    if (mpesa && mpesa.length > 0) {
-      targetUserId = mpesa[0].user_id;
-    } else {
-      const { data: anyAcc } = await supabase.from("accounts").select("user_id").limit(1);
-      if (anyAcc && anyAcc.length > 0) {
-        targetUserId = anyAcc[0].user_id;
+  if (token) {
+    // Check if token matches the legacy global secret
+    const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
+    if (expectedSecret && token === expectedSecret) {
+      const { data: mpesa } = await supabase.from("accounts").select("user_id").eq("account_code", "main").limit(1);
+      if (mpesa && mpesa.length > 0) {
+        targetUserId = mpesa[0].user_id;
+      } else {
+        const { data: anyAcc } = await supabase.from("accounts").select("user_id").limit(1);
+        if (anyAcc && anyAcc.length > 0) {
+          targetUserId = anyAcc[0].user_id;
+        }
       }
-    }
-  } else {
-    // Multi-tenant check: match webhook_token in profiles
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("webhook_token", token)
-      .maybeSingle();
+    } else {
+      // Multi-tenant check: match webhook_token in profiles
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("webhook_token", token)
+        .maybeSingle();
 
-    if (profile) {
-      targetUserId = profile.id;
+      if (profile) {
+        targetUserId = profile.id;
+      }
     }
   }
 
-  if (!targetUserId) {
+  if (!token || !targetUserId) {
+    try {
+      const contentType = request.headers.get("content-type") ?? "none";
+      const rawBody = await request.text();
+      const smsText = extractSmsText(rawBody, contentType);
+      const tokenSnippet = token ? `${token.slice(0, 8)}...` : "none";
+      await logWebhook(
+        supabase,
+        rawBody,
+        contentType,
+        smsText,
+        `unauthorized: invalid or missing token (${tokenSnippet})`,
+        undefined
+      );
+    } catch (e) {
+      console.warn("[mpesa-sms webhook] Failed to log unauthorized webhook request:", e);
+    }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -2305,9 +2322,13 @@ export async function POST(request: NextRequest) {
         try {
           const res = await processSingleBankSms(supabase, lineSmsText, targetUserId, lineTimestamp);
           results.push({ line, ...res });
+          if (res.status === "failed") {
+            await logWebhook(supabase, line, contentType, lineSmsText, `failed (batch): ${res.error ?? "unknown"}`, targetUserId);
+          }
         } catch (err: any) {
           console.error(`[bank-sms webhook] Error processing batch line: ${line}`, err);
           results.push({ line, status: "failed", error: err.message });
+          await logWebhook(supabase, line, contentType, lineSmsText, `exception (batch): ${err.message}`, targetUserId);
         }
       }
 
@@ -2335,6 +2356,11 @@ export async function POST(request: NextRequest) {
       }
 
       const res = await processSingleBankSms(supabase, lineSmsText, targetUserId, lineTimestamp, sender);
+      if (res.status === "failed") {
+        await logWebhook(supabase, rawBody, contentType, lineSmsText, `failed: ${res.error ?? "unknown"}`, targetUserId);
+      } else if (res.status === "ignored" && res.reason === "not_bank_sms") {
+        await logWebhook(supabase, rawBody, contentType, lineSmsText, "not_bank_sms", targetUserId);
+      }
       return {
         ...res,
         received_payload: payload
@@ -2362,9 +2388,13 @@ export async function POST(request: NextRequest) {
         try {
           const res = await processSingleSms(supabase, lineSmsText, targetUserId, lineTimestamp);
           results.push({ line, ...res });
+          if (res.status === "failed") {
+            await logWebhook(supabase, line, contentType, lineSmsText, `failed (batch): ${res.error ?? "unknown"}`, targetUserId);
+          }
         } catch (err: any) {
           console.error(`[mpesa-sms webhook] Error processing batch line: ${line}`, err);
           results.push({ line, status: "failed", error: err.message });
+          await logWebhook(supabase, line, contentType, lineSmsText, `exception (batch): ${err.message}`, targetUserId);
         }
       }
 
