@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
 
   // Fetch all accounts
-  const { data: accounts } = await supabase.from("accounts").select("id, account_code, name, opening_balance");
+  const { data: accounts } = await supabase.from("accounts").select("id, user_id, account_code, name, opening_balance, currency_code");
   if (!accounts) {
     return NextResponse.json({ error: "No accounts found" }, { status: 404 });
   }
@@ -73,24 +73,54 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const calculated_balance = Number(acct.opening_balance) + net;
+
     if (paramVal !== null) {
       const stated = parseFloat(paramVal);
       if (isNaN(stated)) {
         throw new Error(`Invalid numeric value for parameter ${acct.account_code}: ${paramVal}`);
       }
-      const newOpening = stated - net;
-      await supabase.from("accounts").update({ opening_balance: newOpening }).eq("id", acct.id);
+      
+      const diff = stated - calculated_balance;
+      let reconciliationApplied = false;
+
+      if (Math.abs(diff) >= 0.01) {
+        const txnType = diff > 0 ? "income" : "expense";
+        const cat = await getOrCreateCategory(supabase, acct.user_id, "Balance Adjustment", txnType);
+        
+        const { error: insertErr } = await supabase.from("transactions").insert({
+          user_id: acct.user_id,
+          account_id: acct.id,
+          category_id: cat.id,
+          txn_type: txnType,
+          amount: Math.abs(diff),
+          currency_code: acct.currency_code,
+          occurred_on: new Date().toISOString().split("T")[0],
+          description: "Reconciliation Adjustment (API calibrate sync)",
+          metadata: {
+            source: "api_calibration",
+            stated_balance: stated,
+            computed_balance: calculated_balance,
+            original_net: net,
+            is_reconciliation: true,
+            mpesa_receipt: `ADJ-CAL-${Date.now()}`
+          }
+        });
+        if (insertErr) throw insertErr;
+        reconciliationApplied = true;
+      }
       
       results[acct.account_code] = {
-        mutated: true,
+        mutated: reconciliationApplied,
         stated_target: stated,
         net_change: net,
         old_opening_balance: Number(acct.opening_balance),
-        new_opening_balance: newOpening,
-        calculated_balance: stated
+        new_opening_balance: Number(acct.opening_balance), // remains unchanged
+        calculated_balance: stated,
+        reconciliation_applied: reconciliationApplied,
+        reconciliation_amount: Math.abs(diff)
       };
     } else {
-      const calculated_balance = Number(acct.opening_balance) + net;
       results[acct.account_code] = {
         mutated: false,
         net_change: net,
@@ -114,4 +144,47 @@ export async function GET(request: NextRequest) {
     results,
     accounts: updatedAccounts?.map((a: any) => ({ name: a.name, code: a.account_code, opening: a.opening_balance }))
   });
+}
+
+async function getOrCreateCategory(
+  supabase: any,
+  userId: string,
+  categoryName: string,
+  type: "income" | "expense"
+): Promise<{ id: string }> {
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("name", categoryName)
+    .eq("type", type)
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  const color = type === "income" ? "#10B981" : "#64748B";
+  const { data: created } = await supabase
+    .from("categories")
+    .insert({
+      user_id: userId,
+      name: categoryName,
+      type: type,
+      color: color,
+      is_system: false,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (created) return created;
+
+  const { data: fb } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("type", type)
+    .limit(1)
+    .maybeSingle();
+
+  if (fb) return fb;
+  throw new Error(`Category ${categoryName} could not be resolved`);
 }
