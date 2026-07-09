@@ -136,10 +136,19 @@ export async function GET(request: NextRequest) {
     // 6. Account balances (audit)
     const balances = await client.query(`SELECT account_code, name, opening_balance FROM public.accounts ORDER BY account_code`);
 
+    // 7. Recent webhook logs (audit)
+    const recentLogs = await client.query(`
+      SELECT id, created_at, status, error, payload 
+      FROM public.webhook_logs 
+      ORDER BY created_at DESC 
+      LIMIT 15
+    `);
+
     await client.end();
     return NextResponse.json({
       migration_007: migrationResults,
       profiles_columns: profileCols.rows,
+      recent_webhook_logs: recentLogs.rows,
       tables: tables.rows.map((r: any) => r.table_name),
       row_counts: counts.rows,
       rls_status: rls.rows,
