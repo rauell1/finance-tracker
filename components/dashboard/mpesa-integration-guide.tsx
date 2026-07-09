@@ -8,7 +8,25 @@ export function MpesaIntegrationGuide() {
   const [revealed, setRevealed] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
+  async function handleRegenerate() {
+    if (!window.confirm("Are you sure you want to regenerate your webhook URL? Your current URL will be instantly invalidated and your phone will stop syncing until you update it.")) {
+      return;
+    }
+    setRegenerating(true);
+    try {
+      const res = await fetch("/api/settings/webhook-url/regenerate", { method: "POST" });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setWebhookUrl(data.webhookUrl);
+      toast.success("Webhook URL regenerated successfully! Please update it on your phone.");
+    } catch {
+      toast.error("Could not regenerate webhook URL. Please try again.");
+    } finally {
+      setRegenerating(false);
+    }
+  }
 
   async function handleReveal() {
     if (revealed && webhookUrl) {
@@ -122,6 +140,14 @@ export function MpesaIntegrationGuide() {
                       className="h-8 w-8 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors"
                     >
                       {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-slate-500" />}
+                    </button>
+                    <button
+                      onClick={handleRegenerate}
+                      disabled={regenerating}
+                      title="Regenerate webhook URL"
+                      className="h-8 w-8 rounded-lg bg-white border border-[#E2E2FF] hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 flex items-center justify-center shadow-sm shrink-0 transition-colors disabled:opacity-50"
+                    >
+                      {regenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 text-rose-500" />}
                     </button>
                     <button
                       onClick={() => { setRevealed(false); setWebhookUrl(null); }}
