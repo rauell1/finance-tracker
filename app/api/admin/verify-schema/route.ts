@@ -16,11 +16,79 @@ export async function GET(request: NextRequest) {
   try {
     await client.connect();
 
-    // TEMPORARY MIGRATION: Scope historical logs to primary user
+    // ===== ENSURE MIGRATION 007 IS APPLIED =====
+    // Check if webhook_token column exists on profiles
+    const colCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'webhook_token'
+    `);
+
+    const migrationResults: string[] = [];
+
+    if (colCheck.rows.length === 0) {
+      // Column doesn't exist — run the migration
+      await client.query(`
+        ALTER TABLE public.profiles 
+          ADD COLUMN IF NOT EXISTS webhook_token uuid DEFAULT gen_random_uuid() NOT NULL UNIQUE
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_profiles_webhook_token 
+          ON public.profiles (webhook_token)
+      `);
+      migrationResults.push("Added webhook_token column to profiles");
+    } else {
+      migrationResults.push("webhook_token column already exists");
+    }
+
+    // Check if user_id column exists on webhook_logs
+    const userIdCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_schema = 'public' AND table_name = 'webhook_logs' AND column_name = 'user_id'
+    `);
+
+    if (userIdCheck.rows.length === 0) {
+      await client.query(`
+        ALTER TABLE public.webhook_logs 
+          ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_webhook_logs_user_id ON public.webhook_logs (user_id)
+      `);
+      migrationResults.push("Added user_id column to webhook_logs");
+    } else {
+      migrationResults.push("user_id column on webhook_logs already exists");
+    }
+
+    // Ensure RLS is enabled on webhook_logs
+    await client.query(`ALTER TABLE public.webhook_logs ENABLE ROW LEVEL SECURITY`);
+
+    // Ensure RLS policies exist
     await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'webhook_logs' AND policyname = 'webhook_logs_select_own') THEN
+          CREATE POLICY "webhook_logs_select_own" ON public.webhook_logs FOR SELECT USING (auth.uid() = user_id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'webhook_logs' AND policyname = 'webhook_logs_delete_own') THEN
+          CREATE POLICY "webhook_logs_delete_own" ON public.webhook_logs FOR DELETE USING (auth.uid() = user_id);
+        END IF;
+      END $$;
+    `);
+    migrationResults.push("RLS enabled and policies verified on webhook_logs");
+
+    // Backfill any webhook_logs with NULL user_id
+    const backfill = await client.query(`
       UPDATE public.webhook_logs 
       SET user_id = (SELECT id FROM public.profiles ORDER BY created_at ASC LIMIT 1) 
       WHERE user_id IS NULL
+    `);
+    migrationResults.push(`Backfilled ${backfill.rowCount} webhook_logs rows`);
+
+    // Diagnostic: fetch profiles columns
+    const profileCols = await client.query(`
+      SELECT column_name, data_type, is_nullable, column_default 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' AND table_name = 'profiles' 
+      ORDER BY ordinal_position
     `);
 
     // 1. All public tables
@@ -70,6 +138,8 @@ export async function GET(request: NextRequest) {
 
     await client.end();
     return NextResponse.json({
+      migration_007: migrationResults,
+      profiles_columns: profileCols.rows,
       tables: tables.rows.map((r: any) => r.table_name),
       row_counts: counts.rows,
       rls_status: rls.rows,
