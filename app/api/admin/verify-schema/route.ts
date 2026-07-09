@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
 
     // 7. Recent webhook logs (audit)
     const recentLogs = await client.query(`
-      SELECT id, created_at, status, error, payload 
+      SELECT id, created_at, reason, raw_body, sms_text, content_type, user_id 
       FROM public.webhook_logs 
       ORDER BY created_at DESC 
       LIMIT 15
