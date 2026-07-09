@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -1039,6 +1039,12 @@ async function processSingleBankSms(
 ): Promise<{ status: string; reason?: string; transaction_id?: string; amount?: number; error?: string; [key: string]: any }> {
   const parsed = parseBankSms(smsText, sender);
   if (!parsed) {
+    if (process.env.NVIDIA_API_KEY) {
+      const fallbackResult = await tryLlmFallbackParsing(supabase, smsText, timestamp, "bank_sms_unmatched");
+      if (fallbackResult) {
+        return fallbackResult;
+      }
+    }
     return { status: "ignored", reason: "not_bank_sms" };
   }
 
@@ -1280,30 +1286,46 @@ function parse(rawText: string): Parsed | null {
 }
 
 // ─── Body extraction ──────────────────────────────────────────────────────────
-async function extractSmsText(request: NextRequest): Promise<string> {
-  const ct = request.headers.get("content-type") ?? "";
+function extractSmsText(rawBody: string, contentType: string): string {
   const aliases = ["body", "message", "sms", "text", "msg", "content", "sms_body"];
   const fromJson = (j: Record<string, unknown>) => {
     for (const k of aliases) if (typeof j[k] === "string" && (j[k] as string).length > 0) return j[k] as string;
     const f = Object.values(j).find((v) => typeof v === "string" && (v as string).length > 10);
     return (f as string) ?? "";
   };
-  if (ct.includes("application/json")) return fromJson(await request.json().catch(() => ({})));
-  if (ct.includes("urlencoded") || ct.includes("multipart/form-data")) {
-    const form = await request.formData().catch(() => new FormData());
-    for (const k of aliases) { const v = form.get(k); if (typeof v === "string" && v) return v; }
-    for (const [, v] of form.entries()) if (typeof v === "string" && looksLikeMpesa(v)) return v;
+  if (contentType.includes("application/json")) {
+    try { return fromJson(JSON.parse(rawBody)); } catch { return ""; }
+  }
+  if (contentType.includes("urlencoded") || contentType.includes("multipart/form-data")) {
+    try {
+      const params = new URLSearchParams(rawBody);
+      for (const k of aliases) { const v = params.get(k); if (v) return v; }
+      for (const [, v] of params.entries()) if (typeof v === "string" && looksLikeMpesa(v)) return v;
+    } catch { /* */ }
     return "";
   }
-  const raw = await request.text().catch(() => "");
-  if (raw.trimStart().startsWith("{")) {
-    try { const ex = fromJson(JSON.parse(raw)); if (ex) return ex; } catch { /* */ }
+  if (rawBody.trimStart().startsWith("{")) {
+    try { const ex = fromJson(JSON.parse(rawBody)); if (ex) return ex; } catch { /* */ }
   }
-  return raw;
+  return rawBody;
 }
 
-// Recompute an account's opening_balance so its computed balance equals `stated`.
+// Synchronize computed balance with stated balance by inserting a first-class reconciliation transaction.
 async function setBalance(supabase: AdminClient, accountId: string, stated: number) {
+  const { data: acc, error: accErr } = await supabase
+    .from("accounts")
+    .select("user_id, opening_balance, currency_code")
+    .eq("id", accountId)
+    .single();
+
+  if (accErr || !acc) {
+    throw new Error(`Account ${accountId} not found for balance recalibration`);
+  }
+
+  const openingBalance = Number(acc.opening_balance);
+  const userId = acc.user_id;
+  const currencyCode = acc.currency_code;
+
   let txns: any[] = [];
   let page = 0;
   const pageSize = 1000;
@@ -1335,7 +1357,41 @@ async function setBalance(supabase: AdminClient, accountId: string, stated: numb
       if (t.transfer_account_id === accountId) net += amt;
     }
   }
-  await supabase.from("accounts").update({ opening_balance: stated - net }).eq("id", accountId);
+
+  const computedBalance = openingBalance + net;
+  const diff = stated - computedBalance;
+
+  // If the difference is negligible, we are in sync
+  if (Math.abs(diff) < 0.01) {
+    return;
+  }
+
+  const txnType = diff > 0 ? "income" : "expense";
+  const category = await getOrCreateCategory(supabase, userId, "Balance Adjustment", txnType);
+  const occurredOn = new Date().toISOString().split("T")[0];
+
+  const { error: insertErr } = await supabase.from("transactions").insert({
+    user_id: userId,
+    account_id: accountId,
+    category_id: category.id,
+    txn_type: txnType,
+    amount: Math.abs(diff),
+    currency_code: currencyCode,
+    occurred_on: occurredOn,
+    description: "Reconciliation Adjustment (Stated balance sync)",
+    metadata: {
+      source: "reconciliation_sync",
+      stated_balance: stated,
+      computed_balance: computedBalance,
+      original_net: net,
+      is_reconciliation: true,
+      mpesa_receipt: `ADJ-${Date.now()}-${Math.abs(Math.round(diff * 100))}`
+    }
+  });
+
+  if (insertErr) {
+    throw insertErr;
+  }
 }
 
 // ─── Helpers for Fuliza auto-repayment inference ─────────────────────────────
@@ -1788,6 +1844,12 @@ async function processSingleSms(
 
   const p = parse(smsText);
   if (!p) {
+    if (process.env.NVIDIA_API_KEY) {
+      const fallbackResult = await tryLlmFallbackParsing(supabase, smsText, timestamp, "mpesa_sms_unmatched");
+      if (fallbackResult) {
+        return fallbackResult;
+      }
+    }
     return { status: "ignored", reason: "not_mpesa" };
   }
 
@@ -2120,15 +2182,336 @@ async function processSingleSms(
   };
 }
 
+async function getUserId(supabase: AdminClient): Promise<string | null> {
+  try {
+    const { data: mpesa } = await supabase.from("accounts").select("user_id").eq("account_code", "main").limit(1);
+    if (mpesa && mpesa.length > 0) return mpesa[0].user_id;
+    const { data: anyAcc } = await supabase.from("accounts").select("user_id").limit(1);
+    if (anyAcc && anyAcc.length > 0) return anyAcc[0].user_id;
+    return null;
+  } catch (err) {
+    console.error("[getUserId] Error resolving user_id:", err);
+    return null;
+  }
+}
+
+async function tryLlmFallbackParsing(
+  supabase: AdminClient,
+  smsText: string,
+  timestamp?: string,
+  sourceHint?: string
+): Promise<{ status: string; reason?: string; transaction_id?: string; amount?: number; error?: string; [key: string]: any } | null> {
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) {
+    console.log("[llm-fallback] NVIDIA_API_KEY is not configured. Skipping fallback.");
+    return null;
+  }
+
+  const userId = await getUserId(supabase);
+  if (!userId) {
+    console.error("[llm-fallback] Could not resolve user_id. Skipping.");
+    return null;
+  }
+
+  // 1. Fetch available categories for this user so LLM can choose the correct one
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id, name, type")
+    .eq("user_id", userId);
+  
+  const categoryListStr = (categories ?? [])
+    .map((c: any) => `- "${c.name}" (${c.type})`)
+    .join("\n");
+
+  // 1b. Fetch few-shot learning examples from past successfully-parsed transactions
+  let fewShotExamplesStr = "";
+  try {
+    const { data: examples } = await supabase
+      .from("transactions")
+      .select("description, amount, txn_type, metadata, occurred_on, category:categories(name)")
+      .not("metadata->>raw_sms", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (examples && examples.length > 0) {
+      fewShotExamplesStr = "\nHere are some examples of successfully parsed transactions from this user's history for few-shot in-context learning:\n";
+      examples.forEach((ex: any) => {
+        const ref = ex.metadata?.reference || ex.metadata?.mpesa_receipt || ex.metadata?.sbm_receipt || ex.metadata?.dtb_receipt || ex.metadata?.im_receipt || "UNKNOWN";
+        const bankName = ex.metadata?.bank_name || (ex.metadata?.source === "mpesa_sms" || ex.metadata?.source === "sms_webhook" ? "MPESA" : "Unknown");
+        fewShotExamplesStr += `
+SMS Message: "${ex.metadata?.raw_sms}"
+Output JSON:
+{
+  "is_ignored": false,
+  "reason": null,
+  "amount": ${ex.amount},
+  "txn_type": "${ex.txn_type}",
+  "reference": "${ref}",
+  "bank_name": "${bankName}",
+  "counterparty": "${ex.metadata?.counterparty || "Unknown"}",
+  "description": "${ex.description || "Transaction"}",
+  "occurred_on": "${ex.occurred_on}",
+  "balance": ${ex.metadata?.stated_balance ?? ex.metadata?.balance ?? "null"},
+  "fee": ${ex.metadata?.stated_fee ?? ex.metadata?.transaction_cost ?? "null"},
+  "category_name": "${ex.category?.name || "Other Expense"}"
+}\n`;
+      });
+    }
+  } catch (err) {
+    console.warn("[llm-fallback] Failed to fetch few-shot examples:", err);
+  }
+
+  console.log(`[llm-fallback] Initiating NVIDIA LLM fallback parsing for SMS: "${smsText.substring(0, 50)}..."`);
+
+  try {
+    const model = process.env.NVIDIA_MODEL_NAME || "meta/llama-3.3-70b-instruct";
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert fintech SMS transaction parser. Your job is to parse SMS or RCS transaction notifications from banks, credit cards, or mobile wallets (e.g. M-Pesa, KCB, Equity, Absa, Co-op, DTB, I&M, etc.) and return a structured JSON response.
+
+Please select the best category for this transaction from the user's categories list:
+${categoryListStr}
+${fewShotExamplesStr}
+
+Guidelines:
+1. If the message is promotional, advertising, an OTP code, a spam message, or not related to a financial transaction (income, expense, transfer, withdrawal), return:
+{
+  "is_ignored": true,
+  "reason": "not_financial_transaction"
+}
+2. Extract the values carefully. Clean out any currency symbols or commas from numbers.
+3. If this is a transfer between accounts, set "txn_type" to "transfer".
+4. Return ONLY valid JSON. Do not include markdown code block formatting (\`\`\`json) or any conversational text. Keep the output clean raw JSON.
+
+Output format:
+{
+  "is_ignored": boolean,
+  "reason": string | null,
+  "amount": number | null,
+  "txn_type": "income" | "expense" | "transfer" | null,
+  "reference": string | null (the transaction reference code, e.g. receipt number or ref ID),
+  "bank_name": string | null (the bank or service name, e.g. "KCB", "Equity", "Absa", "MPESA"),
+  "counterparty": string | null (the merchant name, paybill name, or person),
+  "description": string | null (brief summary description),
+  "occurred_on": string | null (YYYY-MM-DD format of when it occurred),
+  "balance": number | null (final account balance if mentioned in SMS),
+  "fee": number | null (transaction cost if mentioned),
+  "category_name": string | null (match exactly one of the category names provided above, or null if none fit)
+}`
+          },
+          {
+            role: "user",
+            content: `SMS Message:\n"${smsText}"`
+          }
+        ],
+        temperature: 0.1,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[llm-fallback] NVIDIA API error (${response.status}):`, errText);
+      return { status: "failed", error: `NVIDIA API error: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim();
+    if (!content) {
+      console.error("[llm-fallback] Empty response from NVIDIA LLM.");
+      return { status: "failed", error: "Empty LLM response" };
+    }
+
+    // Strip any markdown code fence blocks if returned
+    const cleanJsonStr = content.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleanJsonStr);
+    } catch (parseErr: any) {
+      console.error("[llm-fallback] Failed to parse LLM response as JSON:", content);
+      return { status: "failed", error: "Invalid JSON from LLM: " + parseErr.message };
+    }
+
+    if (parsed.is_ignored) {
+      console.log(`[llm-fallback] SMS marked as ignored by LLM. Reason: ${parsed.reason}`);
+      return { status: "ignored", reason: parsed.reason || "llm_ignored" };
+    }
+
+    const { amount, txn_type, reference, bank_name, counterparty, description, occurred_on, balance, fee, category_name } = parsed;
+
+    if (!amount || amount <= 0 || !txn_type) {
+      console.warn("[llm-fallback] LLM response missing critical fields (amount, txn_type):", parsed);
+      return { status: "ignored", reason: "missing_fields_from_llm" };
+    }
+
+    // 2. Resolve or dynamically create the account
+    const { data: accts } = await supabase.from("accounts").select("id, name, account_code").eq("user_id", userId);
+    
+    let account = (accts ?? []).find((a: any) => 
+      a.account_code === (bank_name || "").toLowerCase() ||
+      a.name.toLowerCase().includes((bank_name || "").toLowerCase()) ||
+      (bank_name || "").toLowerCase().includes(a.account_code.toLowerCase())
+    );
+
+    if (!account) {
+      // Dynamic account creation! Fintech-grade!
+      const code = (bank_name || "unknown").toLowerCase().replace(/[^a-z0-9_]/g, "_");
+      const name = `${bank_name || "Unknown"} Account`;
+      
+      console.log(`[llm-fallback] Bank account for "${bank_name}" not found. Creating dynamic account: "${name}" (${code})`);
+      
+      const { data: newAcc, error: newAccErr } = await supabase.from("accounts").insert({
+        user_id: userId,
+        account_code: code,
+        name: name,
+        currency_code: "KES",
+        opening_balance: 0,
+        current_balance: 0,
+      }).select("id, name, account_code").single();
+
+      if (newAccErr) {
+        console.error("[llm-fallback] Failed to create dynamic account:", newAccErr);
+        return { status: "failed", error: `Dynamic account creation failed: ${newAccErr.message}` };
+      }
+      account = newAcc;
+    }
+
+    // 3. Resolve the category
+    let categoryId: string | null = null;
+    if (category_name) {
+      const match = (categories ?? []).find((c: any) => c.name.toLowerCase() === category_name.toLowerCase());
+      if (match) {
+        categoryId = match.id;
+      }
+    }
+
+    if (!categoryId) {
+      // Guess category using guessCategory or create "Other Expense" / "Other Income"
+      const defaultCatName = txn_type === "income" ? "Other Income" : "Other Expense";
+      const cat = await getOrCreateCategory(supabase, userId, defaultCatName, txn_type);
+      categoryId = cat.id;
+    }
+
+    const resolvedDate = occurred_on || (timestamp ? parseMacroDroidTimestamp(timestamp) : new Date().toISOString().split("T")[0]);
+
+    // 4. Deduplicate by reference if possible
+    if (reference && reference !== "UNKNOWN") {
+      const { data: existing } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", userId)
+        .or(`metadata->>reference.eq.${reference},metadata->>mpesa_receipt.eq.${reference}`);
+
+      if (existing && existing.length > 0) {
+        console.log(`[llm-fallback] Duplicate transaction detected for reference: ${reference}`);
+        return { status: "ignored", reason: "duplicate", receipt: reference };
+      }
+    }
+
+    // 5. Insert transaction
+    const metadata: any = {
+      source: "llm_fallback",
+      llm_parsed: true,
+      raw_sms: smsText,
+      bank_name: bank_name,
+      counterparty: counterparty,
+      reference: reference,
+      stated_balance: balance,
+      stated_fee: fee,
+      source_hint: sourceHint
+    };
+
+    const { data: txn, error: insertErr } = await supabase.from("transactions").insert({
+      user_id: userId,
+      account_id: account.id,
+      category_id: categoryId,
+      txn_type: txn_type,
+      amount: amount,
+      currency_code: "KES",
+      occurred_on: resolvedDate,
+      description: description || counterparty || `${bank_name} Transaction`,
+      metadata: metadata,
+    }).select("id").single();
+
+    if (insertErr) {
+      console.error("[llm-fallback] Insert transaction failed:", insertErr);
+      return { status: "failed", error: insertErr.message };
+    }
+
+    // 6. Recalibrate balance if stated in SMS
+    if (balance !== null && balance !== undefined) {
+      try {
+        await setBalance(supabase, account.id, balance);
+      } catch (balErr) {
+        console.warn(`[llm-fallback] Failed to update balance for account ${account.name}:`, balErr);
+      }
+    }
+
+    // 7. Auto-match recurring obligations on expense txns
+    if (txn_type === "expense") {
+      const searchText = `${description ?? ""} ${counterparty ?? ""} ${smsText}`;
+      try {
+        await tryAutoMatchObligation(supabase, userId, txn.id, resolvedDate, searchText);
+      } catch {}
+    }
+
+    // 8. Auto-track debts if applicable
+    try {
+      if (description?.toLowerCase().includes("fuliza repayment") || counterparty?.toLowerCase().includes("fuliza")) {
+        const fulizaOutstandingM = smsText.match(P.fulizaOutstanding);
+        const remaining = fulizaOutstandingM ? num(fulizaOutstandingM[1]) : 0;
+        await upsertAutoDebt(supabase, userId, "fuliza", "Safaricom Fuliza", remaining);
+      } else if (balance !== null && balance >= 1 && bank_name?.toLowerCase() === "mpesa") {
+        await upsertAutoDebt(supabase, userId, "fuliza", "Safaricom Fuliza", 0);
+      }
+      const mshwariM = smsText.match(P.mshwariLoanOutstanding);
+      if (mshwariM) {
+        await upsertAutoDebt(supabase, userId, "mshwari_loan", "M-Shwari Loan", num(mshwariM[1]));
+      }
+      const kcbM = smsText.match(P.kcbOverdraftOutstanding);
+      if (kcbM) {
+        await upsertAutoDebt(supabase, userId, "kcb_overdraft", "KCB M-PESA Overdraft", num(kcbM[1]));
+      }
+    } catch (debtErr) {
+      console.warn("[llm-fallback auto-debt detection] failed:", debtErr);
+    }
+
+    console.log(`[llm-fallback] Successfully parsed and recorded transaction via LLM: ID=${txn.id}, Amount=${amount}, Bank=${bank_name}`);
+    return {
+      status: "created",
+      kind: txn_type,
+      transaction_id: txn.id,
+      amount: amount,
+      category: category_name || "Uncategorized",
+      bank_name: bank_name,
+      llm_parsed: true
+    };
+  } catch (err: any) {
+    console.error("[llm-fallback] Unexpected error during LLM fallback:", err);
+    return { status: "failed", error: err.message };
+  }
+}
+
 export async function POST(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get("secret") ?? request.headers.get("x-webhook-secret") ?? request.headers.get("authorization")?.replace("Bearer ", "");
   const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
   if (!expectedSecret || secret !== expectedSecret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Capture raw body up-front (clone so extractSmsText can still read the stream)
+  const isSync = request.nextUrl.searchParams.get("sync") === "1";
+
+  // Capture raw body up-front
   const contentType = request.headers.get("content-type") ?? "none";
   let rawBody = "";
-  try { rawBody = await request.clone().text(); } catch { /* */ }
+  try { rawBody = await request.text(); } catch { /* */ }
 
   // Detailed raw console logging as requested
   console.log("[mpesa-sms webhook] Received POST request:", {
@@ -2183,185 +2566,163 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Handle Bank Sync batch payload
-  if (payload && payload.source === "bank_sync") {
-    const batchContent = payload.batch || "";
-    const lines = batchContent.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
-    const results = [];
-
-    console.log(`[bank-sms webhook] Processing bank_sync batch of ${lines.length} lines`);
-
-    for (const line of lines) {
-      const parts = line.split("|||");
-      const smsText = parts[0]?.trim();
-      const timestamp = parts[1]?.trim();
-
-      if (!smsText || isPlaceholder(smsText)) {
-        results.push({ status: "ignored", reason: "empty_or_placeholder_line", line });
-        continue;
-      }
-
-      try {
-        const res = await processSingleBankSms(supabase, smsText, timestamp);
-        results.push({ line, ...res });
-      } catch (err: any) {
-        console.error(`[bank-sms webhook] Error processing batch line: ${line}`, err);
-        results.push({ line, status: "failed", error: err.message });
-      }
-    }
-
-    return NextResponse.json({
-      status: "processed",
-      batch_size: lines.length,
-      results,
-      received_payload: payload
-    });
+  // Extract text and timestamp synchronously before spawning async processing
+  const smsText = extractSmsText(rawBody, contentType);
+  let timestamp = "";
+  if (payload) {
+    timestamp = payload.timestamp || "";
   }
 
-  // Handle Bank SMS single payload
-  if (payload && payload.source === "bank_sms") {
-    const smsText = payload.message || payload.body || payload.sms || payload.text || payload.msg || payload.content || payload.sms_body || "";
-    const timestamp = payload.timestamp || "";
-    const sender = payload.sender || "";
+  const doProcessing = async () => {
+    // Handle Bank Sync batch payload
+    if (payload && payload.source === "bank_sync") {
+      const batchContent = payload.batch || "";
+      const lines = batchContent.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+      const results = [];
 
-    if (!smsText || isPlaceholder(smsText)) {
-      await logWebhook(supabase, rawBody, contentType, smsText || "", "empty_or_placeholder_body");
-      // 200 so MacroDroid doesn't treat this as a delivery failure and retry
-      return NextResponse.json({
-        status: "ignored",
-        reason: "empty_or_placeholder_body",
+      console.log(`[bank-sms webhook] Processing bank_sync batch of ${lines.length} lines`);
+
+      for (const line of lines) {
+        const parts = line.split("|||");
+        const lineSmsText = parts[0]?.trim();
+        const lineTimestamp = parts[1]?.trim();
+
+        if (!lineSmsText || isPlaceholder(lineSmsText)) {
+          results.push({ status: "ignored", reason: "empty_or_placeholder_line", line });
+          continue;
+        }
+
+        try {
+          const res = await processSingleBankSms(supabase, lineSmsText, lineTimestamp);
+          results.push({ line, ...res });
+        } catch (err: any) {
+          console.error(`[bank-sms webhook] Error processing batch line: ${line}`, err);
+          results.push({ line, status: "failed", error: err.message });
+        }
+      }
+
+      return {
+        status: "processed",
+        batch_size: lines.length,
+        results,
         received_payload: payload
-      });
+      };
     }
 
-    try {
-      const res = await processSingleBankSms(supabase, smsText, timestamp, sender);
-      if (res.status === "failed") {
-        return NextResponse.json(
-          {
-            ...res,
-            received_payload: payload
-          },
-          { status: 500 }
-        );
+    // Handle Bank SMS single payload
+    if (payload && payload.source === "bank_sms") {
+      const lineSmsText = payload.message || payload.body || payload.sms || payload.text || payload.msg || payload.content || payload.sms_body || "";
+      const lineTimestamp = payload.timestamp || "";
+      const sender = payload.sender || "";
+
+      if (!lineSmsText || isPlaceholder(lineSmsText)) {
+        await logWebhook(supabase, rawBody, contentType, lineSmsText || "", "empty_or_placeholder_body");
+        return {
+          status: "ignored",
+          reason: "empty_or_placeholder_body",
+          received_payload: payload
+        };
       }
-      return NextResponse.json({
+
+      const res = await processSingleBankSms(supabase, lineSmsText, lineTimestamp, sender);
+      return {
         ...res,
         received_payload: payload
-      });
+      };
+    }
+
+    // Handle batch payload
+    if (payload && payload.batch) {
+      const batchContent = payload.batch;
+      const lines = batchContent.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+      const results = [];
+
+      console.log(`[mpesa-sms webhook] Processing batch of ${lines.length} lines`);
+
+      for (const line of lines) {
+        const parts = line.split("|||");
+        const lineSmsText = parts[0]?.trim();
+        const lineTimestamp = parts[1]?.trim();
+
+        if (!lineSmsText || isPlaceholder(lineSmsText)) {
+          results.push({ status: "ignored", reason: "empty_or_placeholder_line", line });
+          continue;
+        }
+
+        try {
+          const res = await processSingleSms(supabase, lineSmsText, lineTimestamp);
+          results.push({ line, ...res });
+        } catch (err: any) {
+          console.error(`[mpesa-sms webhook] Error processing batch line: ${line}`, err);
+          results.push({ line, status: "failed", error: err.message });
+        }
+      }
+
+      return {
+        status: "processed",
+        batch_size: lines.length,
+        results,
+        received_payload: payload
+      };
+    }
+
+    if (!smsText || isPlaceholder(smsText)) {
+      await captureDebug(rawBody, contentType, smsText || "", "empty_or_placeholder_body");
+      await logWebhook(supabase, rawBody, contentType, smsText || "", "empty_or_placeholder_body");
+      return {
+        status: "ignored",
+        reason: "empty_or_placeholder_body",
+        content_type: contentType,
+        received_payload: payload || rawBody
+      };
+    }
+
+    const res = await processSingleSms(supabase, smsText, timestamp);
+    if (res.status === "failed") {
+      await logWebhook(supabase, rawBody, contentType, smsText, `failed: ${res.error ?? "unknown"}`);
+    } else if (res.status === "ignored" && res.reason === "not_mpesa") {
+      await logWebhook(supabase, rawBody, contentType, smsText, "not_mpesa");
+    }
+    return {
+      ...res,
+      received_payload: payload || rawBody
+    };
+  };
+
+  if (isSync) {
+    try {
+      const res = await doProcessing();
+      if (res.status === "failed") {
+        return NextResponse.json(res, { status: 500 });
+      }
+      return NextResponse.json(res);
     } catch (err: any) {
-      console.error("[bank-sms webhook] Unexpected processing error:", err);
+      console.error("[mpesa-sms webhook sync] Unexpected processing error:", err);
+      await logWebhook(supabase, rawBody, contentType, smsText, `exception: ${err.message}`);
       return NextResponse.json(
         {
           status: "failed",
           error: err.message,
-          received_payload: payload
-        },
-        { status: 500 }
-      );
-    }
-  }
-
-  // Handle batch payload
-  if (payload && payload.batch) {
-    const batchContent = payload.batch;
-    const lines = batchContent.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
-    const results = [];
-
-    console.log(`[mpesa-sms webhook] Processing batch of ${lines.length} lines`);
-
-    for (const line of lines) {
-      const parts = line.split("|||");
-      const smsText = parts[0]?.trim();
-      const timestamp = parts[1]?.trim();
-
-      if (!smsText || isPlaceholder(smsText)) {
-        results.push({ status: "ignored", reason: "empty_or_placeholder_line", line });
-        continue;
-      }
-
-      try {
-        const res = await processSingleSms(supabase, smsText, timestamp);
-        results.push({ line, ...res });
-      } catch (err: any) {
-        console.error(`[mpesa-sms webhook] Error processing batch line: ${line}`, err);
-        results.push({ line, status: "failed", error: err.message });
-      }
-    }
-
-    return NextResponse.json({
-      status: "processed",
-      batch_size: lines.length,
-      results,
-      received_payload: payload
-    });
-  }
-
-  // Handle single message payload
-  let smsText = "";
-  let timestamp = "";
-  if (payload) {
-    smsText = payload.message || payload.body || payload.sms || payload.text || payload.msg || payload.content || payload.sms_body || "";
-    timestamp = payload.timestamp || "";
-  }
-
-  // Fallback to extractSmsText for other content-types or if JSON properties didn't populate it
-  if (!smsText) {
-    try {
-      smsText = await extractSmsText(request);
-    } catch {
-      return NextResponse.json(
-        {
-          error: "Could not read body",
-          received_payload: rawBody
-        },
-        { status: 400 }
-      );
-    }
-  }
-
-  if (!smsText || isPlaceholder(smsText)) {
-    await captureDebug(rawBody, contentType, smsText || "", "empty_or_placeholder_body");
-    await logWebhook(supabase, rawBody, contentType, smsText || "", "empty_or_placeholder_body");
-    // 200 so MacroDroid doesn't treat this as a delivery failure and retry
-    return NextResponse.json({
-      status: "ignored",
-      reason: "empty_or_placeholder_body",
-      content_type: contentType,
-      received_payload: payload || rawBody
-    });
-  }
-
-  try {
-    const res = await processSingleSms(supabase, smsText, timestamp);
-    if (res.status === "failed") {
-      await logWebhook(supabase, rawBody, contentType, smsText, `failed: ${res.error ?? "unknown"}`);
-      return NextResponse.json(
-        {
-          ...res,
           received_payload: payload || rawBody
         },
         { status: 500 }
       );
     }
-    if (res.status === "ignored" && res.reason === "not_mpesa") {
-      await logWebhook(supabase, rawBody, contentType, smsText, "not_mpesa");
-    }
-    return NextResponse.json({
-      ...res,
-      received_payload: payload || rawBody
+  } else {
+    // Process asynchronously using Next.js 15 after()
+    after(async () => {
+      try {
+        await doProcessing();
+      } catch (err: any) {
+        console.error("[mpesa-sms webhook async] Unexpected processing error inside after():", err);
+        await logWebhook(supabase, rawBody, contentType, smsText, `exception: ${err.message}`);
+      }
     });
-  } catch (err: any) {
-    console.error("[mpesa-sms webhook] Unexpected processing error:", err);
-    await logWebhook(supabase, rawBody, contentType, smsText, `exception: ${err.message}`);
-    return NextResponse.json(
-      {
-        status: "failed",
-        error: err.message,
-        received_payload: payload || rawBody
-      },
-      { status: 500 }
-    );
+
+    return NextResponse.json({
+      status: "queued",
+      message: "Webhook payload received and queued for processing"
+    });
   }
 }
 

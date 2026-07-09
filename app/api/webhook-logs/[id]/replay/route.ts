@@ -28,7 +28,7 @@ export async function POST(
     const secret = process.env.MPESA_WEBHOOK_SECRET;
     if (!secret) return NextResponse.json({ error: "MPESA_WEBHOOK_SECRET not configured" }, { status: 500 });
 
-    const webhookUrl = new URL("/api/webhooks/mpesa-sms", request.nextUrl.origin);
+    const webhookUrl = new URL("/api/webhooks/mpesa-sms?sync=1", request.nextUrl.origin);
     const res = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-webhook-secret": secret },

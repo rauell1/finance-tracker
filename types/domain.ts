@@ -1,7 +1,7 @@
 export interface Account {
   id: string;
   user_id: string;
-  account_code: "main" | "kcb_mpesa" | "mshwari" | "bank_a" | "bank_b" | "bank_c";
+  account_code: string;
   name: string;
   currency_code: string;
   opening_balance: number;
