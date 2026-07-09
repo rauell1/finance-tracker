@@ -204,8 +204,11 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <MpesaIntegrationGuide />
-          <BankIntegrationGuide />
+          {/* Integration Guides — side by side */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <MpesaIntegrationGuide />
+            <BankIntegrationGuide />
+          </div>
 
           {/* Data Tools */}
           <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">

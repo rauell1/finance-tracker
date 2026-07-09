@@ -59,7 +59,7 @@ export function MpesaIntegrationGuide() {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden mt-6">
+    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20 flex items-center justify-between">
         <div>
           <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Android & M-Pesa SMS Integration Guide</h2>
