@@ -16,6 +16,13 @@ export async function GET(request: NextRequest) {
   try {
     await client.connect();
 
+    // TEMPORARY MIGRATION: Scope historical logs to primary user
+    await client.query(`
+      UPDATE public.webhook_logs 
+      SET user_id = (SELECT id FROM public.profiles ORDER BY created_at ASC LIMIT 1) 
+      WHERE user_id IS NULL
+    `);
+
     // 1. All public tables
     const tables = await client.query(`
       SELECT table_name FROM information_schema.tables
