@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { ServiceWorkerRegistrar } from "@/components/layout/sw-registrar";
 import { ThemeScript } from "@/components/layout/theme-script";
 import { JsonLd } from "@/components/seo/json-ld";
+import { Analytics } from '@vercel/analytics/next';
 
 const figtree = Figtree({ subsets: ["latin"], display: "swap" });
 
@@ -107,6 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Toaster position="top-right" richColors />
         </QueryProvider>
         <ServiceWorkerRegistrar />
+        <Analytics />
       </body>
     </html>
   );
