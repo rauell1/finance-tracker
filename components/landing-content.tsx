@@ -268,8 +268,8 @@ export function LandingContent() {
             <span>&copy; {new Date().getFullYear()} FinTrack by Rauell. Personal finance tracker for Kenya &amp; East Africa.</span>
           </div>
           <nav aria-label="Footer navigation" className="flex items-center gap-6 font-semibold">
-            <Link href="/login" className="hover:text-[#524CF2]">Privacy Policy</Link>
-            <Link href="/login" className="hover:text-[#524CF2]">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-[#524CF2]">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-[#524CF2]">Terms of Service</Link>
             <Link href="https://rauell.systems" target="_blank" rel="noopener noreferrer" className="hover:text-[#524CF2]">rauell.systems</Link>
           </nav>
         </div>

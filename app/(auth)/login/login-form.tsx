@@ -1,6 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validators/auth";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,13 @@ export function LoginForm() {
           {isLoading ? "Signing in..." : "Sign In"}
         </Button>
       </form>
+      <p className="text-center text-[10px] text-[#33375C]/60 mt-4 leading-relaxed">
+        By signing in, you agree to our{" "}
+        <Link href="/terms" className="underline hover:text-[#524CF2]">Terms of Service</Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="underline hover:text-[#524CF2]">Privacy Policy</Link>{" "}
+        (DPA, GDPR &amp; CCPA compliant).
+      </p>
       <p className="text-center text-xs text-[#33375C]/40 mt-5 flex items-center justify-center gap-1.5">
         <Lock className="h-3 w-3" /> Private application — access restricted
       </p>
