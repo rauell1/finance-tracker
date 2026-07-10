@@ -173,6 +173,33 @@ function cleanName(raw: string): string {
     .replace(/[.\s]+$/, "")            // trailing dot/space
     .trim() || "Unknown";
 }
+function containsOtp(text: string): boolean {
+  if (!text) return false;
+  const otpKeywords = /verification code|one[- ]time|otp|security code|activation code|activation key|auth code|verification pin|passcode|secret pin/i;
+  const otpPatterns = [
+    otpKeywords,
+    /\b(?:code|pin|otp)\b.*\b\d{4,8}\b/i,
+    /\b\d{4,8}\b.*\b(?:code|pin|otp)\b/i
+  ];
+  return otpPatterns.some(pat => pat.test(text));
+}
+
+function scrubSensitiveData(text: string): string {
+  if (!text) return "";
+  let scrubbed = text;
+  // Mask phone numbers (Kenya format: +254..., 07..., 01..., etc.)
+  scrubbed = scrubbed.replace(/(?:\+?254|0)[71]\d{8}\b/g, "[PHONE]");
+  // Mask card numbers (e.g. card 4000***1234, card ending in 1234, or card XXXX)
+  scrubbed = scrubbed.replace(/\b\d{4}\*+\d{4}\b/g, "[CARD]");
+  scrubbed = scrubbed.replace(/\bcard\s+\*?(\d{4})\b/gi, "card *[CARD]");
+  scrubbed = scrubbed.replace(/\bcard\s+ending\s+(\d{4})\b/gi, "card ending [CARD]");
+  // Mask account numbers (e.g. account 5804605001 or acc 250019)
+  scrubbed = scrubbed.replace(/(?:account|acc(?:\.)?|a\/c)\s+(\d{5,12})\b/gi, "account [ACCOUNT]");
+  // Mask any leftover 4-8 digit numeric codes that might be verification/OTP codes
+  scrubbed = scrubbed.replace(/\b\d{4,8}\b/g, "[CODE]");
+  return scrubbed;
+}
+
 function cleanSms(raw: string): string {
   return raw.replace(/^From\s*:\s*.+[\r\n]+/i, "").trim();
 }
@@ -1265,13 +1292,11 @@ async function processSingleBankSms(
       (parsedResult as any).transaction_cost ?? null
     );
 
-    if (isLlmParsed) {
-      // Save learning data log for model refinement
-      try {
-        await logWebhook(supabase, smsText, "text/plain", smsText, `llm_learned:${accountCode}`, targetUserId);
-      } catch (e) {
-        console.warn("[mpesa-sms webhook] Failed to save learning log:", e);
-      }
+    // Save learning data log for model refinement
+    try {
+      await logWebhook(supabase, smsText, "text/plain", smsText, `llm_learned:${accountCode}`, targetUserId);
+    } catch (e) {
+      console.warn("[mpesa-sms webhook] Failed to save learning log:", e);
     }
 
     const recStatus = recResult.status === "ignored" ? "ignored" : recResult.status === "reconciled" ? "reconciled" : "created";
@@ -1314,7 +1339,7 @@ async function processSingleBankSms(
       bank: isLlmParsed ? accountCode : bank,
       counterparty: counterparty,
       account_no: accountNo,
-      raw_sms: smsText,
+      raw_sms: scrubSensitiveData(smsText),
       sender: sender,
       parsed_by_llm: isLlmParsed,
       llm_model: isLlmParsed ? "meta/llama-3.1-70b-instruct" : undefined
@@ -1325,13 +1350,11 @@ async function processSingleBankSms(
     return { status: "failed", error: error.message };
   }
 
-  if (isLlmParsed) {
-    // Save learning data log for model refinement
-    try {
-      await logWebhook(supabase, smsText, "text/plain", smsText, `llm_learned:${accountCode}`, targetUserId);
-    } catch (e) {
-      console.warn("[mpesa-sms webhook] Failed to save learning log:", e);
-    }
+  // Save learning data log for model refinement
+  try {
+    await logWebhook(supabase, smsText, "text/plain", smsText, `llm_learned:${accountCode}`, targetUserId);
+  } catch (e) {
+    console.warn("[mpesa-sms webhook] Failed to save learning log:", e);
   }
 
   return {
@@ -1789,10 +1812,21 @@ async function logWebhook(
   targetUserId?: string
 ) {
   try {
+    let cleanRaw = rawBody;
+    let cleanSms = smsText;
+    
+    if (containsOtp(smsText)) {
+      cleanRaw = "[REDACTED OTP BODY]";
+      cleanSms = "[REDACTED OTP SMS]";
+    } else {
+      cleanRaw = scrubSensitiveData(rawBody);
+      cleanSms = scrubSensitiveData(smsText);
+    }
+
     const { error } = await supabase.from("webhook_logs").insert({
-      raw_body: rawBody.slice(0, 4000),
+      raw_body: cleanRaw.slice(0, 4000),
       content_type: contentType,
-      sms_text: smsText.slice(0, 2000),
+      sms_text: cleanSms.slice(0, 2000),
       reason,
       user_id: targetUserId || null,
     });
@@ -2493,6 +2527,16 @@ export async function POST(request: NextRequest) {
 
   // Extract text and timestamp synchronously before spawning async processing
   const smsText = extractSmsText(rawBody, contentType);
+
+  if (containsOtp(smsText)) {
+    console.warn("[mpesa-sms webhook] Blocked OTP/verification code message");
+    await logWebhook(supabase, "[REDACTED OTP BODY]", contentType, "[REDACTED OTP SMS]", "otp_blocked", targetUserId);
+    return NextResponse.json({
+      status: "ignored",
+      reason: "security_sensitive_otp_message"
+    });
+  }
+
   let timestamp = "";
   if (payload) {
     timestamp = payload.timestamp || "";
@@ -2514,6 +2558,11 @@ export async function POST(request: NextRequest) {
 
         if (!lineSmsText || isPlaceholder(lineSmsText)) {
           results.push({ status: "ignored", reason: "empty_or_placeholder_line", line });
+          continue;
+        }
+
+        if (containsOtp(lineSmsText)) {
+          results.push({ status: "ignored", reason: "security_sensitive_otp_message", line });
           continue;
         }
 
@@ -2553,6 +2602,15 @@ export async function POST(request: NextRequest) {
         };
       }
 
+      if (containsOtp(lineSmsText)) {
+        await logWebhook(supabase, "[REDACTED OTP BODY]", contentType, "[REDACTED OTP SMS]", "otp_blocked", targetUserId);
+        return {
+          status: "ignored",
+          reason: "security_sensitive_otp_message",
+          received_payload: payload
+        };
+      }
+
       const res = await processSingleBankSms(supabase, lineSmsText, targetUserId, lineTimestamp, sender);
       if (res.status === "failed") {
         await logWebhook(supabase, rawBody, contentType, lineSmsText, `failed: ${res.error ?? "unknown"}`, targetUserId);
@@ -2580,6 +2638,11 @@ export async function POST(request: NextRequest) {
 
         if (!lineSmsText || isPlaceholder(lineSmsText)) {
           results.push({ status: "ignored", reason: "empty_or_placeholder_line", line });
+          continue;
+        }
+
+        if (containsOtp(lineSmsText)) {
+          results.push({ status: "ignored", reason: "security_sensitive_otp_message", line });
           continue;
         }
 

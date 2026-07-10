@@ -28,6 +28,25 @@ const accountColors: Record<string, string> = {
   bank_c: "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400",
 };
 
+const KENYAN_BANKS = [
+  { name: "Other / Custom Bank", code: "custom" },
+  { name: "KCB Bank", code: "kcb" },
+  { name: "Equity Bank", code: "equity" },
+  { name: "Co-operative Bank", code: "coop" },
+  { name: "Absa Bank", code: "absa" },
+  { name: "NCBA Bank", code: "ncba" },
+  { name: "Stanbic Bank", code: "stanbic" },
+  { name: "Standard Chartered", code: "stanchart" },
+  { name: "Diamond Trust Bank (DTB)", code: "dtb" },
+  { name: "I&M Bank", code: "im" },
+  { name: "SBM Bank", code: "sbm" },
+  { name: "Family Bank", code: "family" },
+  { name: "Prime Bank", code: "prime" },
+  { name: "Safaricom M-Pesa", code: "main" },
+  { name: "M-Shwari", code: "mshwari" },
+  { name: "KCB M-PESA", code: "kcb_mpesa" }
+];
+
 interface Profile {
   id: string;
   full_name: string | null;
@@ -48,6 +67,7 @@ export default function SettingsPage() {
 
   // Custom Account Creation State
   const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedBank, setSelectedBank] = useState("custom");
   const [newAccName, setNewAccName] = useState("");
   const [newAccCode, setNewAccCode] = useState("");
   const [newAccCurrency, setNewAccCurrency] = useState("KES");
@@ -128,6 +148,7 @@ export default function SettingsPage() {
         setAccounts((prev) => [...prev, data].sort((a, b) => a.account_code.localeCompare(b.account_code)));
         toast.success(`Account "${newAccName}" created successfully!`);
         setShowAddForm(false);
+        setSelectedBank("custom");
         setNewAccName("");
         setNewAccCode("");
         setNewAccBalance("0");
@@ -268,6 +289,35 @@ export default function SettingsPage() {
               <form onSubmit={handleCreateAccount} className="p-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/10 space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[#33375C]/80">Create Custom Account</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider mb-1">
+                      Select Bank / Service
+                    </label>
+                    <select
+                      value={selectedBank}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedBank(val);
+                        if (val !== "custom") {
+                          const bank = KENYAN_BANKS.find(b => b.code === val);
+                          if (bank) {
+                            setNewAccName(bank.name);
+                            setNewAccCode(bank.code);
+                          }
+                        } else {
+                          setNewAccName("");
+                          setNewAccCode("");
+                        }
+                      }}
+                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                    >
+                      {KENYAN_BANKS.map((b) => (
+                        <option key={b.code} value={b.code}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider mb-1">
                       Account / Bank Name
