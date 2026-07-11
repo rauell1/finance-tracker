@@ -12,7 +12,7 @@ import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
 import { DebtSummary } from "@/components/dashboard/debt-summary";
 import { MonthlyTrendChart } from "@/components/charts/monthly-trend-chart";
 import { CategoryBreakdownChart } from "@/components/charts/category-breakdown-chart";
-import { Wallet, AlertCircle } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { SavingsProgress } from "@/components/dashboard/savings-progress";
 import { HeroBanner } from "@/components/dashboard/hero-banner";
 
@@ -39,8 +39,6 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     getSavingsGoals().catch(() => []),
   ]);
 
-  const criticalInsight = insights.find((i) => i.severity === "critical");
-
   return (
     <div className="space-y-6 sm:space-y-7">
       {/* Hero: greeting + net worth + Fuliza status + period selector */}
@@ -50,17 +48,6 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         debts={debts}
         period={period}
       />
-
-      {/* Critical insight callout */}
-      {criticalInsight && (
-        <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50/70 dark:bg-rose-500/10 dark:border-rose-500/25 px-4 py-3.5">
-          <AlertCircle className="h-4.5 w-4.5 text-rose-500 shrink-0 mt-0.5" />
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-rose-700 dark:text-rose-300">{criticalInsight.title}</p>
-            <p className="text-xs text-rose-600/90 dark:text-rose-300/80 mt-0.5 font-medium">{criticalInsight.message}</p>
-          </div>
-        </div>
-      )}
 
       {/* KPI cards */}
       <KPICards data={kpi} period={period} />
