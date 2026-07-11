@@ -329,6 +329,14 @@ export async function GET(request: NextRequest) {
       LIMIT 15
     `);
 
+    // Reload PostgREST schema cache so recently added columns are recognized immediately
+    try {
+      await client.query("NOTIFY pgrst, 'reload schema';");
+      migrationResults.push("Successfully notified PostgREST to reload schema cache");
+    } catch (err: any) {
+      migrationResults.push(`Failed to notify PostgREST to reload schema: ${err.message}`);
+    }
+
     await client.end();
     return NextResponse.json({
       migration_007: migrationResults,
