@@ -43,9 +43,9 @@ function LogRow({ log }: { log: WebhookLog }) {
       if (!res.ok) throw new Error(j.error ?? "Replay failed");
       const status = (j.result as any)?.status ?? "done";
       if (status === "created" || status === "reconciled") {
-        toast.success(`Replayed — transaction ${status}`);
+        toast.success(`Replayed - transaction ${status}`);
       } else {
-        toast.info(`Replayed — webhook says: ${status}${(j.result as any)?.reason ? ` (${(j.result as any).reason})` : ""}`);
+        toast.info(`Replayed - webhook says: ${status}${(j.result as any)?.reason ? ` (${(j.result as any).reason})` : ""}`);
       }
       startTransition(() => router.refresh());
     } catch (err) {

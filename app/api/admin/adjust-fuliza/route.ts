@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   const isActive = balance > 0;
 
-  // Upsert Fuliza debt for the signed-in user — RLS handles the user_id filter
+  // Upsert Fuliza debt for the signed-in user - RLS handles the user_id filter
   const { data: existing } = await supabase
     .from("debts")
     .select("id, principal")

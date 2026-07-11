@@ -8,7 +8,7 @@ export function JsonLd() {
         name: 'FinTrack',
         url: 'https://finance.rauell.systems',
         description:
-          'Personal finance tracker built for East Africa — track M-Pesa, bank, and cash transactions in real-time.',
+          'Personal finance tracker built for East Africa - track M-Pesa, bank, and cash transactions in real-time.',
         applicationCategory: 'FinanceApplication',
         operatingSystem: 'Web',
         browserRequirements: 'Requires JavaScript',
@@ -35,7 +35,7 @@ export function JsonLd() {
         logo: 'https://finance.rauell.systems/icon-192.svg',
         image: 'https://finance.rauell.systems/og-image.png',
         description:
-          'Personal finance tracker built for East Africa — track M-Pesa, bank, and cash transactions in real-time.',
+          'Personal finance tracker built for East Africa - track M-Pesa, bank, and cash transactions in real-time.',
         founder: {
           '@id': 'https://rauell.systems/#person',
         },

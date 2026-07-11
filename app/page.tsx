@@ -11,7 +11,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "FinTrack | Free Personal Finance Tracker for Kenya & East Africa",
   description:
-    "Track M-Pesa, bank, and cash transactions in real time. Automatic SMS sync, budget alerts, and smart spending insights — built for Kenyans. Free to start.",
+    "Track M-Pesa, bank, and cash transactions in real time. Automatic SMS sync, budget alerts, and smart spending insights - built for Kenyans. Free to start.",
   alternates: {
     canonical: "https://finance.rauell.systems",
   },

@@ -208,7 +208,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
           <div className="h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
             <Landmark className="h-7 w-7 text-emerald-600" />
           </div>
-          <p className="text-base font-semibold text-[#0A0D27]">No active debts — nice 💪</p>
+          <p className="text-base font-semibold text-[#0A0D27]">No active debts - nice 💪</p>
           <p className="text-sm mt-1 text-[#33375C]/60">Add a debt to track principal and payments here.</p>
         </div>
       ) : (

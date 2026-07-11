@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { ArrowRightLeft, Coins, Percent } from "lucide-react";
 
-// Client component — only the interactive calculator (isolated from server-rendered content)
+// Client component - only the interactive calculator (isolated from server-rendered content)
 export function LandingInteractive() {
   const [calcAmount, setCalcAmount] = useState<number>(10000);
   const [calcRate, setCalcRate] = useState<number>(10);

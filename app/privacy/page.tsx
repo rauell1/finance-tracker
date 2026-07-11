@@ -71,9 +71,9 @@ export default function PrivacyPage() {
               We are committed to protecting your privacy. This Privacy Policy describes how we collect, use, store, and share your personal information. To ensure high standards of data protection globally, we have structured this policy to meet the compliance frameworks of:
             </p>
             <ul className="list-disc pl-6 space-y-1.5 mt-2">
-              <li><strong>Kenya Data Protection Act, 2019 (DPA)</strong> — for users and transactions based in Kenya.</li>
-              <li><strong>General Data Protection Regulation (GDPR)</strong> — for users located within the European Economic Area (EEA) and the United Kingdom.</li>
-              <li><strong>California Consumer Privacy Act (CCPA) / CPRA</strong> — for residents of California, USA.</li>
+              <li><strong>Kenya Data Protection Act, 2019 (DPA)</strong> - for users and transactions based in Kenya.</li>
+              <li><strong>General Data Protection Regulation (GDPR)</strong> - for users located within the European Economic Area (EEA) and the United Kingdom.</li>
+              <li><strong>California Consumer Privacy Act (CCPA) / CPRA</strong> - for residents of California, USA.</li>
             </ul>
           </section>
 

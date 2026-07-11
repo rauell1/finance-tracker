@@ -8,8 +8,11 @@ export async function GET(request: NextRequest) {
   const userClient = await createClient();
   const { data: { user }, error: userErr } = await userClient.auth.getUser();
 
-  const allowedEmail = (process.env.ALLOWED_EMAIL || "royokola3@gmail.com").toLowerCase();
-  if (userErr || !user || user.email?.toLowerCase() !== allowedEmail) {
+  const adminEmails = [
+    (process.env.ALLOWED_EMAIL || "royokola3@gmail.com").toLowerCase(),
+    "info@rauell.systems"
+  ];
+  if (userErr || !user || !user.email || !adminEmails.includes(user.email.toLowerCase())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

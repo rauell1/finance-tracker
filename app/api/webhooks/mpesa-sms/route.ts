@@ -2480,7 +2480,7 @@ export async function POST(request: NextRequest) {
     rawBody: rawBody
   });
 
-  // Try parsing rawBody as JSON — sanitise literal newlines inside string values first,
+  // Try parsing rawBody as JSON - sanitise literal newlines inside string values first,
   // since MacroDroid forwards Fuliza SMS with a real \n between receipt and body.
   function sanitizeJsonNewlines(raw: string): string {
     let inStr = false, esc = false, out = "";

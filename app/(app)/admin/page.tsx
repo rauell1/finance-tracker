@@ -41,11 +41,11 @@ export default async function AdminPage() {
       <div className="flex items-start gap-3 rounded-xl border border-[#524CF2]/20 bg-[#F8F8FF] px-4 py-3.5">
         <Info className="h-4 w-4 text-[#524CF2] mt-0.5 shrink-0" />
         <p className="text-sm text-[#33375C]/80 leading-relaxed">
-          <strong>Accounts</strong> — rewrites the opening balance so the computed balance matches your statement.
+          <strong>Accounts</strong> - rewrites the opening balance so the computed balance matches your statement.
           Transaction history is never changed.
           &nbsp;·&nbsp;
-          <strong>Fuliza</strong> — sets the outstanding Fuliza overdraft, which syncs to the Debts tracker.
-          Only M-PESA can carry a negative balance (up to −KES 1,500).
+          <strong>Fuliza</strong> - sets the outstanding Fuliza overdraft, which syncs to the Debts tracker.
+          Only M-PESA can carry a negative balance (up to -KES 1,500).
         </p>
       </div>
 

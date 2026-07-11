@@ -46,7 +46,7 @@ export function LoginForm() {
       {urlError === "unauthorized" && (
         <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2.5 mb-4">
           <Lock className="h-3.5 w-3.5 shrink-0" />
-          Access denied — this is a private application.
+          Access denied - this is a restricted area.
         </div>
       )}
 
@@ -73,7 +73,7 @@ export function LoginForm() {
         (DPA, GDPR &amp; CCPA compliant).
       </p>
       <p className="text-center text-xs text-[#33375C]/40 mt-5 flex items-center justify-center gap-1.5">
-        <Lock className="h-3 w-3" /> Private application — access restricted
+        <Lock className="h-3 w-3" /> Secure dashboard - access restricted to registered users
       </p>
     </div>
   );

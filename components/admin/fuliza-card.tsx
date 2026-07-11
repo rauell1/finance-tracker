@@ -54,7 +54,7 @@ export function FulizaCard({ initialDebt }: Props) {
         is_active: target > 0,
       }));
       setEditing(false);
-      toast.success(target === 0 ? "Fuliza fully repaid — marked as cleared" : `Fuliza outstanding set to KES ${fmt(target)}`);
+      toast.success(target === 0 ? "Fuliza fully repaid - marked as cleared" : `Fuliza outstanding set to KES ${fmt(target)}`);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -99,7 +99,7 @@ export function FulizaCard({ initialDebt }: Props) {
         {editing ? (
           <div className="space-y-3">
             <label className="text-[10px] uppercase font-semibold tracking-wider text-[#33375C]/50">
-              Set outstanding Fuliza (KES 0 – {FULIZA_MAX})
+              Set outstanding Fuliza (KES 0 - {FULIZA_MAX})
             </label>
             <input
               type="number"

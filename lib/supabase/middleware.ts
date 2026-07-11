@@ -31,23 +31,35 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const ALLOWED_EMAIL = (process.env.ALLOWED_EMAIL || "royokola3@gmail.com").toLowerCase();
+  const { pathname } = request.nextUrl;
+
+  const ADMIN_EMAILS = [
+    (process.env.ALLOWED_EMAIL || "royokola3@gmail.com").toLowerCase(),
+    "info@rauell.systems"
+  ];
 
   // Use getUser() - never getSession() in middleware (avoids stale JWT)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Eject any session that doesn't belong to the allowed account
-  if (user && user.email?.toLowerCase() !== ALLOWED_EMAIL) {
-    await supabase.auth.signOut();
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("error", "unauthorized");
-    return NextResponse.redirect(url);
+  // Restrict access to admin routes (/admin and /api/admin)
+  const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+  if (isAdminRoute) {
+    if (!user || !user.email || !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      if (pathname.startsWith("/api/")) {
+        return new NextResponse(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
-  const { pathname } = request.nextUrl;
+
 
   const isAppRoute = ["/dashboard", "/transactions", "/budgets", "/analytics", "/settings", "/debts", "/goals", "/recurring", "/reports", "/admin"].some(
     (p) => pathname.startsWith(p)

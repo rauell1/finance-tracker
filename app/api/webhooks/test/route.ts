@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Diagnostic echo endpoint — mirrors back exactly what MacroDroid sent.
+ * Diagnostic echo endpoint - mirrors back exactly what MacroDroid sent.
  * Use this to verify your macro payload before pointing it at the real webhook.
  *
  * Protected by the same MPESA_WEBHOOK_SECRET query param.
@@ -67,13 +67,13 @@ export async function POST(request: NextRequest) {
   const diagnosis: string[] = [];
 
   if (!parsed) {
-    diagnosis.push("❌ Body is not valid JSON — check Content-Type: application/json in MacroDroid");
+    diagnosis.push("❌ Body is not valid JSON - check Content-Type: application/json in MacroDroid");
   } else {
-    if (!parsed.source) diagnosis.push("❌ Missing 'source' field — must be 'bank_sms' for bank macros or 'mpesa_sms' for MPESA");
-    if (!parsed.message && !parsed.body && !parsed.sms) diagnosis.push("❌ Missing message field — use 'message' key with [sms_body] variable");
-    if (!parsed.sender) diagnosis.push("⚠️  Missing 'sender' field — add sender: 'DTB' / 'SBMBANK' / 'IANDMBANK'");
+    if (!parsed.source) diagnosis.push("❌ Missing 'source' field - must be 'bank_sms' for bank macros or 'mpesa_sms' for MPESA");
+    if (!parsed.message && !parsed.body && !parsed.sms) diagnosis.push("❌ Missing message field - use 'message' key with [sms_body] variable");
+    if (!parsed.sender) diagnosis.push("⚠️  Missing 'sender' field - add sender: 'DTB' / 'SBMBANK' / 'IANDMBANK'");
     if (placeholders.length > 0) diagnosis.push(...placeholders.map(p => `❌ ${p}`));
-    if (diagnosis.length === 0) diagnosis.push("✅ Payload looks valid — ready to send to /api/webhooks/mpesa-sms");
+    if (diagnosis.length === 0) diagnosis.push("✅ Payload looks valid - ready to send to /api/webhooks/mpesa-sms");
   }
 
   console.log("[test-webhook] Received:", { contentType, rawBody, parsed, placeholders, diagnosis });

@@ -27,7 +27,7 @@ export default async function WebhookLogsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-[#0A0D27] tracking-tight">Webhook Logs</h1>
         </div>
         <p className="text-sm text-[#33375C]/60 mt-1">
-          SMS deliveries that didn&apos;t produce a transaction — review, replay, or dismiss them.
+          SMS deliveries that didn&apos;t produce a transaction - review, replay, or dismiss them.
         </p>
       </div>
 

@@ -12,7 +12,7 @@ interface Props {
 }
 
 function pillForDueIn(days: number | null) {
-  if (days === null) return { label: "—", className: "bg-[#F0F0FF] text-[#33375C] border-[#E2E2FF]" };
+  if (days === null) return { label: "-", className: "bg-[#F0F0FF] text-[#33375C] border-[#E2E2FF]" };
   if (days < 0) return { label: `${Math.abs(days)}d overdue`, className: "bg-rose-50 text-rose-700 border-rose-200" };
   if (days === 0) return { label: "Today", className: "bg-rose-50 text-rose-700 border-rose-200" };
   if (days <= 3) return { label: `${days}d`, className: "bg-amber-50 text-amber-700 border-amber-200" };

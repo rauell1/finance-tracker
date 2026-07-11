@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "account_id and target_balance are required" }, { status: 400 });
   }
 
-  // Fetch the account — RLS ensures this belongs to the signed-in user
+  // Fetch the account - RLS ensures this belongs to the signed-in user
   const { data: acct, error: acctErr } = await supabase
     .from("accounts")
     .select("id, user_id, account_code, name, opening_balance, currency_code")

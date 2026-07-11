@@ -434,13 +434,13 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Row 2: Integration Guides — full width, side by side */}
+      {/* Row 2: Integration Guides - full width, side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <MpesaIntegrationGuide />
         <BankIntegrationGuide />
       </div>
 
-      {/* Row 3: Data Tools — full width */}
+      {/* Row 3: Data Tools - full width */}
       <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
           <h2 className="font-semibold text-[#0A0D27] text-sm">Data Tools</h2>

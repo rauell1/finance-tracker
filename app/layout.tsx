@@ -60,7 +60,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'FinTrack — Personal Finance Dashboard for East Africa',
+        alt: 'FinTrack - Personal Finance Dashboard for East Africa',
       },
     ],
   },
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'FinTrack | Personal Finance Tracker for East Africa',
     description:
-      'Track income, expenses, and budgets. Built for Kenyans — supports M-Pesa, bank & cash. Free.',
+      'Track income, expenses, and budgets. Built for Kenyans - supports M-Pesa, bank & cash. Free.',
     images: ['/og-image.png'],
     creator: '@rauell1',
   },

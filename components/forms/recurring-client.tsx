@@ -366,7 +366,7 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
                 onChange={(e) => setForm({ ...form, category_id: e.target.value })}
                 className="flex h-9 w-full rounded-md border border-[#E2E2FF] bg-white px-3 py-1 text-sm shadow-sm"
               >
-                <option value="">— None —</option>
+                <option value="">- None -</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -379,7 +379,7 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
                 onChange={(e) => setForm({ ...form, account_id: e.target.value })}
                 className="flex h-9 w-full rounded-md border border-[#E2E2FF] bg-white px-3 py-1 text-sm shadow-sm"
               >
-                <option value="">— None —</option>
+                <option value="">- None -</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}

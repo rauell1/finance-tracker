@@ -2,7 +2,7 @@ import { LandingInteractive } from "@/components/landing-interactive";
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 
-// Server component — fully SSR rendered for Google indexing
+// Server component - fully SSR rendered for Google indexing
 export function LandingContent() {
   return (
     <div className="min-h-screen bg-white text-[#0A0D27] antialiased overflow-x-hidden relative">
@@ -26,19 +26,19 @@ export function LandingContent() {
         </div>
       </nav>
 
-      {/* Hero — fully server rendered for SEO */}
+      {/* Hero - fully server rendered for SEO */}
       <section className="max-w-7xl mx-auto px-6 pt-20 pb-24 text-center relative z-10">
         <p className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] text-[#524CF2] text-xs font-bold mb-8">
           #1 Personal Finance Tracker for Kenya & East Africa
         </p>
 
         <h1 className="text-4xl sm:text-6xl lg:text-[4.25rem] font-black text-[#0A0D27] tracking-tight leading-[1.08] mb-8 max-w-5xl mx-auto">
-          Track M-Pesa, Bank & Cash —{" "}
+          Track M-Pesa, Bank & Cash -{" "}
           <span className="text-[#524CF2]">all in one free dashboard</span>
         </h1>
 
         <p className="text-lg sm:text-xl text-[#33375C] max-w-3xl mx-auto mb-10 leading-relaxed">
-          FinTrack automatically syncs your M-Pesa SMS transactions, tracks KCB, DTB, I&amp;M and SBM Bank accounts, and gives you real-time budget insights — built specifically for Kenyans and East Africa.
+          FinTrack automatically syncs your M-Pesa SMS transactions, tracks KCB, DTB, I&amp;M and SBM Bank accounts, and gives you real-time budget insights - built specifically for Kenyans and East Africa.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
@@ -107,7 +107,7 @@ export function LandingContent() {
         </div>
       </section>
 
-      {/* Features — server rendered with keyword-rich content */}
+      {/* Features - server rendered with keyword-rich content */}
       <section id="features" className="max-w-7xl mx-auto px-6 py-24 border-t border-[#E2E2FF] relative z-10">
         <div className="text-center mb-16">
           <span className="text-xs font-bold uppercase tracking-wider text-[#524CF2] bg-[#F0F0FF] px-3.5 py-1.5 rounded-full border border-[#E2E2FF]">Features</span>
@@ -123,7 +123,7 @@ export function LandingContent() {
           {[
             {
               title: "Automatic M-Pesa SMS Sync",
-              desc: "Forward M-Pesa SMS notifications from your Android phone via MacroDroid or Automate. Our webhook parses and logs every M-Pesa send, receive, buy goods, pay bill, and Fuliza transaction in real time — zero manual entry.",
+              desc: "Forward M-Pesa SMS notifications from your Android phone via MacroDroid or Automate. Our webhook parses and logs every M-Pesa send, receive, buy goods, pay bill, and Fuliza transaction in real time - zero manual entry.",
               icon: "📱",
             },
             {
@@ -148,7 +148,7 @@ export function LandingContent() {
             },
             {
               title: "Free Personal Finance Tool",
-              desc: "Start completely free. No credit card required. Track unlimited transactions, set budgets, and access the full dashboard — built for Kenyans, priced for Kenyans.",
+              desc: "Start completely free. No credit card required. Track unlimited transactions, set budgets, and access the full dashboard - built for Kenyans, priced for Kenyans.",
               icon: "🎯",
             },
           ].map((feat, i) => (
@@ -164,7 +164,7 @@ export function LandingContent() {
         </div>
       </section>
 
-      {/* How it works — keyword-rich static content */}
+      {/* How it works - keyword-rich static content */}
       <section className="max-w-4xl mx-auto px-6 py-20 border-t border-[#E2E2FF] relative z-10">
         <div className="text-center mb-12">
           <span className="text-xs font-bold uppercase tracking-wider text-[#524CF2] bg-[#F0F0FF] px-3.5 py-1.5 rounded-full border border-[#E2E2FF]">How It Works</span>
@@ -191,7 +191,7 @@ export function LandingContent() {
       {/* Interactive section (client component) */}
       <LandingInteractive />
 
-      {/* Pricing — server rendered */}
+      {/* Pricing - server rendered */}
       <section id="pricing" className="max-w-5xl mx-auto px-6 py-24 border-t border-[#E2E2FF] text-center relative z-10">
         <span className="text-xs font-bold uppercase tracking-wider text-[#524CF2] bg-[#F0F0FF] px-3.5 py-1.5 rounded-full border border-[#E2E2FF]">Pricing</span>
         <h2 className="text-3xl sm:text-5xl font-black text-[#0A0D27] tracking-tight mt-4 mb-3">Simple, affordable pricing for Kenya</h2>
@@ -199,7 +199,7 @@ export function LandingContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
           <div className="bg-white rounded-3xl border border-[#E2E2FF] p-8 text-left hover:shadow-lg transition-all flex flex-col justify-between">
             <div>
-              <h3 className="text-xl font-extrabold text-[#0A0D27]">Basic — Free Forever</h3>
+              <h3 className="text-xl font-extrabold text-[#0A0D27]">Basic - Free Forever</h3>
               <p className="text-sm text-[#33375C] mt-2">Manual expense tracking and budget overview</p>
               <div className="my-6">
                 <span className="text-5xl font-black text-[#0A0D27]">KES 0</span>
@@ -219,7 +219,7 @@ export function LandingContent() {
           <div className="bg-white rounded-3xl border-2 border-[#524CF2] p-8 text-left flex flex-col justify-between relative shadow-xl shadow-[#524CF2]/5">
             <div className="absolute top-4 right-4 bg-[#524CF2] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">Most Popular</div>
             <div>
-              <h3 className="text-xl font-extrabold text-[#0A0D27]">Pro — Full Automation</h3>
+              <h3 className="text-xl font-extrabold text-[#0A0D27]">Pro - Full Automation</h3>
               <p className="text-sm text-[#33375C] mt-2">Automated M-Pesa sync + AI spending insights</p>
               <div className="my-6">
                 <span className="text-5xl font-black text-[#0A0D27]">KES 500</span>
@@ -234,12 +234,12 @@ export function LandingContent() {
                 ))}
               </ul>
             </div>
-            <Link href="/register" className="mt-8 w-full bg-[#524CF2] hover:bg-[#625DF1] text-white py-4 rounded-xl text-center text-sm font-bold shadow-lg transition-all block">Get Started — Pro</Link>
+            <Link href="/register" className="mt-8 w-full bg-[#524CF2] hover:bg-[#625DF1] text-white py-4 rounded-xl text-center text-sm font-bold shadow-lg transition-all block">Get Started - Pro</Link>
           </div>
         </div>
       </section>
 
-      {/* FAQ — great for long-tail SEO */}
+      {/* FAQ - great for long-tail SEO */}
       <section className="max-w-3xl mx-auto px-6 py-20 border-t border-[#E2E2FF] relative z-10">
         <div className="text-center mb-12">
           <h2 className="text-2xl sm:text-3xl font-black text-[#0A0D27] tracking-tight">Frequently Asked Questions</h2>

@@ -35,7 +35,7 @@ export function DebtSummary({ debts }: Props) {
           <div className="h-12 w-12 rounded-full bg-emerald-50 flex items-center justify-center mb-3">
             <Landmark className="h-6 w-6 text-emerald-600" />
           </div>
-          <p className="text-sm font-semibold text-[#0A0D27]">No active debts — nice 💪</p>
+          <p className="text-sm font-semibold text-[#0A0D27]">No active debts - nice 💪</p>
           <p className="text-xs mt-1 text-[#33375C]/60">You&apos;re debt-free.</p>
         </div>
       ) : (
