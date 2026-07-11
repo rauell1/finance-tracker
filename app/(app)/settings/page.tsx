@@ -410,20 +410,50 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center gap-4">
                         <p className="font-bold text-[#0A0D27] text-sm shrink-0">{formatCurrency(account.current_balance)}</p>
-                        {!isProtected && (
-                          <button
-                            onClick={() => handleDeleteAccount(account.id, account.name)}
-                            disabled={deletingId === account.id}
-                            className="h-8 w-8 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
-                            title="Delete Account"
-                          >
-                            {deletingId === account.id ? (
-                              <RefreshCw className="h-4 w-4 animate-spin text-red-500" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </button>
-                        )}
+                        {account.account_code === "main" && (
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-[#33375C]/60">Fuliza Limit</span>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={account.fuliza_limit ?? 1500}
+                              onChange={async (e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setAccounts((prev) =>
+                                  prev.map((a) =>
+                                    a.id === account.id ? { ...a, fuliza_limit: val } : a
+                                  )
+                                );
+                                try {
+                                  await fetch(`/api/settings/accounts?id=${account.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ fuliza_limit: val })
+                                  });
+                                } catch { /* non-fatal */ }
+                              }}
+                              className="h-8 w-24 px-2 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                              title="Your Fuliza overdraft limit. M-PESA balance can go negative up to this amount."
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {!isProtected && (
+                        <button
+                          onClick={() => handleDeleteAccount(account.id, account.name)}
+                          disabled={deletingId === account.id}
+                          className="h-8 w-8 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                          title="Delete Account"
+                        >
+                          {deletingId === account.id ? (
+                            <RefreshCw className="h-4 w-4 animate-spin text-red-500" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      )}
                       </div>
                     </div>
                   );

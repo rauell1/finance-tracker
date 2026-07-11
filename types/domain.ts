@@ -7,6 +7,7 @@ export interface Account {
   opening_balance: number;
   is_archived: boolean;
   current_balance: number;
+  fuliza_limit?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -109,6 +110,7 @@ export interface KPIData {
   netCashflow: number;
   incomeChange: number;
   expenseChange: number;
+  fulizaLimit?: number;
 }
 export interface MonthlyTrend {
   month: string;
@@ -131,6 +133,7 @@ export interface AccountComparison {
   expense: number;
   net: number;
   balance: number;
+  fuliza_limit?: number;
 }
 export type InsightSeverity = "info" | "warning" | "critical";
 export interface InsightItem {

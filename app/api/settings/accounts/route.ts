@@ -46,6 +46,59 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    const body = await request.json();
+    const { fuliza_limit } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Account ID is required" }, { status: 400 });
+    }
+
+    if (fuliza_limit === undefined) {
+      return NextResponse.json({ error: "fuliza_limit is required" }, { status: 400 });
+    }
+
+    const { data: acc, error: findErr } = await supabase
+      .from("accounts")
+      .select("account_code")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (findErr || !acc) {
+      return NextResponse.json({ error: "Account not found or access denied" }, { status: 404 });
+    }
+
+    const val = Number(fuliza_limit);
+    if (isNaN(val) || val < 0) {
+      return NextResponse.json({ error: "Invalid fuliza_limit" }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from("accounts")
+      .update({ fuliza_limit: val })
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, fuliza_limit: val });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();

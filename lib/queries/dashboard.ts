@@ -148,12 +148,16 @@ export async function getKPIData(month?: string, period: "month" | "quarter" | "
     }
   }
 
-  const { data: accounts } = await supabase.from("accounts").select("id, opening_balance, currency_code").eq("is_archived", false);
+  const { data: accounts } = await supabase.from("accounts").select("id, name, opening_balance, currency_code, account_code, fuliza_limit").eq("is_archived", false);
   let totalBalance = (accounts ?? []).reduce(
     (s, a) => s + normalizeAmount(Number(a.opening_balance), a.currency_code, startStr),
     0
   );
   const ids = (accounts ?? []).map((a) => a.id);
+  
+  // Get fuliza limit for M-PESA account
+  const mpesaAccount = (accounts ?? []).find(a => a.account_code === "main");
+  const fulizaLimit = mpesaAccount?.fuliza_limit ? Number(mpesaAccount.fuliza_limit) : 0;
   if (ids.length > 0) {
     let txns: any[] = [];
     let page = 0;
@@ -188,10 +192,11 @@ export async function getKPIData(month?: string, period: "month" | "quarter" | "
       }
     }
   }
-  return {
+return {
     totalBalance, monthlyIncome, monthlyExpense, netCashflow: monthlyIncome - monthlyExpense,
     incomeChange: prevIncome > 0 ? ((monthlyIncome - prevIncome) / prevIncome) * 100 : 0,
     expenseChange: prevExpense > 0 ? ((monthlyExpense - prevExpense) / prevExpense) * 100 : 0,
+    fulizaLimit,
   };
 }
 
@@ -305,8 +310,12 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
   
   const { startStr, endStr } = getPeriodDates(period, month);
 
-  const { data: accounts } = await supabase.from("accounts").select("*").eq("is_archived", false).order("account_code");
+  const { data: accounts } = await supabase.from("accounts").select("id, name, opening_balance, currency_code, account_code, fuliza_limit").eq("is_archived", false);
   if (!accounts) return [];
+  
+  // Get fuliza limit for M-PESA account
+  const mpesaAccount = accounts.find(a => a.account_code === "main");
+  const fulizaLimit = mpesaAccount?.fuliza_limit ? Number(mpesaAccount.fuliza_limit) : 0;
   
   const ids = accounts.map((a) => a.id);
   if (ids.length === 0) return [];
@@ -367,6 +376,7 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
     }
 
     const openingBalance = normalizeAmount(Number(a.opening_balance), a.currency_code, endStr);
+    const computedBalance = openingBalance + lifetimeIncome - lifetimeExpense;
     results.push({
       account_id: a.id,
       account_name: a.name,
@@ -374,7 +384,8 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
       income,
       expense,
       net: income - expense,
-      balance: openingBalance + lifetimeIncome - lifetimeExpense,
+      balance: computedBalance,
+      fuliza_limit: a.fuliza_limit ? Number(a.fuliza_limit) : 0,
     });
   }
   return results;
