@@ -2055,38 +2055,17 @@ export async function processSingleSms(
             currency_code: "KES",
             occurred_on: occurredOn,
             description: "Fuliza Access Fee",
-            metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, tag: "fuliza", raw_sms: p.raw }
+            metadata: { source: "sms_webhook", mpesa_receipt: feeReceipt, parent_receipt: p.receipt, tag: "fuliza", raw_sms: p.raw, fuliza_amount: amount, fuliza_fee: fee }
           }).select("id").single();
           if (txn) inserted.push({ type: "fee", id: txn.id, amount: fee });
         }
       }
     }
 
-    if (amount > 0 && p.receipt !== "UNKNOWN") {
-      const { data: existingTxn } = await adminSb.from("transactions").select("id, metadata")
-        .eq("user_id", userId)
-        .contains("metadata", { mpesa_receipt: p.receipt })
-        .maybeSingle();
-
-      if (!existingTxn) {
-        const category = await getOrCreateCategory(adminSb, userId, "Other Income", "income");
-
-        if (category) {
-          const { data: txn } = await adminSb.from("transactions").insert({
-            user_id: userId,
-            account_id: mpesa.id,
-            category_id: category.id,
-            txn_type: "income",
-            amount: amount,
-            currency_code: "KES",
-            occurred_on: occurredOn,
-            description: "Fuliza Drawdown",
-            metadata: { source: "sms_webhook", mpesa_receipt: p.receipt, is_auto_generated: true, tag: "fuliza", raw_sms: p.raw }
-          }).select("id").single();
-          if (txn) inserted.push({ type: "overdraft", id: txn.id, amount: amount });
-        }
-      }
-    }
+    // Do NOT create a separate "Fuliza Drawdown" income transaction.
+    // The drawdown funds the outgoing payment (sent/paid) which arrives as a separate SMS.
+    // We only record the fee and update the debt balance via upsertAutoDebt.
+    // The payment SMS will carry the fuliza metadata via its receipt match.
 
     return { status: "created_fuliza", receipt: p.receipt, inserted };
   }
@@ -2237,6 +2216,39 @@ export async function processSingleSms(
   const categoryName = guessMpesaCategory(p.raw, p.txnType as "income" | "expense");
   const category = await getOrCreateCategory(supabase, userId, categoryName, p.txnType as "income" | "expense");
 
+  // If this is a sent/paid expense, check if it was funded by a Fuliza drawdown
+  // (look for a Fuliza Access Fee transaction with the same parent receipt)
+  let fulizaAmount: number | null = null;
+  let fulizaFee: number | null = null;
+  if (p.txnType === "expense" && p.receipt !== "UNKNOWN") {
+    const { data: feeTxn } = await supabase
+      .from("transactions")
+      .select("amount, metadata")
+      .eq("user_id", userId)
+      .contains("metadata", { parent_receipt: p.receipt, tag: "fuliza" })
+      .maybeSingle();
+    if (feeTxn) {
+      // Find the fuliza drawdown info from the fee transaction's metadata
+      const meta = feeTxn.metadata as Record<string, any>;
+      if (meta.fuliza_amount) fulizaAmount = meta.fuliza_amount;
+      if (meta.fuliza_fee) fulizaFee = meta.fuliza_fee;
+      // Also try to get from the debt table
+      if (!fulizaAmount) {
+        const { data: debt } = await supabase
+          .from("debts")
+          .select("metadata")
+          .eq("user_id", userId)
+          .eq("source_identifier", "fuliza")
+          .maybeSingle();
+        if (debt) {
+          const dmeta = debt.metadata as Record<string, any>;
+          if (dmeta.fuliza_amount) fulizaAmount = dmeta.fuliza_amount;
+          if (dmeta.fuliza_fee) fulizaFee = dmeta.fuliza_fee;
+        }
+      }
+    }
+  }
+
   let prevMpesaBalanceForInference: number | null = null;
   if (p.kind === "income" && p.mpesaBal !== null) {
     prevMpesaBalanceForInference = await getLastMpesaBalance(supabase, mpesa.id);
@@ -2254,7 +2266,8 @@ export async function processSingleSms(
   if (p.description === "Fuliza repayment" || p.counterparty === "Fuliza M-Pesa") {
     metadata.tag = "fuliza";
   }
-
+  if (fulizaAmount !== null) metadata.fuliza_amount = fulizaAmount;
+  if (fulizaFee !== null) metadata.fuliza_fee = fulizaFee;
   if (p.description === "Fuliza repayment" && p.mpesaBal !== null) {
     try {
       const { data: inferred } = await supabase
