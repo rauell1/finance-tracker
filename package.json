@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "check-dashes": "node scratch/check-dashes.js",
-    "build": "node scratch/check-dashes.js && next build",
+    "check-dashes": "node scripts/check-dashes.js",
+    "build": "node scripts/check-dashes.js && next build",
     "start": "next start",
     "lint": "next lint",
     "gen:types": "supabase gen types typescript --linked > types/database.types.ts"
