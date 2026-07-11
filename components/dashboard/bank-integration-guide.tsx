@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Copy, Check, Smartphone, Key, FileText, RefreshCw, AlertCircle, EyeOff, Loader2, Lock, Wifi, Globe } from "lucide-react";
+import { Copy, Check, Smartphone, Key, FileText, RefreshCw, AlertCircle, EyeOff, Loader2, Lock, Wifi, Globe, Cloud } from "lucide-react";
 import { toast } from "sonner";
 
 export function BankIntegrationGuide() {
@@ -12,6 +12,7 @@ export function BankIntegrationGuide() {
   const [regenerating, setRegenerating] = useState(false);
   const [platform, setPlatform] = useState<"macrodroid" | "sms_gateway">("macrodroid");
   const [triggerMethod, setTriggerMethod] = useState<"sms" | "notifications">("sms");
+  const [smsGatewayMethod, setSmsGatewayMethod] = useState<"local" | "cloud">("local");
 
   const activeUrl = platform === "macrodroid" ? webhookUrl : smsGatewayUrl;
 
@@ -113,6 +114,39 @@ export function BankIntegrationGuide() {
             </button>
           </div>
         </div>
+
+        {platform === "sms_gateway" && (
+          <div className="bg-[#F0F0FF]/20 border border-[#E2E2FF] rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+            <div>
+              <h4 className="font-bold text-[#0A0D27] text-xs">Connection Method</h4>
+              <p className="text-[10px] text-[#33375C]/60 mt-0.5">Select how the SMS Gateway connects to FinTrack</p>
+            </div>
+            <div className="flex bg-[#F0F0FF]/50 border border-[#E2E2FF] p-1 rounded-xl shrink-0">
+              <button
+                onClick={() => setSmsGatewayMethod("local")}
+                className={`py-1 px-3 text-xs font-semibold rounded-lg transition-colors duration-150 flex items-center gap-1.5 ${
+                  smsGatewayMethod === "local"
+                    ? "bg-[#524CF2] text-white shadow-sm"
+                    : "text-[#33375C]/60 hover:text-[#524CF2]"
+                }`}
+              >
+                <Wifi className="h-3.5 w-3.5" />
+                Local Server
+              </button>
+              <button
+                onClick={() => setSmsGatewayMethod("cloud")}
+                className={`py-1 px-3 text-xs font-semibold rounded-lg transition-colors duration-150 flex items-center gap-1.5 ${
+                  smsGatewayMethod === "cloud"
+                    ? "bg-[#524CF2] text-white shadow-sm"
+                    : "text-[#33375C]/60 hover:text-[#524CF2]"
+                }`}
+              >
+                <Cloud className="h-3.5 w-3.5" />
+                Cloud Server
+              </button>
+            </div>
+          </div>
+        )}
 
         {platform === "macrodroid" ? (
           <div>
@@ -391,7 +425,8 @@ export function BankIntegrationGuide() {
             Install <strong>SMS Gateway for Android</strong> from{" "}
             <a href="https://play.google.com/store/apps/details?id=app.sms.gateway" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">Google Play</a>{" "}
             or{" "}
-            <a href="https://f-droid.org/packages/app.sms.gateway/" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">F-Droid</a>.
+            <a href="https://f-droid.org/packages/app.sms.gateway/" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">F-Droid</a>. 
+            You can also check the project on <a href="https://github.com/capcom6/android-sms-gateway" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">GitHub</a>, visit the <a href="https://sms-gate.app" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">Official Website</a>, or read the <a href="https://docs.sms-gate.app" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">Documentation</a>.
           </p>
         </div>
         <div className="md:col-span-2 flex justify-center">
@@ -408,106 +443,213 @@ export function BankIntegrationGuide() {
         </div>
       </div>
 
-      {/* Step 2: Start Local Server & Copy Credentials */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
-        <div className="md:col-span-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">2</span>
-            <h3 className="font-bold text-[#0A0D27] text-sm">Start Local Server</h3>
-          </div>
-          <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
-            <p>Open the app, toggle the <strong>Local Server</strong> switch on, and tap <strong>Offline</strong> at the bottom to activate.</p>
-            <p>Note your device's local IP address, username, and password displayed in the app. You will need these to register the webhook.</p>
-          </div>
-        </div>
-        <div className="md:col-span-2 flex justify-center">
-          <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
-            <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
-            <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
-              <div className="flex items-center gap-1.5 pb-1 border-b border-[#E2E2FF]">
-                <Wifi className="h-3 w-3 text-slate-400" />
-                <span className="text-[8px] font-bold text-[#0A0D27]">Local Server</span>
+      {smsGatewayMethod === "local" ? (
+        <>
+          {/* Step 2: Start Local Server & Copy Credentials */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
+            <div className="md:col-span-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">2</span>
+                <h3 className="font-bold text-[#0A0D27] text-sm">Start Local Server</h3>
               </div>
-              <div className="text-[8px] font-semibold text-[#33375C]/65 space-y-1 mt-1.5">
-                <p>✔ Server: Active</p>
-                <p>✔ IP: from app</p>
-                <p>✔ Auth: from app</p>
+              <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
+                <p>Open the app, toggle the <strong>Local Server</strong> switch on, and tap <strong>Offline</strong> at the bottom to activate.</p>
+                <p>Note your device's local IP address, username, and password displayed in the app. You will need these to register the webhook.</p>
+              </div>
+            </div>
+            <div className="md:col-span-2 flex justify-center">
+              <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
+                <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
+                <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
+                  <div className="flex items-center gap-1.5 pb-1 border-b border-[#E2E2FF]">
+                    <Wifi className="h-3 w-3 text-slate-400" />
+                    <span className="text-[8px] font-bold text-[#0A0D27]">Local Server</span>
+                  </div>
+                  <div className="text-[8px] font-semibold text-[#33375C]/65 space-y-1 mt-1.5">
+                    <p>✔ Server: Active</p>
+                    <p>✔ IP: from app</p>
+                    <p>✔ Auth: from app</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Step 3: Register Webhook */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
-        <div className="md:col-span-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">3</span>
-            <h3 className="font-bold text-[#0A0D27] text-sm">Register Webhook via API</h3>
-          </div>
-          <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
-            <p>Run this curl command from your computer (on the same Wi-Fi network) to register the webhook:</p>
-            <pre className="bg-[#0A0D27] text-green-300 p-2.5 rounded-lg font-mono text-[9px] leading-normal overflow-x-auto">
+          {/* Step 3: Register Webhook */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
+            <div className="md:col-span-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">3</span>
+                <h3 className="font-bold text-[#0A0D27] text-sm">Register Webhook via API</h3>
+              </div>
+              <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
+                <p>Run this curl command from your computer (on the same Wi-Fi network) to register the webhook:</p>
+                <pre className="bg-[#0A0D27] text-green-300 p-2.5 rounded-lg font-mono text-[9px] leading-normal overflow-x-auto">
 {`curl -X POST -u <username>:<password> \\
   -H "Content-Type: application/json" \\
   -d '{"id":"fintrack","url":"${activeUrl ?? "YOUR_WEBHOOK_URL"}","event":"sms:received"}' \\
   http://<device_local_ip>:8080/webhooks`}
-            </pre>
-            <p>Replace <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;username&gt;</code>, <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;password&gt;</code>, and <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;device_local_ip&gt;</code> with the values from Step 2.</p>
-            <p>The app will now forward every received SMS to FinTrack. No sender filtering needed - the parsing pipeline ignores non-financial messages.</p>
-          </div>
-          <div className="pl-7 mt-3">
-            {!revealed ? (
-              <button
-                onClick={handleReveal}
-                disabled={loadingUrl}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-[#F0F0FF] border border-[#E2E2FF] text-[#524CF2] hover:bg-[#E2E2FF] transition-colors disabled:opacity-50"
-              >
-                {loadingUrl ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Lock className="h-4 w-4" />
-                )}
-                {loadingUrl ? "Loading..." : "Reveal Webhook URL"}
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-1.5 w-full max-w-md bg-[#F0F0FF]/30 border border-[#E2E2FF] rounded-xl px-3 py-1.5">
-                  <input
-                    type="text"
-                    value={activeUrl ?? ""}
-                    readOnly
-                    className="flex-1 bg-transparent text-[10px] font-mono font-semibold text-[#33375C]/75 focus:outline-none select-all"
-                  />
+                </pre>
+                <p>Replace <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;username&gt;</code>, <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;password&gt;</code>, and <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;device_local_ip&gt;</code> with the values from Step 2.</p>
+                <p>The app will now forward every received SMS to FinTrack. No sender filtering needed - the parsing pipeline ignores non-financial messages.</p>
+              </div>
+              <div className="pl-7 mt-3">
+                {!revealed ? (
                   <button
-                    onClick={handleCopy}
-                    title="Copy webhook URL"
-                    className="h-7 w-7 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors"
+                    onClick={handleReveal}
+                    disabled={loadingUrl}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-[#F0F0FF] border border-[#E2E2FF] text-[#524CF2] hover:bg-[#E2E2FF] transition-colors disabled:opacity-50"
                   >
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-slate-500" />}
+                    {loadingUrl ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
+                    {loadingUrl ? "Loading..." : "Reveal Webhook URL"}
                   </button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-1.5 w-full max-w-md bg-[#F0F0FF]/30 border border-[#E2E2FF] rounded-xl px-3 py-1.5">
+                      <input
+                        type="text"
+                        value={activeUrl ?? ""}
+                        readOnly
+                        className="flex-1 bg-transparent text-[10px] font-mono font-semibold text-[#33375C]/75 focus:outline-none select-all"
+                      />
+                      <button
+                        onClick={handleCopy}
+                        title="Copy webhook URL"
+                        className="h-7 w-7 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors"
+                      >
+                        {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-slate-500" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="md:col-span-2 flex justify-center">
+              <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
+                <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
+                <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
+                  <div className="flex items-center gap-1.5 pb-1 border-b border-[#E2E2FF]">
+                    <Globe className="h-3 w-3 text-slate-400" />
+                    <span className="text-[8px] font-bold text-[#0A0D27]">Webhook Active</span>
+                  </div>
+                  <div className="text-[8px] font-semibold text-[#33375C]/65 space-y-1 mt-1.5">
+                    <p>✔ Event: sms:received</p>
+                    <p>✔ Target: sms-gateway endpoint</p>
+                    <p>✔ Status: Forwarding</p>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="md:col-span-2 flex justify-center">
-          <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
-            <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
-            <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
-              <div className="flex items-center gap-1.5 pb-1 border-b border-[#E2E2FF]">
-                <Globe className="h-3 w-3 text-slate-400" />
-                <span className="text-[8px] font-bold text-[#0A0D27]">Webhook Active</span>
-              </div>
-              <div className="text-[8px] font-semibold text-[#33375C]/65 space-y-1 mt-1.5">
-                <p>✔ Event: sms:received</p>
-                <p>✔ Target: sms-gateway endpoint</p>
-                <p>✔ Status: Forwarding</p>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          {/* Step 2: Start Cloud Connection */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
+            <div className="md:col-span-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">2</span>
+                <h3 className="font-bold text-[#0A0D27] text-sm">Start Cloud Connection</h3>
+              </div>
+              <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
+                <p>Open the app, toggle the <strong>Cloud Server</strong> switch on, and tap <strong>Offline</strong> at the bottom to connect to the cloud gateway.</p>
+                <p>The app will automatically generate and display a username and password under the Cloud Server section once connected.</p>
+              </div>
+            </div>
+            <div className="md:col-span-2 flex justify-center">
+              <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
+                <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
+                <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
+                  <div className="flex items-center gap-1.5 pb-1 border-b border-[#E2E2FF]">
+                    <Cloud className="h-3 w-3 text-slate-400" />
+                    <span className="text-[8px] font-bold text-[#0A0D27]">Cloud Server</span>
+                  </div>
+                  <div className="text-[8px] font-semibold text-[#33375C]/65 space-y-1 mt-1.5">
+                    <p>✔ Cloud: Connected</p>
+                    <p>✔ API: api.sms-gate.app</p>
+                    <p>✔ Auth: Generated</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3: Register Webhook via Cloud API */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
+            <div className="md:col-span-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">3</span>
+                <h3 className="font-bold text-[#0A0D27] text-sm">Register Webhook via Cloud API</h3>
+              </div>
+              <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
+                <p>Run this curl command from your computer to register the webhook on the cloud server:</p>
+                <pre className="bg-[#0A0D27] text-green-300 p-2.5 rounded-lg font-mono text-[9px] leading-normal overflow-x-auto">
+{`curl -X POST -u <username>:<password> \\
+  -H "Content-Type: application/json" \\
+  -d '{"url":"${activeUrl ?? "YOUR_WEBHOOK_URL"}","event":"sms:received"}' \\
+  https://api.sms-gate.app/3rdparty/v1/webhooks`}
+                </pre>
+                <p>Replace <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;username&gt;</code> and <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;password&gt;</code> with the cloud credentials generated in Step 2.</p>
+                <p>The cloud gateway will now forward every SMS received on your device to FinTrack. Allow up to a minute for the settings to sync to your device.</p>
+              </div>
+              <div className="pl-7 mt-3">
+                {!revealed ? (
+                  <button
+                    onClick={handleReveal}
+                    disabled={loadingUrl}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-[#F0F0FF] border border-[#E2E2FF] text-[#524CF2] hover:bg-[#E2E2FF] transition-colors disabled:opacity-50"
+                  >
+                    {loadingUrl ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
+                    {loadingUrl ? "Loading..." : "Reveal Webhook URL"}
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-1.5 w-full max-w-md bg-[#F0F0FF]/30 border border-[#E2E2FF] rounded-xl px-3 py-1.5">
+                      <input
+                        type="text"
+                        value={activeUrl ?? ""}
+                        readOnly
+                        className="flex-1 bg-transparent text-[10px] font-mono font-semibold text-[#33375C]/75 focus:outline-none select-all"
+                      />
+                      <button
+                        onClick={handleCopy}
+                        title="Copy webhook URL"
+                        className="h-7 w-7 rounded-lg bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF]/40 flex items-center justify-center shadow-sm shrink-0 transition-colors"
+                      >
+                        {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-slate-500" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="md:col-span-2 flex justify-center">
+              <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
+                <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
+                <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
+                  <div className="flex items-center gap-1.5 pb-1 border-b border-[#E2E2FF]">
+                    <Globe className="h-3 w-3 text-slate-400" />
+                    <span className="text-[8px] font-bold text-[#0A0D27]">Webhook Active</span>
+                  </div>
+                  <div className="text-[8px] font-semibold text-[#33375C]/65 space-y-1 mt-1.5">
+                    <p>✔ Event: sms:received</p>
+                    <p>✔ Target: sms-gateway endpoint</p>
+                    <p>✔ Status: Forwarding</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )}
       </div>
