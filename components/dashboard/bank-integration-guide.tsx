@@ -7,13 +7,17 @@ export function BankIntegrationGuide() {
   const [copied, setCopied] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const [smsGatewayUrl, setSmsGatewayUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [platform, setPlatform] = useState<"macrodroid" | "sms_gateway">("macrodroid");
   const [triggerMethod, setTriggerMethod] = useState<"sms" | "notifications">("sms");
 
+  const activeUrl = platform === "macrodroid" ? webhookUrl : smsGatewayUrl;
+
   async function handleRegenerate() {
-    if (!window.confirm("Are you sure you want to regenerate your webhook URL? Your current URL will be instantly invalidated and your phone will stop syncing. You will need to update the webhook URL in your MacroDroid App settings to restore sync.")) {
+    const appName = platform === "macrodroid" ? "MacroDroid" : "SMS Gateway";
+    if (!window.confirm(`Are you sure you want to regenerate your webhook URL? Your current URL will be instantly invalidated and your phone will stop syncing. You will need to update the webhook URL in your ${appName} App settings to restore sync.`)) {
       return;
     }
     setRegenerating(true);
@@ -22,7 +26,8 @@ export function BankIntegrationGuide() {
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       setWebhookUrl(data.webhookUrl);
-      toast.success("Webhook URL regenerated successfully! Remember to update it in your MacroDroid App settings.");
+      setSmsGatewayUrl(data.smsGatewayUrl);
+      toast.success(`Webhook URL regenerated successfully! Remember to update it in your ${appName} App settings.`);
     } catch {
       toast.error("Could not regenerate webhook URL. Please try again.");
     } finally {
@@ -43,6 +48,7 @@ export function BankIntegrationGuide() {
         throw new Error(data.detail ?? data.error ?? `HTTP ${res.status}`);
       }
       setWebhookUrl(data.webhookUrl);
+      setSmsGatewayUrl(data.smsGatewayUrl);
       setRevealed(true);
     } catch (e) {
       toast.error(`Could not load webhook URL: ${(e as Error).message}`);
@@ -56,9 +62,10 @@ export function BankIntegrationGuide() {
       toast.error("Reveal the URL first before copying.");
       return;
     }
-    navigator.clipboard.writeText(webhookUrl);
+    navigator.clipboard.writeText(activeUrl ?? "");
     setCopied(true);
-    toast.success("Webhook URL copied to clipboard!");
+    const appName = platform === "macrodroid" ? "MacroDroid" : "SMS Gateway";
+    toast.success(`${appName} webhook URL copied to clipboard!`);
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -199,7 +206,7 @@ export function BankIntegrationGuide() {
                   <div className="flex items-center gap-1.5 w-full max-w-md bg-[#F0F0FF]/30 border border-[#E2E2FF] rounded-xl px-3 py-1.5">
                     <input
                       type="text"
-                      value={webhookUrl ?? ""}
+                      value={activeUrl ?? ""}
                       readOnly
                       className="flex-1 bg-transparent text-[10px] font-mono font-semibold text-[#33375C]/75 focus:outline-none select-all"
                     />
@@ -408,8 +415,8 @@ export function BankIntegrationGuide() {
             <h3 className="font-bold text-[#0A0D27] text-sm">Configure Webhook URL</h3>
           </div>
           <p className="text-xs text-[#33375C]/75 leading-relaxed pl-7">
-            Open the SMS Gateway app and set the target URL to your FinTrack webhook endpoint.
-            Use the same URL as your MacroDroid webhook below.
+            Open the SMS Gateway app and paste the webhook URL shown below.
+            It uses the <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">/api/webhooks/sms-gateway</code> endpoint (different from the MacroDroid URL).
           </p>
           <div className="pl-7 mt-3 space-y-2">
             {!revealed ? (
@@ -430,7 +437,7 @@ export function BankIntegrationGuide() {
                 <div className="flex items-center gap-1.5 w-full max-w-md bg-[#F0F0FF]/30 border border-[#E2E2FF] rounded-xl px-3 py-1.5">
                   <input
                     type="text"
-                    value={webhookUrl ?? ""}
+                    value={activeUrl ?? ""}
                     readOnly
                     className="flex-1 bg-transparent text-[10px] font-mono font-semibold text-[#33375C]/75 focus:outline-none select-all"
                   />

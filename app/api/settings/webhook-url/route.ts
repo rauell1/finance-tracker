@@ -51,9 +51,11 @@ export async function GET() {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://finance.rauell.systems";
-    const webhookUrl = `${baseUrl}/api/webhooks/mpesa-sms?token=${profile.webhook_token}`;
+    const token = profile.webhook_token;
+    const webhookUrl = `${baseUrl}/api/webhooks/mpesa-sms?token=${token}`;
+    const smsGatewayUrl = `${baseUrl}/api/webhooks/sms-gateway?token=${token}`;
 
-    return NextResponse.json({ webhookUrl });
+    return NextResponse.json({ webhookUrl, smsGatewayUrl });
   } catch (e) {
     return NextResponse.json(
       { error: "Unexpected error", detail: (e as Error).message },
