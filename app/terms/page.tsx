@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://finance.rauell.systems/terms",
   },
+  openGraph: {
+    title: "Terms of Service | FinTrack",
+    description: "Review the rules, usage guidelines, and disclaimers for FinTrack.",
+    url: "https://finance.rauell.systems/terms",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    type: "article",
+  },
 };
 
 export default function TermsPage() {

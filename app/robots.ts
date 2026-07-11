@@ -1,29 +1,36 @@
 import { MetadataRoute } from 'next'
 
+const DISALLOW = [
+  '/dashboard',
+  '/transactions',
+  '/budgets',
+  '/analytics',
+  '/settings',
+  '/debts',
+  '/goals',
+  '/recurring',
+  '/reports',
+  '/admin',
+  '/webhook-logs',
+  '/api/',
+  '/auth/callback',
+  '/_next/',
+]
+
+const ALLOW = ['/', '/login', '/register', '/privacy', '/terms']
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/login', '/register', '/privacy', '/terms'],
-        disallow: [
-          '/dashboard',
-          '/transactions',
-          '/budgets',
-          '/analytics',
-          '/settings',
-          '/api/',
-          '/auth/callback',
-          '/_next/',
-        ],
+        allow: ALLOW,
+        disallow: DISALLOW,
       },
       {
         userAgent: 'Googlebot',
-        allow: ['/', '/login', '/register', '/privacy', '/terms'],
-        disallow: [
-          '/api/',
-          '/auth/callback',
-        ],
+        allow: ALLOW,
+        disallow: DISALLOW,
       },
     ],
     sitemap: 'https://finance.rauell.systems/sitemap.xml',

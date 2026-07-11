@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://finance.rauell.systems/privacy",
   },
+  openGraph: {
+    title: "Privacy Policy | FinTrack",
+    description: "Learn how FinTrack protects, collects, and manages your personal and financial data.",
+    url: "https://finance.rauell.systems/privacy",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    type: "article",
+  },
 };
 
 export default function PrivacyPage() {

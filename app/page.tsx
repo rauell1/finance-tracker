@@ -3,10 +3,7 @@ import { redirect } from "next/navigation";
 import { LandingContent } from "@/components/landing-content";
 import type { Metadata } from "next";
 
-// ISR: revalidate every hour. This replaces force-dynamic, which was
-// setting cache-control: no-store on the landing page, preventing
-// CDN caching and hurting Google crawl efficiency.
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "FinTrack | Free Personal Finance Tracker for Kenya & East Africa",

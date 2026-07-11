@@ -2,7 +2,7 @@
   "name": "FinTrack",
   "short_name": "FinTrack",
   "description": "Personal finance tracker across multiple accounts",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "display": "standalone",
   "theme_color": "#524CF2",
   "background_color": "#FFFFFF",

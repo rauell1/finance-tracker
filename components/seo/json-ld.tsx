@@ -63,26 +63,6 @@ export function JsonLd() {
         publisher: {
           '@id': 'https://finance.rauell.systems/#organization',
         },
-        potentialAction: {
-          '@type': 'SearchAction',
-          target: {
-            '@type': 'EntryPoint',
-            urlTemplate: 'https://finance.rauell.systems/transactions?q={search_term_string}',
-          },
-          'query-input': 'required name=search_term_string',
-        },
-      },
-      {
-        '@type': 'BreadcrumbList',
-        '@id': 'https://finance.rauell.systems/#breadcrumb',
-        itemListElement: [
-          {
-            '@type': 'ListItem',
-            position: 1,
-            name: 'Home',
-            item: 'https://finance.rauell.systems',
-          },
-        ],
       },
     ],
   }

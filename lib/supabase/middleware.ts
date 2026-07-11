@@ -61,7 +61,7 @@ export async function updateSession(request: NextRequest) {
 
 
 
-  const isAppRoute = ["/dashboard", "/transactions", "/budgets", "/analytics", "/settings", "/debts", "/goals", "/recurring", "/reports", "/admin"].some(
+  const isAppRoute = ["/dashboard", "/transactions", "/budgets", "/analytics", "/settings", "/debts", "/goals", "/recurring", "/reports", "/admin", "/webhook-logs"].some(
     (p) => pathname.startsWith(p)
   );
   const isAuthRoute = pathname === "/login" || pathname === "/register";
