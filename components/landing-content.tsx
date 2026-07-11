@@ -123,7 +123,7 @@ export function LandingContent() {
           {[
             {
               title: "Automatic M-Pesa SMS Sync",
-              desc: "Forward M-Pesa SMS notifications from your Android phone via MacroDroid or Automate. Our webhook parses and logs every M-Pesa send, receive, buy goods, pay bill, and Fuliza transaction in real time - zero manual entry.",
+              desc: "Forward M-Pesa SMS notifications from your Android phone via MacroDroid or SMS Gateway. Our webhook parses and logs every M-Pesa send, receive, buy goods, pay bill, and Fuliza transaction in real time - zero manual entry.",
               icon: "📱",
             },
             {
@@ -173,7 +173,7 @@ export function LandingContent() {
         <ol className="space-y-6" aria-label="Setup steps">
           {[
             { step: "1", title: "Create your free account", desc: "Sign up with your email. No credit card, no commitments. Your data is encrypted and private." },
-            { step: "2", title: "Connect M-Pesa SMS forwarding", desc: "Install MacroDroid on your Android phone and set it to forward M-Pesa SMS messages to your personal FinTrack webhook URL. Takes 3 minutes." },
+            { step: "2", title: "Connect M-Pesa SMS forwarding", desc: "Install MacroDroid or SMS Gateway on your Android phone and set it to forward M-Pesa SMS messages to your personal FinTrack webhook URL. Takes 3 minutes." },
             { step: "3", title: "Add your bank accounts", desc: "Link DTB, KCB, I&M Bank, or SBM Bank SMS notifications. FinTrack automatically categorises every debit and credit." },
             { step: "4", title: "Watch your finances come alive", desc: "Every transaction syncs in real time. Set budgets in KES, get alerts, and see exactly where your money goes every month." },
           ].map((s) => (
@@ -246,11 +246,11 @@ export function LandingContent() {
         </div>
         <dl className="space-y-8">
           {[
-            { q: "Does FinTrack work with M-Pesa in Kenya?", a: "Yes. FinTrack is built specifically for M-Pesa users in Kenya. Using a free Android app (MacroDroid), you forward your M-Pesa SMS notifications to FinTrack. Every send money, receive money, buy goods, pay bill, and Fuliza transaction is automatically parsed and categorised in real time." },
+            { q: "Does FinTrack work with M-Pesa in Kenya?", a: "Yes. FinTrack is built specifically for M-Pesa users in Kenya. Using a free Android app (MacroDroid or SMS Gateway), you forward your M-Pesa SMS notifications to FinTrack. Every send money, receive money, buy goods, pay bill, and Fuliza transaction is automatically parsed and categorised in real time." },
             { q: "Which Kenyan banks are supported?", a: "FinTrack currently supports M-Pesa, KCB M-Pesa, M-Shwari, DTB Bank, I&M Bank, and SBM Bank via SMS webhook. More banks are being added regularly." },
             { q: "Is my financial data safe?", a: "All data is encrypted in transit and at rest. Your M-Pesa and bank data is stored securely using Supabase with row-level security. We never share your data with third parties." },
             { q: "Is FinTrack really free?", a: "Yes. The Basic plan is completely free forever with no credit card required. You can manually track expenses, set budgets, and view your dashboard at no cost. The Pro plan adds automatic M-Pesa SMS sync and AI insights." },
-            { q: "Does it work on iPhone?", a: "M-Pesa SMS forwarding requires an Android phone (for MacroDroid). However, the FinTrack web dashboard works on any device including iPhone, iPad, and desktop browsers." },
+            { q: "Does it work on iPhone?", a: "M-Pesa SMS forwarding requires an Android phone (for MacroDroid or SMS Gateway). However, the FinTrack web dashboard works on any device including iPhone, iPad, and desktop browsers." },
           ].map((faq, i) => (
             <div key={i}>
               <dt className="text-base font-extrabold text-[#0A0D27] mb-2">{faq.q}</dt>
