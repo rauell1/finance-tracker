@@ -445,7 +445,7 @@ export function BankIntegrationGuide() {
                 <div className="bg-amber-50 border border-amber-200/80 rounded-lg p-2.5 flex items-start gap-2 max-w-md">
                   <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-amber-800 leading-normal">
-                    <strong>Note:</strong> The webhook URL is the same as MacroDroid — you only need one secret token for both.
+                    <strong>Note:</strong> The webhook URL is the same as MacroDroid - you only need one secret token for both.
                   </p>
                 </div>
               </div>
@@ -481,11 +481,11 @@ export function BankIntegrationGuide() {
           <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
             <p>In the SMS Gateway app, select which SMS senders to forward. At minimum, add your bank shortcodes:</p>
             <ul className="list-disc pl-4 space-y-1 text-[11px] text-[#33375C]/70">
-              <li><strong>DTB</strong> — DTB Kenya alerts</li>
-              <li><strong>SBMBANK</strong> — SBM Bank alerts</li>
-              <li><strong>IANDMBANK</strong> — I&M Bank alerts</li>
-              <li><strong>KCB</strong> — KCB M-Pesa alerts</li>
-              <li><strong>M-SHWARI</strong> — M-Shwari alerts</li>
+              <li><strong>DTB</strong> - DTB Kenya alerts</li>
+              <li><strong>SBMBANK</strong> - SBM Bank alerts</li>
+              <li><strong>IANDMBANK</strong> - I&M Bank alerts</li>
+              <li><strong>KCB</strong> - KCB M-Pesa alerts</li>
+              <li><strong>M-SHWARI</strong> - M-Shwari alerts</li>
             </ul>
             <p>Then tap <strong>Start</strong> to begin forwarding. The app runs as a background service.</p>
           </div>
