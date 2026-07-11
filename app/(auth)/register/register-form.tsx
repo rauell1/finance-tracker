@@ -111,18 +111,49 @@ export function RegisterForm() {
           {errors.confirmPassword && <p className="text-xs text-rose-600">{errors.confirmPassword.message}</p>}
         </div>
 
-        <Button type="submit" className="w-full h-11 mt-2" disabled={isLoading}>
+        {/* Accept Terms */}
+        <div className="space-y-1.5 mt-2">
+          <div className="flex items-start gap-2.5">
+            <input
+              id="acceptTerms"
+              type="checkbox"
+              className="h-4 w-4 rounded border-[#E2E2FF] text-[#524CF2] focus:ring-[#524CF2] mt-0.5 cursor-pointer"
+              {...register("acceptTerms")}
+            />
+            <label htmlFor="acceptTerms" className="text-xs text-[#33375C]/75 leading-tight font-medium cursor-pointer">
+              I accept the{" "}
+              <Link href="/terms" target="_blank" className="text-[#524CF2] hover:underline font-semibold">
+                Terms of Service
+              </Link>
+            </label>
+          </div>
+          {errors.acceptTerms && <p className="text-xs text-rose-600 font-semibold">{errors.acceptTerms.message}</p>}
+        </div>
+
+        {/* Accept Privacy */}
+        <div className="space-y-1.5 mt-2">
+          <div className="flex items-start gap-2.5">
+            <input
+              id="acceptPrivacy"
+              type="checkbox"
+              className="h-4 w-4 rounded border-[#E2E2FF] text-[#524CF2] focus:ring-[#524CF2] mt-0.5 cursor-pointer"
+              {...register("acceptPrivacy")}
+            />
+            <label htmlFor="acceptPrivacy" className="text-xs text-[#33375C]/75 leading-tight font-medium cursor-pointer">
+              I accept the{" "}
+              <Link href="/privacy" target="_blank" className="text-[#524CF2] hover:underline font-semibold">
+                Privacy Policy
+              </Link>{" "}
+              (DPA, GDPR &amp; CCPA compliant)
+            </label>
+          </div>
+          {errors.acceptPrivacy && <p className="text-xs text-rose-600 font-semibold">{errors.acceptPrivacy.message}</p>}
+        </div>
+
+        <Button type="submit" className="w-full h-11 mt-4" disabled={isLoading}>
           {isLoading ? "Creating account..." : "Sign Up"}
         </Button>
       </form>
-
-      <p className="text-center text-[10px] text-[#33375C]/60 mt-4 leading-relaxed">
-        By signing up, you agree to our{" "}
-        <Link href="/terms" className="underline hover:text-[#524CF2]">Terms of Service</Link>{" "}
-        and{" "}
-        <Link href="/privacy" className="underline hover:text-[#524CF2]">Privacy Policy</Link>{" "}
-        (DPA, GDPR &amp; CCPA compliant).
-      </p>
 
       <div className="border-t border-[#E2E2FF] mt-5 pt-4 text-center">
         <p className="text-xs text-[#33375C]/70">

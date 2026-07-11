@@ -10,6 +10,12 @@ export const registerSchema = z.object({
     .regex(/[0-9]/, "Must contain at least one number"),
   confirmPassword: z.string(),
   fullName: z.string().min(1, "Full name is required").max(100),
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: "You must accept the Terms of Service" }),
+  }),
+  acceptPrivacy: z.literal(true, {
+    errorMap: () => ({ message: "You must accept the Privacy Policy" }),
+  }),
 }).refine((d) => d.password === d.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
