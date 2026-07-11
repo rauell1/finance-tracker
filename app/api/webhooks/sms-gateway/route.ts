@@ -8,11 +8,12 @@ import {
 
 interface GatewayPayload {
   event: string;
-  deviceId?: string;
   payload: {
+    messageId?: string;
     message: string;
+    phoneNumber?: string;
+    simNumber?: number;
     receivedAt: string;
-    sender: string;
   };
 }
 

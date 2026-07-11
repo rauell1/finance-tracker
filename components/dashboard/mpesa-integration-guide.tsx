@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Copy, Check, Smartphone, Key, FileText, RefreshCw, AlertCircle, EyeOff, Loader2, Lock, Wifi } from "lucide-react";
+import { Copy, Check, Smartphone, Key, FileText, RefreshCw, AlertCircle, EyeOff, Loader2, Lock, Wifi, Globe } from "lucide-react";
 import { toast } from "sonner";
 
 export function MpesaIntegrationGuide() {
@@ -377,17 +377,18 @@ export function MpesaIntegrationGuide() {
     </div>
   ) : (
     <div>
-      {/* Step 1: Download & Install SMS Gateway */}
+      {/* Step 1: Install SMS Gateway for Android */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
         <div className="md:col-span-3 space-y-2">
           <div className="flex items-center gap-2">
             <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">1</span>
-            <h3 className="font-bold text-[#0A0D27] text-sm">Install SMS Gateway App</h3>
+            <h3 className="font-bold text-[#0A0D27] text-sm">Install SMS Gateway for Android</h3>
           </div>
           <p className="text-xs text-[#33375C]/75 leading-relaxed pl-7">
-            Download the latest <strong>android-sms-gateway</strong> APK from{" "}
-            <a href="https://github.com/shellvon/android-sms-gateway/releases/latest" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">GitHub releases</a>.
-            Install it on your Android phone (enable "Install from unknown sources" if prompted).
+            Install <strong>SMS Gateway for Android</strong> from{" "}
+            <a href="https://play.google.com/store/apps/details?id=app.sms.gateway" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">Google Play</a>{" "}
+            or{" "}
+            <a href="https://f-droid.org/packages/app.sms.gateway/" target="_blank" rel="noopener noreferrer" className="text-[#524CF2] underline">F-Droid</a>.
           </p>
         </div>
         <div className="md:col-span-2 flex justify-center">
@@ -397,25 +398,62 @@ export function MpesaIntegrationGuide() {
               <Smartphone className="h-7 w-7 text-[#524CF2] mx-auto" />
               <p className="text-[10px] font-bold text-[#0A0D27] mt-1">SMS Gateway App</p>
               <div className="bg-emerald-500 text-white text-[9px] font-bold py-0.5 px-2 rounded-md inline-block mt-1.5">
-                APK Installed
+                Installed
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Step 2: Configure Webhook */}
+      {/* Step 2: Start Local Server & Copy Credentials */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
         <div className="md:col-span-3 space-y-2">
           <div className="flex items-center gap-2">
             <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">2</span>
-            <h3 className="font-bold text-[#0A0D27] text-sm">Configure Webhook URL</h3>
+            <h3 className="font-bold text-[#0A0D27] text-sm">Start Local Server</h3>
           </div>
-          <p className="text-xs text-[#33375C]/75 leading-relaxed pl-7">
-            Open the SMS Gateway app and paste the webhook URL shown below.
-            It uses the <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">/api/webhooks/sms-gateway</code> endpoint (different from the MacroDroid URL).
-          </p>
-          <div className="pl-7 mt-3 space-y-2">
+          <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
+            <p>Open the app, toggle the <strong>Local Server</strong> switch on, and tap <strong>Offline</strong> at the bottom to activate.</p>
+            <p>Note your device's local IP address, username, and password displayed in the app. You will need these to register the webhook.</p>
+          </div>
+        </div>
+        <div className="md:col-span-2 flex justify-center">
+          <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
+            <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
+            <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
+              <div className="flex items-center gap-1.5 pb-1 border-b border-[#E2E2FF]">
+                <Wifi className="h-3 w-3 text-slate-400" />
+                <span className="text-[8px] font-bold text-[#0A0D27]">Local Server</span>
+              </div>
+              <div className="text-[8px] font-semibold text-[#33375C]/65 space-y-1 mt-1.5">
+                <p>✔ Server: Active</p>
+                <p>✔ IP: from app</p>
+                <p>✔ Auth: from app</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Step 3: Register Webhook */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
+        <div className="md:col-span-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">3</span>
+            <h3 className="font-bold text-[#0A0D27] text-sm">Register Webhook via API</h3>
+          </div>
+          <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
+            <p>Run this curl command from your computer (on the same Wi-Fi network) to register the webhook:</p>
+            <pre className="bg-[#0A0D27] text-green-300 p-2.5 rounded-lg font-mono text-[9px] leading-normal overflow-x-auto">
+{`curl -X POST -u <username>:<password> \\
+  -H "Content-Type: application/json" \\
+  -d '{"id":"fintrack","url":"${activeUrl ?? "YOUR_WEBHOOK_URL"}","event":"sms:received"}' \\
+  http://<device_local_ip>:8080/webhooks`}
+            </pre>
+            <p>Replace <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;username&gt;</code>, <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;password&gt;</code>, and <code className="bg-[#F0F0FF] px-1 rounded text-[#524CF2] font-semibold">&lt;device_local_ip&gt;</code> with the values from Step 2.</p>
+            <p>The app will now forward every received SMS to FinTrack. No sender filtering needed - the parsing pipeline ignores non-financial messages.</p>
+          </div>
+          <div className="pl-7 mt-3">
             {!revealed ? (
               <button
                 onClick={handleReveal}
@@ -446,12 +484,6 @@ export function MpesaIntegrationGuide() {
                     {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-slate-500" />}
                   </button>
                 </div>
-                <div className="bg-amber-50 border border-amber-200/80 rounded-lg p-2.5 flex items-start gap-2 max-w-md">
-                  <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-amber-800 leading-normal">
-                    <strong>Note:</strong> The webhook URL is the same as MacroDroid - you only need one secret token for both.
-                  </p>
-                </div>
               </div>
             )}
           </div>
@@ -460,48 +492,13 @@ export function MpesaIntegrationGuide() {
           <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
             <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
             <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
-              <div className="flex items-center gap-1 border-b border-[#E2E2FF] pb-1">
-                <Key className="h-3 w-3 text-slate-400" />
-                <span className="text-[8px] font-bold text-[#0A0D27]">Endpoint Config</span>
-              </div>
-              <div className="mt-1.5">
-                <span className="text-[7px] uppercase font-bold text-slate-400 block">URL</span>
-                <div className="bg-[#F0F0FF] text-[#524CF2] text-[7px] font-bold px-1.5 py-0.5 rounded inline-block mt-0.5 truncate max-w-[140px]">
-                  .../api/webhooks/sms-gateway
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Step 3: Select Senders & Start */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start border-t border-[#E2E2FF]/60 pt-5">
-        <div className="md:col-span-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="h-5 w-5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] flex items-center justify-center text-xs font-bold text-[#524CF2]">3</span>
-            <h3 className="font-bold text-[#0A0D27] text-sm">Select Forwarding Senders & Start</h3>
-          </div>
-          <div className="text-xs text-[#33375C]/75 leading-relaxed pl-7 space-y-2">
-            <p>In the SMS Gateway app, select which SMS senders to forward. At minimum, add:</p>
-            <ul className="list-disc pl-4 space-y-1 text-[11px] text-[#33375C]/70">
-              <li><strong>MPESA</strong> - M-Pesa transaction alerts</li>
-              <li><strong>Fuliza</strong> - Fuliza overdraft alerts</li>
-            </ul>
-            <p>Then tap <strong>Start</strong> to begin forwarding. The app runs as a background service.</p>
-          </div>
-        </div>
-        <div className="md:col-span-2 flex justify-center">
-          <div className="w-full max-w-[180px] border border-[#E2E2FF] bg-[#F0F0FF]/10 rounded-xl p-3 shadow-inner relative select-none">
-            <div className="h-3 w-16 bg-slate-200 rounded-full mx-auto mb-3" />
-            <div className="bg-white border border-[#E2E2FF] rounded-lg p-2 text-left">
               <div className="flex items-center gap-1.5 pb-1 border-b border-[#E2E2FF]">
-                <Wifi className="h-3 w-3 text-slate-400" />
-                <span className="text-[8px] font-bold text-[#0A0D27]">Gateway Active</span>
+                <Globe className="h-3 w-3 text-slate-400" />
+                <span className="text-[8px] font-bold text-[#0A0D27]">Webhook Active</span>
               </div>
               <div className="text-[8px] font-semibold text-[#33375C]/65 space-y-1 mt-1.5">
+                <p>✔ Event: sms:received</p>
                 <p>✔ Target: sms-gateway endpoint</p>
-                <p>✔ Senders: MPESA, Fuliza</p>
                 <p>✔ Status: Forwarding</p>
               </div>
             </div>
