@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { formatCurrency } from "@/lib/utils";
 import type { Account } from "@/types/domain";
 import { cn } from "@/lib/utils";
-import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet, RefreshCw, Trash2, Plus, X } from "lucide-react";
+import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet, RefreshCw, Trash2, Plus, X, AlertTriangle } from "lucide-react";
 import { MpesaIntegrationGuide } from "@/components/dashboard/mpesa-integration-guide";
 import { BankIntegrationGuide } from "@/components/dashboard/bank-integration-guide";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -183,6 +183,38 @@ export default function SettingsPage() {
       toast.error("Network error");
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  async function handleDeleteAccountAndData() {
+    if (!confirm("WARNING: Are you absolutely sure you want to delete your account and all associated data? This action is permanent and CANNOT be undone.")) {
+      return;
+    }
+    if (prompt("To confirm deletion, please type DELETE:") !== "DELETE") {
+      toast.error("Deletion cancelled (confirmation text did not match)");
+      return;
+    }
+    setDeletingAccount(true);
+
+    try {
+      const res = await fetch("/api/settings/delete-account", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Account deleted. Logging you out...");
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        window.location.href = "/login";
+      } else {
+        toast.error(data.error ?? "Failed to delete account");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -504,6 +536,38 @@ export default function SettingsPage() {
             >
               <RefreshCw className={cn("h-4 w-4", recategorizing && "animate-spin")} />
               {recategorizing ? "Processing..." : "Recategorize All"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* GDPR Delete Account - Danger Zone */}
+      <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-red-200 bg-red-50/30 flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-red-600" />
+          <div>
+            <h2 className="font-semibold text-red-800 text-sm">Danger Zone</h2>
+            <p className="text-xs text-red-600 mt-0.5">Delete account and delete all associated data</p>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-xs text-[#33375C]/70 leading-relaxed">
+            In compliance with GDPR and data privacy laws, you can permanently delete your account and erase all stored data. 
+            This operation is **irreversible** and will immediately and permanently destroy:
+          </p>
+          <ul className="list-disc pl-5 text-xs text-[#33375C]/70 space-y-1">
+            <li>Your user credentials and authentication profile</li>
+            <li>All linked bank accounts, sub-wallets, and balances</li>
+            <li>All transactions, transaction histories, categories, and tags</li>
+            <li>All parsed logs, webhook settings, and API configurations</li>
+          </ul>
+          <div className="pt-2">
+            <button
+              onClick={handleDeleteAccountAndData}
+              disabled={deletingAccount}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-500 transition-colors shadow-sm disabled:opacity-50"
+            >
+              {deletingAccount ? "Deleting Account..." : "Delete My Account & Data"}
             </button>
           </div>
         </div>
