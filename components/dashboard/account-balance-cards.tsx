@@ -1,7 +1,7 @@
 import type { AccountComparison } from "@/types/domain";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Smartphone, Landmark, PiggyBank, Wallet } from "lucide-react";
+import { Smartphone, Landmark, PiggyBank, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 interface AccountBalanceCardsProps {
   accounts: AccountComparison[];
@@ -49,8 +49,6 @@ export function AccountBalanceCards({ accounts }: AccountBalanceCardsProps) {
 
         const income = Number(account.income);
         const expense = Number(account.expense);
-        const flowTotal = income + expense;
-        const incomePct = flowTotal > 0 ? (income / flowTotal) * 100 : 50;
 
         return (
           <div
@@ -87,16 +85,15 @@ export function AccountBalanceCards({ accounts }: AccountBalanceCardsProps) {
               <span>{amount}</span>
             </p>
 
-            {/* In/out flow bar */}
-            <div className="mt-4 pl-1.5">
-              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-[#F0F0FF]">
-                <div className="bg-emerald-400 rounded-l-full" style={{ width: `${incomePct}%` }} />
-                <div className="bg-rose-400 rounded-r-full" style={{ width: `${100 - incomePct}%` }} />
-              </div>
-              <div className="mt-2 flex justify-between text-[10px] font-semibold">
-                <span className="text-emerald-600">In · {formatCurrency(income)}</span>
-                <span className="text-rose-600">Out · {formatCurrency(expense)}</span>
-              </div>
+            {/* Net change */}
+            <div className="mt-3 pl-1.5">
+              <span className={cn(
+                "inline-flex items-center gap-0.5 text-[10px] font-bold",
+                income > expense ? "text-emerald-600" : "text-rose-600"
+              )}>
+                {income > expense ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                Net {formatCurrency(income - expense)}
+              </span>
             </div>
           </div>
         );

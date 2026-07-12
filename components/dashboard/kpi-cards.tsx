@@ -9,12 +9,11 @@ interface KPICardsProps {
 }
 
 export function KPICards({ data, period = "month" }: KPICardsProps) {
-  const periodWord = period === "quarter" ? "Quarterly" : period === "year" ? "Yearly" : period === "all" ? "Total" : "Monthly";
   const vsLabel = period === "quarter" ? "vs last quarter" : period === "year" ? "vs last year" : "vs last month";
 
   const cards = [
     {
-      title: `${periodWord} Income`,
+      title: "Money In",
       value: formatCurrency(data.monthlyIncome),
       icon: TrendingUp,
       change: data.incomeChange as number | null,
@@ -22,7 +21,7 @@ export function KPICards({ data, period = "month" }: KPICardsProps) {
       invertChange: false,
     },
     {
-      title: `${periodWord} Expenses`,
+      title: "Money Out",
       value: formatCurrency(data.monthlyExpense),
       icon: TrendingDown,
       change: data.expenseChange as number | null,
@@ -30,7 +29,7 @@ export function KPICards({ data, period = "month" }: KPICardsProps) {
       invertChange: true,
     },
     {
-      title: "Net Cashflow",
+      title: "What's Left",
       value: formatCurrency(data.netCashflow),
       icon: ArrowUpDown,
       change: null as number | null,

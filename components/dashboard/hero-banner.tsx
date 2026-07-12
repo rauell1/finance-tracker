@@ -3,13 +3,11 @@ import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Debt } from "@/types/domain";
 import { PeriodSelector } from "./period-selector";
-import { ShieldCheck, ShieldAlert, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
 
 interface HeroBannerProps {
   totalBalance: number;
-  netCashflow: number;
   debts: Debt[];
-  period: "month" | "quarter" | "year" | "all";
 }
 
 function greeting(): string {
@@ -21,14 +19,13 @@ function greeting(): string {
   return "Good evening";
 }
 
-export function HeroBanner({ totalBalance, netCashflow, debts, period }: HeroBannerProps) {
+export function HeroBanner({ totalBalance, debts }: HeroBannerProps) {
   const fuliza = debts.find((d) => d.source_identifier === "fuliza");
   const fulizaOwed = fuliza ? Number(fuliza.current_balance) : 0;
   const balanceStr = formatCurrency(totalBalance);
   const parts = balanceStr.split(" ");
   const currency = parts.length > 1 ? parts[0] : "";
   const amount = parts.length > 1 ? parts[1] : balanceStr;
-  const periodLabel = period === "quarter" ? "this quarter" : period === "year" ? "this year" : period === "all" ? "all time" : "this month";
 
   return (
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#524CF2] via-[#4A44E0] to-[#332DA8] text-white shadow-lg shadow-[#524CF2]/20">
@@ -51,7 +48,6 @@ export function HeroBanner({ totalBalance, netCashflow, debts, period }: HeroBan
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {/* Fuliza status pill */}
               <span className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border backdrop-blur-sm",
                 fulizaOwed > 0
@@ -62,17 +58,6 @@ export function HeroBanner({ totalBalance, netCashflow, debts, period }: HeroBan
                 {fulizaOwed > 0
                   ? `Fuliza: ${formatCurrency(fulizaOwed)} owed`
                   : "Fuliza clear · KES 1,500 available"}
-              </span>
-
-              {/* Net cashflow pill */}
-              <span className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border backdrop-blur-sm",
-                netCashflow >= 0
-                  ? "bg-emerald-500/25 border-emerald-300/30 text-emerald-100"
-                  : "bg-rose-500/25 border-rose-300/30 text-rose-100"
-              )}>
-                {netCashflow >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                {netCashflow >= 0 ? "+" : "−"}{formatCurrency(Math.abs(netCashflow))} {periodLabel}
               </span>
             </div>
           </div>

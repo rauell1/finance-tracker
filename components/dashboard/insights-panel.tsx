@@ -79,11 +79,9 @@ export function InsightsPanel({ insights }: InsightsPanelProps) {
     <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
       <div className="px-6 py-5 border-b border-[#E2E2FF] flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Smart Insights</h2>
+          <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Insights</h2>
           <p className="text-xs text-[#33375C]/60 mt-0.5 font-medium">
-            {sorted.length === 0
-              ? "Personalized wealth-optimization tips"
-              : `${sorted.length} insight${sorted.length === 1 ? "" : "s"}${criticalCount ? ` · ${criticalCount} critical` : ""}${warningCount ? ` · ${warningCount} warning${warningCount === 1 ? "" : "s"}` : ""}`}
+            {sorted.length === 0 ? "Personalized tips for your money" : `${sorted.length} tip${sorted.length === 1 ? "" : "s"}`}
           </p>
         </div>
         <Sparkles className="h-4.5 w-4.5 text-[#524CF2]" />

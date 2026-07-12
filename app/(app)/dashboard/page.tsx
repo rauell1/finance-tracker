@@ -41,12 +41,10 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6 sm:space-y-7">
-      {/* Hero: greeting + net worth + Fuliza status + period selector */}
+      {/* Hero: greeting + net worth + Fuliza status */}
       <HeroBanner
         totalBalance={kpi.totalBalance}
-        netCashflow={kpi.netCashflow}
         debts={debts}
-        period={period}
       />
 
       {/* KPI cards */}

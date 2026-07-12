@@ -47,8 +47,8 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
     <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
       <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
         <div>
-          <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Cash Flow Analytics</h2>
-          <p className="text-xs text-[#33375C]/60 mt-1 font-medium">Monthly comparison of inflows vs outflows</p>
+          <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Income vs Expenses</h2>
+          <p className="text-xs text-[#33375C]/60 mt-1 font-medium">How your money flows month by month</p>
         </div>
         <div className="flex rounded-xl border border-[#E2E2FF] overflow-hidden bg-[#F0F0FF]/40 p-[2px]">
           {PERIOD_OPTIONS.map((opt) => (

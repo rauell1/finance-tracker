@@ -1476,7 +1476,7 @@ export function extractSmsText(rawBody: string, contentType: string): string {
 export async function setBalance(supabase: AdminClient, accountId: string, stated: number) {
   const { data: acc, error: accErr } = await supabase
     .from("accounts")
-    .select("user_id, opening_balance, currency_code")
+    .select("user_id, opening_balance, currency_code, account_code")
     .eq("id", accountId)
     .single();
 
@@ -1524,6 +1524,14 @@ export async function setBalance(supabase: AdminClient, accountId: string, state
   const diff = stated - computedBalance;
 
   if (Math.abs(diff) < 0.01) {
+    return;
+  }
+
+  // If this is the main M-PESA account and the stated balance is 0
+  // and the computed balance is negative, do NOT create a reconciliation adjustment.
+  // The negative balance represents an active Fuliza overdraft.
+  if (acc.account_code === "main" && stated === 0 && computedBalance < 0) {
+    console.log(`[setBalance] Skipping reconciliation for main M-PESA account because stated balance is 0 and computed balance is negative (${computedBalance})`);
     return;
   }
 
@@ -2247,6 +2255,54 @@ export async function processSingleSms(
         }
       }
     }
+  }
+
+  if (p.description === "Fuliza repayment") {
+    try {
+      const remaining = p.fulizaOutstanding ?? 0;
+      await upsertAutoDebt(supabase, userId, "fuliza", "Safaricom Fuliza", remaining);
+      
+      const mshwariM = p.raw.match(P.mshwariLoanOutstanding);
+      if (mshwariM) {
+        await upsertAutoDebt(supabase, userId, "mshwari_loan", "M-Shwari Loan", num(mshwariM[1]));
+      }
+      const kcbM = p.raw.match(P.kcbOverdraftOutstanding);
+      if (kcbM) {
+        await upsertAutoDebt(supabase, userId, "kcb_overdraft", "KCB M-PESA Overdraft", num(kcbM[1]));
+      }
+    } catch (err) {
+      console.warn("[auto-debt detection on repayment] failed:", err);
+    }
+
+    if (p.mpesaBal !== null) {
+      try {
+        const { data: inferred } = await supabase
+          .from("transactions")
+          .select("id, amount")
+          .eq("user_id", userId)
+          .eq("occurred_on", occurredOn)
+          .eq("description", "Fuliza auto-repayment (inferred)")
+          .maybeSingle();
+        if (inferred && Math.abs(Number(inferred.amount) - p.amount) < 5.0) {
+          await supabase.from("transactions").delete().eq("id", inferred.id);
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    if (p.mpesaBal !== null) {
+      try {
+        await setBalance(supabase, mpesa.id, p.mpesaBal);
+      } catch {}
+    }
+
+    return {
+      status: "repayment_processed",
+      kind: p.kind,
+      amount: p.amount,
+      type: p.txnType,
+      counterparty: p.counterparty,
+      balance_after: p.mpesaBal,
+    };
   }
 
   let prevMpesaBalanceForInference: number | null = null;
