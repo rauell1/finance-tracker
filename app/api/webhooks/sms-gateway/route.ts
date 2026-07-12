@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { AdminClient } from "@/lib/sms/parse";
 import {
   processSingleSms, processSingleBankSms,
-  logWebhook, containsOtp, isPlaceholder, captureDebug,
+  logWebhook, containsOtp, isPlaceholder, captureDebug, sanitizeJsonNewlines,
 } from "@/lib/sms/parse";
 
 interface GatewayPayload {
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
   let gatewayPayload: GatewayPayload | null = null;
   try {
-    gatewayPayload = JSON.parse(rawBody) as GatewayPayload;
+    gatewayPayload = JSON.parse(sanitizeJsonNewlines(rawBody)) as GatewayPayload;
   } catch { /* */ }
 
   if (!gatewayPayload || gatewayPayload.event !== "sms:received" || !gatewayPayload.payload?.message) {
