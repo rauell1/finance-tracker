@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { formatCurrency } from "@/lib/utils";
 import type { Account } from "@/types/domain";
 import { cn } from "@/lib/utils";
-import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet, RefreshCw, Trash2, Plus, X, AlertTriangle } from "lucide-react";
+import { Save, Settings as SettingsIcon, Landmark, Smartphone, PiggyBank, Wallet, RefreshCw, Trash2, Plus, X, AlertTriangle, Activity, CheckCircle2 } from "lucide-react";
 import { MpesaIntegrationGuide } from "@/components/dashboard/mpesa-integration-guide";
 import { BankIntegrationGuide } from "@/components/dashboard/bank-integration-guide";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -215,6 +215,130 @@ export default function SettingsPage() {
       toast.error("Network error");
     } finally {
       setDeletingAccount(false);
+    }
+  }
+
+  const [statusData, setStatusData] = useState<any>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [testingMacrodroid, setTestingMacrodroid] = useState(false);
+  const [testingGateway, setTestingGateway] = useState(false);
+  const [testSuccessMacrodroid, setTestSuccessMacrodroid] = useState(false);
+  const [testSuccessGateway, setTestSuccessGateway] = useState(false);
+
+  async function fetchStatus() {
+    try {
+      const res = await fetch("/api/settings/webhook-status");
+      if (res.ok) {
+        const data = await res.json();
+        setStatusData(data);
+      }
+    } catch { /* */ } finally {
+      setLoadingStatus(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchStatus();
+  }, []);
+
+  async function handleTestConnection(type: "macrodroid" | "gateway") {
+    if (type === "macrodroid") {
+      setTestingMacrodroid(true);
+      setTestSuccessMacrodroid(false);
+    } else {
+      setTestingGateway(true);
+      setTestSuccessGateway(false);
+    }
+
+    try {
+      const res = await fetch("/api/settings/webhook-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type })
+      });
+      const testResult = await res.json();
+
+      if (!res.ok) {
+        throw new Error(testResult.error ?? "Failed to trigger test");
+      }
+
+      const expectedMessage = testResult.test_message;
+      let attempts = 0;
+      const maxAttempts = 5;
+
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch("/api/settings/webhook-status");
+          if (statusRes.ok) {
+            const currentData = await statusRes.json();
+            setStatusData(currentData);
+
+            const lastLog = currentData[type]?.last_log;
+            if (lastLog && (
+              lastLog.sms_text?.includes(expectedMessage) ||
+              lastLog.raw_body?.includes(expectedMessage)
+            )) {
+              clearInterval(interval);
+              if (type === "macrodroid") {
+                setTestingMacrodroid(false);
+                setTestSuccessMacrodroid(true);
+              } else {
+                setTestingGateway(false);
+                setTestSuccessGateway(true);
+              }
+              toast.success(`Successfully connected! Received test payload for ${type === "macrodroid" ? "MacroDroid" : "SMS Gateway"}.`);
+              return;
+            }
+          }
+        } catch { /* ignore error in polling */ }
+
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          if (type === "macrodroid") setTestingMacrodroid(false);
+          else setTestingGateway(false);
+          toast.error(`Timeout waiting for test payload. Make sure your webhook URL is configured correctly on your device.`);
+        }
+      }, 2000);
+
+    } catch (err: any) {
+      toast.error(err.message ?? "Error triggering test");
+      if (type === "macrodroid") setTestingMacrodroid(false);
+      else setTestingGateway(false);
+    }
+  }
+
+  function renderStatusBadge(status: string) {
+    switch (status) {
+      case "active":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/30 animate-pulse">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 shrink-0" />
+            Online
+          </span>
+        );
+      case "idle":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-full dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-600 dark:bg-amber-400 shrink-0" />
+            Idle
+          </span>
+        );
+      case "error":
+      case "misconfigured":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 border border-red-200 rounded-full dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-600 dark:bg-red-400 shrink-0" />
+            Error / Inactive
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#33375C]/60 bg-[#F0F0FF] border border-[#E2E2FF] rounded-full dark:bg-[#F0F0FF]/10 dark:text-[#33375C]/40">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#33375C]/40 shrink-0" />
+            Not Configured
+          </span>
+        );
     }
   }
 
@@ -493,6 +617,129 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Connection Status & Troubleshooter */}
+      <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20 flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-[#0A0D27] text-sm">Connection Status &amp; Troubleshooter</h2>
+            <p className="text-xs text-[#33375C]/60 mt-0.5 font-medium">Verify if your device SMS webhooks are working properly</p>
+          </div>
+          <Activity className="h-5 w-5 text-[#524CF2]" />
+        </div>
+        <div className="p-5">
+          {loadingStatus ? (
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* MacroDroid Status */}
+              <div className="border border-[#E2E2FF] rounded-xl p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-5 w-5 text-[#524CF2]" />
+                    <span className="font-bold text-xs text-[#0A0D27]">MacroDroid Ingestion</span>
+                  </div>
+                  {renderStatusBadge(statusData?.macrodroid?.status)}
+                </div>
+                
+                <div className="text-xs text-[#33375C]/80 space-y-2 bg-[#F0F0FF]/10 p-3 rounded-lg border border-[#E2E2FF]/40">
+                  <p className="font-medium text-[10px] text-[#33375C]/50 uppercase tracking-wider">Last Activity</p>
+                  {statusData?.macrodroid?.last_log ? (
+                    <div className="space-y-1">
+                      <p className="font-semibold text-[#0A0D27] truncate">
+                        {statusData.macrodroid.last_log.reason === "not_mpesa" 
+                          ? "Received SMS (Non-Mpesa)" 
+                          : statusData.macrodroid.last_log.reason}
+                      </p>
+                      <p className="text-[10px] text-[#33375C]/50">
+                        {new Date(statusData.macrodroid.last_log.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[#33375C]/50 italic">No incoming webhooks recorded yet.</p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleTestConnection("macrodroid")}
+                    disabled={testingMacrodroid}
+                    className="flex-1 h-9 rounded-lg bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-[#524CF2]/10 disabled:opacity-50"
+                  >
+                    {testingMacrodroid ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        Testing Connection…
+                      </>
+                    ) : testSuccessMacrodroid ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                        Connected Successfully!
+                      </>
+                    ) : (
+                      "Send Test Payload"
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* SMS Gateway Status */}
+              <div className="border border-[#E2E2FF] rounded-xl p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-5 w-5 text-[#524CF2]" />
+                    <span className="font-bold text-xs text-[#0A0D27]">SMS Gateway Ingestion</span>
+                  </div>
+                  {renderStatusBadge(statusData?.gateway?.status)}
+                </div>
+
+                <div className="text-xs text-[#33375C]/80 space-y-2 bg-[#F0F0FF]/10 p-3 rounded-lg border border-[#E2E2FF]/40">
+                  <p className="font-medium text-[10px] text-[#33375C]/50 uppercase tracking-wider">Last Activity</p>
+                  {statusData?.gateway?.last_log ? (
+                    <div className="space-y-1">
+                      <p className="font-semibold text-[#0A0D27] truncate">
+                        {statusData.gateway.last_log.reason === "not_mpesa" 
+                          ? "Received SMS (Non-Mpesa)" 
+                          : statusData.gateway.last_log.reason}
+                      </p>
+                      <p className="text-[10px] text-[#33375C]/50">
+                        {new Date(statusData.gateway.last_log.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[#33375C]/50 italic">No incoming webhooks recorded yet.</p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleTestConnection("gateway")}
+                    disabled={testingGateway}
+                    className="flex-1 h-9 rounded-lg bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-[#524CF2]/10 disabled:opacity-50"
+                  >
+                    {testingGateway ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        Testing Connection…
+                      </>
+                    ) : testSuccessGateway ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                        Connected Successfully!
+                      </>
+                    ) : (
+                      "Send Test Payload"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
