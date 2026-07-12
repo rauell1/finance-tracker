@@ -1169,7 +1169,10 @@ export async function processSingleBankSms(
   }
 
   const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : parsedDate!;
-  const accountCode = isLlmParsed ? (parsedResult as any).bankCode : (bank === "DTB" ? "bank_a" : bank === "IANDMBANK" ? "bank_b" : "bank_c");
+  let accountCode = isLlmParsed ? (parsedResult as any).bankCode : (bank === "DTB" ? "bank_a" : bank === "IANDMBANK" ? "bank_b" : "bank_c");
+  if (accountCode === "unknown_bank") {
+    accountCode = "bank_c";
+  }
 
   const { data: accts } = await supabase.from("accounts").select("id, user_id, account_code, name").eq("user_id", targetUserId);
   let bankAccount = (accts ?? []).find((a: any) => a.account_code === accountCode);
@@ -1449,26 +1452,68 @@ export function parse(rawText: string): Parsed | null {
   return null;
 }
 
+export function sanitizeJsonNewlines(raw: string): string {
+  let inStr = false, esc = false, out = "";
+  for (const ch of raw) {
+    if (esc) { esc = false; out += ch; continue; }
+    if (ch === "\\" && inStr) { esc = true; out += ch; continue; }
+    if (ch === '"') { inStr = !inStr; out += ch; continue; }
+    if (inStr && ch === "\n") { out += "\\n"; continue; }
+    if (inStr && ch === "\r") { out += "\\r"; continue; }
+    out += ch;
+  }
+  return out;
+}
+
 export function extractSmsText(rawBody: string, contentType: string): string {
   const aliases = ["body", "message", "sms", "text", "msg", "content", "sms_body"];
-  const fromJson = (j: Record<string, unknown>) => {
-    for (const k of aliases) if (typeof j[k] === "string" && (j[k] as string).length > 0) return j[k] as string;
+  const fromJson = (j: Record<string, unknown>): string => {
+    for (const k of aliases) {
+      if (typeof j[k] === "string" && (j[k] as string).length > 0) {
+        const val = j[k] as string;
+        if (val.trimStart().startsWith("{")) {
+          try {
+            const nested = JSON.parse(sanitizeJsonNewlines(val));
+            return fromJson(nested);
+          } catch {}
+        }
+        return val;
+      }
+    }
     const f = Object.values(j).find((v) => typeof v === "string" && (v as string).length > 10);
+    if (f && (f as string).trimStart().startsWith("{")) {
+      try {
+        const nested = JSON.parse(sanitizeJsonNewlines(f as string));
+        return fromJson(nested);
+      } catch {}
+    }
     return (f as string) ?? "";
   };
+
   if (contentType.includes("application/json")) {
-    try { return fromJson(JSON.parse(rawBody)); } catch { return ""; }
+    try { return fromJson(JSON.parse(sanitizeJsonNewlines(rawBody))); } catch { return ""; }
   }
   if (contentType.includes("urlencoded") || contentType.includes("multipart/form-data")) {
     try {
       const params = new URLSearchParams(rawBody);
-      for (const k of aliases) { const v = params.get(k); if (v) return v; }
+      for (const k of aliases) {
+        const v = params.get(k);
+        if (v) {
+          if (v.trimStart().startsWith("{")) {
+            try {
+              const nested = JSON.parse(sanitizeJsonNewlines(v));
+              return fromJson(nested);
+            } catch {}
+          }
+          return v;
+        }
+      }
       for (const [, v] of params.entries()) if (typeof v === "string" && looksLikeMpesa(v)) return v;
     } catch { /* */ }
     return "";
   }
   if (rawBody.trimStart().startsWith("{")) {
-    try { const ex = fromJson(JSON.parse(rawBody)); if (ex) return ex; } catch { /* */ }
+    try { const ex = fromJson(JSON.parse(sanitizeJsonNewlines(rawBody))); if (ex) return ex; } catch { /* */ }
   }
   return rawBody;
 }
@@ -2240,20 +2285,7 @@ export async function processSingleSms(
       const meta = feeTxn.metadata as Record<string, any>;
       if (meta.fuliza_amount) fulizaAmount = meta.fuliza_amount;
       if (meta.fuliza_fee) fulizaFee = meta.fuliza_fee;
-      // Also try to get from the debt table
-      if (!fulizaAmount) {
-        const { data: debt } = await supabase
-          .from("debts")
-          .select("metadata")
-          .eq("user_id", userId)
-          .eq("source_identifier", "fuliza")
-          .maybeSingle();
-        if (debt) {
-          const dmeta = debt.metadata as Record<string, any>;
-          if (dmeta.fuliza_amount) fulizaAmount = dmeta.fuliza_amount;
-          if (dmeta.fuliza_fee) fulizaFee = dmeta.fuliza_fee;
-        }
-      }
+
     }
   }
 
