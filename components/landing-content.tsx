@@ -20,6 +20,7 @@ export function LandingContent() {
             <span className="font-extrabold text-xl tracking-tight text-[#0A0D27]">FinTrack</span>
           </div>
           <div className="flex items-center gap-6">
+            <Link href="/sandbox" className="text-sm font-bold text-[#524CF2] hover:text-[#625DF1] transition-colors">Sandbox Demo</Link>
             <Link href="/login" className="text-sm font-semibold text-[#0A0D27B3] hover:text-[#524CF2] transition-colors">Sign In</Link>
             <Link href="/register" className="text-sm font-bold bg-[#524CF2] hover:bg-[#625DF1] text-white px-5 py-3 rounded-xl shadow-lg shadow-[#524CF2]/15 transition-all">Get Started Free</Link>
           </div>
@@ -48,12 +49,12 @@ export function LandingContent() {
           >
             Start tracking for free
           </Link>
-          <a
-            href="#features"
-            className="w-full sm:w-auto px-8 py-4 rounded-xl font-bold bg-white border border-[#E2E2FF] hover:bg-[#F0F0FF] hover:text-[#524CF2] transition-all text-[#33375C] text-sm flex items-center justify-center gap-2"
+          <Link
+            href="/sandbox"
+            className="w-full sm:w-auto px-8 py-4 rounded-xl font-bold bg-white border border-[#524CF2] hover:bg-[#F0F0FF] text-[#524CF2] transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#524CF2]/5"
           >
-            See how it works
-          </a>
+            Try Sandbox Demo
+          </Link>
         </div>
 
         {/* Dashboard mockup */}

@@ -34,7 +34,6 @@ const navSections = [
     label: "System",
     items: [
       { href: "/webhook-logs", label: "Webhook Logs", icon: Webhook },
-      { href: "/sandbox", label: "Sandbox Demo", icon: Play },
       { href: "/settings", label: "Settings", icon: Settings },
       { href: "/admin", label: "Admin", icon: ShieldCheck },
     ],
