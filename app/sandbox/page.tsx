@@ -33,6 +33,7 @@ import { RecurringClient } from "@/components/forms/recurring-client";
 import BudgetsPage from "@/app/(app)/budgets/page";
 import GoalsPage from "@/app/(app)/goals/page";
 import ReportsPage from "@/app/(app)/reports/page";
+import { AIChatWidget } from "@/components/layout/ai-chat-widget";
 
 // --- MOCK DATABASE INITIAL VALUES ---
 const INITIAL_CATEGORIES = [
@@ -2478,6 +2479,7 @@ export default function PublicSandboxPage() {
           </main>
         </div>
         <BottomNav onMoreClick={() => setMobileNavOpen(true)} />
+        <AIChatWidget />
       </div>
     );
   }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LineChart, ShieldCheck, Smartphone, TrendingUp } from "lucide-react";
+import { AIChatWidget } from "@/components/layout/ai-chat-widget";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -68,6 +69,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="w-full max-w-md">{children}</div>
         </div>
       </div>
+      <AIChatWidget />
     </div>
   );
 }
