@@ -404,20 +404,15 @@ export default function PublicSandboxPage() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          setLiveUser(user);
-          // Fetch token/URL
-          const res = await fetch("/api/settings/webhook-url");
-          if (res.ok) {
-            const data = await res.json();
-            setWebhookUrl(data.webhookUrl);
-          }
+          router.push("/dashboard");
+          return;
         }
       } catch (e) {
         console.error("Auth check error in sandbox:", e);
       }
     }
     checkAuth();
-  }, []);
+  }, [router]);
 
   // Fetch live Supabase data
   async function fetchLive() {
