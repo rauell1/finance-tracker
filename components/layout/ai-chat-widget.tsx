@@ -9,7 +9,15 @@ interface Message {
   content: string;
 }
 
-export function AIChatWidget() {
+interface AIChatWidgetProps {
+  sandboxContext?: {
+    accounts: any[];
+    budgets: any[];
+    transactions: any[];
+  };
+}
+
+export function AIChatWidget({ sandboxContext }: AIChatWidgetProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
@@ -46,7 +54,7 @@ export function AIChatWidget() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages, sandboxContext }),
       });
 
       if (!response.ok) throw new Error("Failed to send message");

@@ -2479,7 +2479,13 @@ export default function PublicSandboxPage() {
           </main>
         </div>
         <BottomNav onMoreClick={() => setMobileNavOpen(true)} />
-        <AIChatWidget />
+        <AIChatWidget 
+          sandboxContext={{
+            accounts: (isLiveMode ? liveAccounts : accounts).map(a => ({ name: a.name, account_code: a.account_code, balance: a.balance ?? a.current_balance ?? a.opening_balance })),
+            budgets: (isLiveMode ? liveBudgets : budgets).map(b => ({ category_name: b.category_name ?? b.category?.name, limit: b.limit ?? b.amount, spent: b.spent ?? 0, remaining: (b.limit ?? b.amount) - (b.spent ?? 0) })),
+            transactions: (isLiveMode ? liveTransactions : transactions).map(t => ({ occurred_on: t.occurred_on, txn_type: t.txn_type, amount: t.amount, description: t.description, category_name: t.category?.name ?? t.category_name }))
+          }}
+        />
       </div>
     );
   }
