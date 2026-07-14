@@ -4,6 +4,18 @@ import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Download, Printer, TrendingDown, TrendingUp, Wallet, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  PieChart,
+  Pie,
+  Cell
+} from "recharts";
 
 interface ReportData {
   month: string;
@@ -52,6 +64,40 @@ export function MonthlyReport({ month }: { month: string }) {
   if (!report) return <p className="text-sm text-[#33375C]/60">No data available</p>;
 
   const monthLabel = new Date(month + "-01T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  const dailySpend = (() => {
+    if (!report?.transactions) return [];
+    const days: Record<string, number> = {};
+    const [year, monthStr] = month.split("-").map(Number);
+    const numDays = new Date(year, monthStr, 0).getDate();
+    
+    for (let i = 1; i <= numDays; i++) {
+      const dateKey = `${year}-${String(monthStr).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
+      days[dateKey] = 0;
+    }
+    
+    report.transactions.forEach((t) => {
+      if (t.type === "expense") {
+        const dateStr = t.date.split("T")[0];
+        if (days[dateStr] !== undefined) {
+          days[dateStr] += t.amount;
+        }
+      }
+    });
+
+    return Object.entries(days).map(([date, amount]) => ({
+      date,
+      day: String(new Date(date).getDate()),
+      amount,
+    })).sort((a, b) => a.date.localeCompare(b.date));
+  })();
+
+  const breakdownData = (report?.expense?.byCategory ?? []).map((c) => ({
+    name: c.name,
+    amount: c.amount,
+    percentage: report.expense.total > 0 ? (c.amount / report.expense.total) * 100 : 0,
+    color: c.color,
+  }));
 
   return (
     <div className="space-y-5 print:space-y-4">
@@ -104,6 +150,96 @@ export function MonthlyReport({ month }: { month: string }) {
           </div>
           <p className={cn("text-xl font-bold", report.net >= 0 ? "text-emerald-600" : "text-rose-600")}>{report.net >= 0 ? "+" : "-"}{formatCurrency(Math.abs(report.net))}</p>
           <p className="text-xs text-[#33375C]/50 mt-1">{report.transactionCount} total</p>
+        </div>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 print:grid-cols-2 print:gap-4">
+        {/* Daily Spending Trend Chart */}
+        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 flex flex-col h-[280px]">
+          <h4 className="font-semibold text-[#0A0D27] text-xs uppercase tracking-wider text-[#33375C]/60 mb-4">Daily Spending Trend</h4>
+          <div className="flex-1 w-full min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={dailySpend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="printSpendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#524CF2" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#524CF2" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F0F0FF" vertical={false} />
+                <XAxis dataKey="day" stroke="#94A3B8" fontSize={9} tickLine={false} />
+                <YAxis stroke="#94A3B8" fontSize={9} tickLine={false} />
+                <RechartsTooltip 
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    return (
+                      <div className="bg-white border border-[#E2E2FF] rounded-lg shadow-md p-2 text-[10px] text-[#0A0D27]">
+                        <p className="font-bold">Day {payload[0].payload.day}</p>
+                        <p className="text-rose-600 font-semibold">{formatCurrency(payload[0].value as number)}</p>
+                      </div>
+                    );
+                  }}
+                />
+                <Area type="monotone" dataKey="amount" stroke="#524CF2" strokeWidth={2} fillOpacity={1} fill="url(#printSpendGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Category Breakdown Donut Chart */}
+        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 flex flex-col h-[280px]">
+          <h4 className="font-semibold text-[#0A0D27] text-xs uppercase tracking-wider text-[#33375C]/60 mb-4">Category Distribution</h4>
+          {breakdownData.length > 0 ? (
+            <div className="flex-1 flex items-center justify-between min-h-0">
+              <div className="w-[50%] h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={breakdownData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={65}
+                      paddingAngle={2}
+                      dataKey="amount"
+                    >
+                      {breakdownData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip 
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white border border-[#E2E2FF] rounded-lg shadow-md p-2 text-[10px] text-[#0A0D27]">
+                            <p className="font-bold">{data.name}</p>
+                            <p className="text-rose-600 font-semibold">{formatCurrency(data.amount)} ({data.percentage.toFixed(1)}%)</p>
+                          </div>
+                        );
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="w-[45%] overflow-y-auto max-h-full pr-1 space-y-1.5 text-[10px] select-none">
+                {breakdownData.slice(0, 5).map((entry, index) => (
+                  <div key={index} className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="text-[#0A0D27] font-semibold truncate">{entry.name}</span>
+                    </div>
+                    <span className="text-[#33375C]/70 shrink-0 font-bold">{entry.percentage.toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-xs text-[#33375C]/50">No expenses this month</p>
+            </div>
+          )}
         </div>
       </div>
 
