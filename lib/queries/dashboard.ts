@@ -441,13 +441,48 @@ export async function detectBudgetLeaks() {
     if (e) e.months.push({ budget: Number(b.amount), month: b.month_start });
     else byCat.set(b.category_id, { name: cat?.name ?? "Unknown", months: [{ budget: Number(b.amount), month: b.month_start }] });
   }
+
+  const oldestMonth = months[2];
+  const currentMonthEnd = new Date(months[0] + "T00:00:00");
+  currentMonthEnd.setMonth(currentMonthEnd.getMonth() + 1);
+  const endStr = currentMonthEnd.toISOString().split("T")[0];
+
+  const categoryIds = Array.from(byCat.keys());
+  const { data: allTxns, error: txnsErr } = await supabase
+    .from("transactions")
+    .select("category_id, amount, description, occurred_on")
+    .eq("txn_type", "expense")
+    .in("category_id", categoryIds)
+    .gte("occurred_on", oldestMonth)
+    .lt("occurred_on", endStr);
+
+  if (txnsErr) {
+    console.error("Error fetching transactions for budget leaks:", txnsErr);
+    return [];
+  }
+
+  const txnsByCatAndMonth = new Map<string, { amount: number; description: string | null }[]>();
+  for (const t of allTxns ?? []) {
+    if (!t.category_id) continue;
+    const month = t.occurred_on.slice(0, 7) + "-01";
+    const key = `${t.category_id}|${month}`;
+    let list = txnsByCatAndMonth.get(key);
+    if (!list) {
+      list = [];
+      txnsByCatAndMonth.set(key, list);
+    }
+    list.push({ amount: Number(t.amount), description: t.description });
+  }
+
   const results = [];
   for (const [id, info] of byCat) {
     let over = 0, latest = 0;
     for (const m of info.months.sort((a, b) => b.month.localeCompare(a.month))) {
-      const e = new Date(m.month + "T00:00:00"); e.setMonth(e.getMonth() + 1);
-      const { data } = await supabase.from("transactions").select("amount, description").eq("category_id", id).eq("txn_type", "expense").gte("occurred_on", m.month).lt("occurred_on", e.toISOString().split("T")[0]);
-      const spent = (data ?? []).filter(t => t.description !== "Fuliza repayment").reduce((s, t) => s + Number(t.amount), 0);
+      const key = `${id}|${m.month}`;
+      const txns = txnsByCatAndMonth.get(key) ?? [];
+      const spent = txns
+        .filter(t => t.description !== "Fuliza repayment")
+        .reduce((s, t) => s + t.amount, 0);
       if (spent - m.budget > 0) { over++; if (over === 1) latest = spent - m.budget; } else break;
     }
     if (over >= 2) results.push({ category_name: info.name, consecutive_over: over, latest_overspend: latest });

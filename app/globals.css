@@ -129,50 +129,7 @@
   }
 }
 
-/* Dark mode overrides for hardcoded colors */
-.dark .bg-white { background-color: hsl(235 45% 13%) !important; }
-.dark .bg-white\/90 { background-color: hsl(235 45% 13% / 0.9) !important; }
-.dark .bg-white\/80 { background-color: hsl(235 45% 13% / 0.8) !important; }
-.dark .border-\[\#E2E2FF\] { border-color: hsl(235 45% 18%) !important; }
-.dark .border-\[\#E2E2FF\]\/60 { border-color: hsl(235 45% 18% / 0.6) !important; }
-.dark .text-\[\#0A0D27\] { color: hsl(0 0% 92%) !important; }
-.dark .text-\[\#33375C\]\/60 { color: hsl(235 20% 60%) !important; }
-.dark .text-\[\#33375C\]\/70 { color: hsl(235 20% 65%) !important; }
-.dark .text-\[\#33375C\]\/50 { color: hsl(235 20% 55%) !important; }
-.dark .text-\[\#33375C\]\/40 { color: hsl(235 20% 50%) !important; }
-.dark .text-\[\#33375C\]\/65 { color: hsl(235 20% 62%) !important; }
-.dark .text-\[\#33375C\] { color: hsl(235 20% 65%) !important; }
-.dark .bg-\[\#F0F0FF\] { background-color: hsl(235 45% 17%) !important; }
-.dark .bg-\[\#F0F0FF\]\/20 { background-color: hsl(235 45% 17% / 0.2) !important; }
-.dark .bg-\[\#F0F0FF\]\/40 { background-color: hsl(235 45% 17% / 0.4) !important; }
-.dark .bg-\[\#F0F0FF\]\/50 { background-color: hsl(235 45% 17% / 0.5) !important; }
-.dark .bg-\[\#F0F0FF\]\/60 { background-color: hsl(235 45% 17% / 0.6) !important; }
-.dark .from-white { --tw-gradient-from: hsl(235 45% 13%) !important; }
-.dark .via-white { --tw-gradient-via: hsl(235 45% 13%) !important; }
-.dark .to-\[\#F0F0FF\]\/40 { --tw-gradient-to: hsl(235 45% 17% / 0.4) !important; }
-.dark .to-\[\#F0F0FF\]\/30 { --tw-gradient-to: hsl(235 45% 17% / 0.3) !important; }
-.dark .bg-\[\#0A0D27\]\/40 { background-color: hsl(235 60% 5% / 0.6) !important; }
-.dark .hover\:bg-\[\#F0F0FF\]\/50:hover { background-color: hsl(235 45% 17% / 0.5) !important; }
-.dark .hover\:bg-\[\#F0F0FF\]\/15:hover { background-color: hsl(235 45% 17% / 0.35) !important; }
-.dark .hover\:bg-\[\#F0F0FF\]:hover { background-color: hsl(235 45% 17%) !important; }
-.dark input, .dark select, .dark textarea { background-color: hsl(235 45% 15%) !important; color: hsl(0 0% 92%) !important; border-color: hsl(235 45% 22%) !important; }
-.dark .shadow-card { box-shadow: 0 1px 2px 0 hsl(235 60% 3% / 0.4), 0 4px 16px -4px hsl(235 60% 3% / 0.5); }
-.dark .shadow-card-hover { box-shadow: 0 2px 4px 0 hsl(235 60% 3% / 0.5), 0 12px 32px -8px hsl(235 60% 3% / 0.7); }
 
-.dark .text-slate-900 { color: hsl(0 0% 95%) !important; }
-.dark .text-slate-800 { color: hsl(0 0% 92%) !important; }
-.dark .text-slate-700 { color: hsl(0 0% 85%) !important; }
-.dark .text-slate-600 { color: hsl(235 20% 75%) !important; }
-.dark .text-slate-500 { color: hsl(235 20% 68%) !important; }
-.dark .text-slate-400 { color: hsl(235 20% 60%) !important; }
-.dark .text-slate-300 { color: hsl(235 20% 50%) !important; }
-
-.dark .text-gray-900 { color: hsl(0 0% 95%) !important; }
-.dark .text-gray-800 { color: hsl(0 0% 92%) !important; }
-.dark .text-gray-700 { color: hsl(0 0% 85%) !important; }
-.dark .text-gray-600 { color: hsl(235 20% 75%) !important; }
-.dark .text-gray-500 { color: hsl(235 20% 68%) !important; }
-.dark .text-gray-400 { color: hsl(235 20% 60%) !important; }
 
 /* Print styles for reports */
 @media print {

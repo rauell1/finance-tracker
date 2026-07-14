@@ -58,29 +58,29 @@ function relativeDate(iso: string): string {
 
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
-        <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Recent Activity</h2>
-        <Link href="/transactions" className="text-xs text-[#524CF2] font-semibold hover:text-[#625DF1] transition-colors flex items-center gap-0.5 group">
+    <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
+        <h2 className="font-bold text-foreground tracking-tight text-base">Recent Activity</h2>
+        <Link href="/transactions" className="text-xs text-primary font-semibold hover:text-primary/85 transition-colors flex items-center gap-0.5 group">
           View all <span className="transition-transform group-hover:translate-x-0.5">→</span>
         </Link>
       </div>
 
       {transactions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
-          <div className="h-12 w-12 rounded-full bg-[#F0F0FF] flex items-center justify-center mb-3">
-            <Receipt className="h-6 w-6 text-[#524CF2]" />
+          <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center mb-3">
+            <Receipt className="h-6 w-6 text-primary" />
           </div>
-          <p className="text-sm font-semibold text-[#0A0D27]">No activity yet</p>
-          <p className="text-xs mt-1 text-[#33375C]/60 max-w-xs">Transactions you log or sync from M-Pesa will appear here.</p>
+          <p className="text-sm font-bold text-foreground">No activity yet</p>
+          <p className="text-xs mt-1 text-muted-foreground/80 max-w-xs">Transactions you log or sync from M-Pesa will appear here.</p>
         </div>
       ) : (
-        <div className="divide-y divide-[#E2E2FF]">
+        <div className="divide-y divide-border/50">
           {transactions.map((txn) => {
             const config = typeConfig[txn.txn_type];
             const Icon = iconFor(txn.category?.name, txn.txn_type);
             return (
-              <div key={txn.id} className="flex items-center gap-4 px-6 py-4 hover:bg-[#F0F0FF]/15 transition-colors duration-150 group">
+              <div key={txn.id} className="flex items-center gap-4 px-6 py-4 hover:bg-secondary/40 transition-colors duration-150 group">
                 {/* Category icon */}
                 <div
                   className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-white shadow-sm group-hover:scale-105 transition-transform duration-200"
@@ -91,15 +91,15 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
 
                 {/* Description + account */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[#0A0D27] truncate group-hover:text-[#524CF2] transition-colors">
+                  <p className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
                     {txn.description ?? txn.category?.name ?? "Transaction"}
                   </p>
-                  <p className="text-xs text-[#33375C]/50 mt-0.5 flex items-center gap-2 font-medium">
+                  <p className="text-xs text-muted-foreground/60 mt-0.5 flex items-center gap-2 font-medium">
                     <span className="truncate max-w-[140px]">{txn.account?.name ?? "-"}</span>
-                    <span className="text-[#33375C]/30">·</span>
+                    <span className="text-muted-foreground/30">·</span>
                     <span className="shrink-0">{relativeDate(txn.occurred_on)}</span>
                     {txn.metadata?.source === "sms_webhook" && (
-                      <span className="text-[8px] bg-[#F0F0FF] text-[#524CF2] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0 select-none">
+                      <span className="text-[8px] bg-secondary text-primary font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0 select-none">
                         Auto
                       </span>
                     )}

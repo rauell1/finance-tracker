@@ -53,8 +53,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       {/* Account balances */}
       <section>
         <div className="flex items-center gap-2 mb-3.5">
-          <Wallet className="h-4 w-4 text-[#524CF2]" />
-          <h2 className="text-sm font-bold text-[#0A0D27]">Account Balances</h2>
+          <Wallet className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-bold text-foreground">Account Balances</h2>
         </div>
         <AccountBalanceCards accounts={accountComparison} />
       </section>

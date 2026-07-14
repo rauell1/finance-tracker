@@ -12,9 +12,9 @@ function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as CategoryBreakdown;
   return (
-    <div className="bg-white border border-[#E2E2FF] rounded-2xl shadow-xl px-4 py-3 text-xs backdrop-blur-md relative z-20">
-      <p className="font-extrabold text-[#0A0D27]">{d.category_name}</p>
-      <p className="font-bold text-rose-600 mt-1 flex items-center gap-1.5">
+    <div className="bg-card/95 border border-border rounded-xl shadow-xl px-4 py-3 text-xs backdrop-blur-md relative z-20">
+      <p className="font-extrabold text-foreground">{d.category_name}</p>
+      <p className="font-bold text-rose-600 dark:text-rose-450 mt-1 flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
         {formatCurrency(d.amount)} ({d.percentage.toFixed(1)}%)
       </p>
@@ -26,15 +26,15 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
   const total = data.reduce((sum, d) => sum + d.amount, 0);
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
-      <div className="px-6 py-5 border-b border-[#E2E2FF]">
-        <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Where Your Money Goes</h2>
-        <p className="text-xs text-[#33375C]/60 mt-1 font-medium">How your spending is split this month</p>
+    <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+      <div className="px-6 py-5 border-b border-border/50">
+        <h2 className="font-bold text-foreground tracking-tight text-base">Where Your Money Goes</h2>
+        <p className="text-xs text-muted-foreground/60 mt-1 font-medium">How your spending is split this month</p>
       </div>
       {data.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-[#33375C]/50">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/50">
           <span className="text-4xl mb-3">📊</span>
-          <p className="text-sm font-black text-[#0A0D27]">No data compiled</p>
+          <p className="text-sm font-black text-foreground">No data compiled</p>
         </div>
       ) : (
         <div className="p-5">
@@ -52,7 +52,7 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
                   paddingAngle={3}
                 >
                   {data.map((entry) => (
-                    <Cell key={entry.category_id} fill={entry.color} stroke="#ffffff" strokeWidth={2} />
+                    <Cell key={entry.category_id} fill={entry.color} stroke="currentColor" className="text-card" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
@@ -60,18 +60,18 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
             </ResponsiveContainer>
             {/* Center label */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-5px]">
-              <p className="text-[10px] uppercase font-black text-[#33375C]/40 tracking-wider">Spent</p>
-              <p className="text-base font-black text-[#0A0D27] mt-0.5">{formatCurrency(total)}</p>
+              <p className="text-[10px] uppercase font-black text-muted-foreground/45 tracking-wider">Spent</p>
+              <p className="text-base font-black text-foreground mt-0.5">{formatCurrency(total)}</p>
             </div>
           </div>
           {/* Legend */}
-          <div className="mt-4 pt-4 border-t border-[#E2E2FF] space-y-2 max-h-[140px] overflow-y-auto pr-1">
+          <div className="mt-4 pt-4 border-t border-border/50 space-y-2 max-h-[140px] overflow-y-auto pr-1">
             {data.map((entry) => (
-              <div key={entry.category_id} className="flex items-center gap-2 hover:bg-[#F0F0FF]/30 p-1.5 rounded-xl transition-all duration-200 group">
+              <div key={entry.category_id} className="flex items-center gap-2 hover:bg-secondary/40 p-1.5 rounded-xl transition-all duration-200 group">
                 <div className="h-2 w-2 rounded-full shrink-0 shadow-sm border border-black/5" style={{ backgroundColor: entry.color }} />
-                <span className="text-xs font-bold text-[#33375C]/80 flex-1 truncate group-hover:text-[#524CF2] transition-colors">{entry.category_name}</span>
-                <span className="text-xs font-black text-[#0A0D27]">{formatCurrency(entry.amount)}</span>
-                <span className="text-[9px] font-black text-[#33375C]/60 w-8 text-right bg-[#F0F0FF] border border-[#E2E2FF] px-1 py-0.2 rounded-md">{entry.percentage.toFixed(0)}%</span>
+                <span className="text-xs font-bold text-muted-foreground/80 flex-1 truncate group-hover:text-primary transition-colors">{entry.category_name}</span>
+                <span className="text-xs font-black text-foreground">{formatCurrency(entry.amount)}</span>
+                <span className="text-[9px] font-black text-muted-foreground/60 w-8 text-right bg-secondary border border-border/50 px-1 py-0.2 rounded-md">{entry.percentage.toFixed(0)}%</span>
               </div>
             ))}
           </div>

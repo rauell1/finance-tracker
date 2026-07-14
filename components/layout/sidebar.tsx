@@ -60,14 +60,14 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center justify-between gap-3 px-5 py-5">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#625DF1] to-[#4038C7] flex items-center justify-center shrink-0 shadow-lg shadow-[#524CF2]/25">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#625DF1] to-[#4038C7] flex items-center justify-center shrink-0 shadow-lg shadow-[#524CF2]/15">
             <TrendingUp className="h-5 w-5 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="font-extrabold text-lg text-[#0A0D27] tracking-tight leading-none">
+            <span className="font-extrabold text-lg text-foreground tracking-tight leading-none">
               FinTrack
             </span>
-            <span className="text-[10px] text-[#33375C]/60 font-semibold tracking-wide mt-1">
+            <span className="text-[10px] text-muted-foreground font-semibold tracking-wide mt-1">
               Personal Wealth
             </span>
           </div>
@@ -75,7 +75,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         {onMobileClose && (
           <button
             onClick={onMobileClose}
-            className="lg:hidden h-8 w-8 rounded-lg flex items-center justify-center text-[#33375C]/60 hover:bg-[#F0F0FF]"
+            className="lg:hidden h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary"
             aria-label="Close menu"
           >
             <X className="h-4 w-4" />
@@ -87,11 +87,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       <nav className="flex-1 px-3 pb-4 space-y-5 overflow-y-auto">
         {navSections.map((section) => (
           <div key={section.label}>
-            <p className="px-3.5 mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#33375C]/40 select-none">
+            <p className="px-3.5 mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/50 select-none">
               {section.label}
             </p>
             <div className="space-y-0.5">
-              {section.items.map((item) => {
+              {navSections.map((sec) => sec.label === section.label && sec.items.map((item) => {
                 const Icon = item.icon;
                 const active = pathname.startsWith(item.href);
                 return (
@@ -102,32 +102,32 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                     className={cn(
                       "group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 relative",
                       active
-                        ? "bg-[#F0F0FF] text-[#524CF2] shadow-sm shadow-[#524CF2]/5"
-                        : "text-[#33375C] hover:bg-[#F0F0FF]/50 hover:text-[#524CF2] hover:translate-x-0.5"
+                        ? "bg-secondary text-primary shadow-sm"
+                        : "text-muted-foreground hover:bg-secondary/40 hover:text-primary hover:translate-x-0.5"
                     )}
                   >
                     {active && (
-                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-md bg-[#524CF2]" />
+                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-md bg-primary" />
                     )}
                     <Icon className={cn(
                       "h-4.5 w-4.5 shrink-0 transition-colors",
-                      active ? "text-[#524CF2]" : "text-[#33375C]/60 group-hover:text-[#524CF2]"
+                      active ? "text-primary" : "text-muted-foreground/60 group-hover:text-primary"
                     )} />
                     {item.label}
                   </Link>
                 );
-              })}
+              }))}
             </div>
           </div>
         ))}
       </nav>
 
       {/* User area */}
-      <div className="p-3 border-t border-[#E2E2FF] space-y-1">
+      <div className="p-3 border-t border-border/50 space-y-1">
         <ThemeToggle />
         <button
           onClick={handleSignOut}
-          className="group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-[#33375C] hover:bg-rose-50 hover:text-rose-600 w-full transition-colors"
+          className="group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive w-full transition-colors"
         >
           <LogOut className="h-4.5 w-4.5 shrink-0" />
           Sign Out
@@ -139,7 +139,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white/80 backdrop-blur-xl border-r border-[#E2E2FF]/60 h-screen sticky top-0 shrink-0">
+      <aside className="hidden lg:flex flex-col w-64 bg-card/85 backdrop-blur-xl border-r border-border/40 h-screen sticky top-0 shrink-0">
         {inner}
       </aside>
 
@@ -147,10 +147,10 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 bg-[#0A0D27]/40 backdrop-blur-sm z-50 lg:hidden"
+            className="fixed inset-0 bg-background/40 backdrop-blur-sm z-50 lg:hidden"
             onClick={onMobileClose}
           />
-          <aside className="fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-white border-r border-[#E2E2FF] lg:hidden animate-in slide-in-from-left duration-200">
+          <aside className="fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-card border-r border-border/80 lg:hidden animate-in slide-in-from-left duration-200">
             {inner}
           </aside>
         </>

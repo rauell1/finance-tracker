@@ -21,8 +21,8 @@ const PERIOD_OPTIONS = [
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-[#E2E2FF] rounded-2xl shadow-xl px-4 py-3 text-xs backdrop-blur-md relative z-20">
-      <p className="font-extrabold text-[#0A0D27] mb-1.5">{label}</p>
+    <div className="bg-card/95 border border-border rounded-xl shadow-xl px-4 py-3 text-xs backdrop-blur-md relative z-20">
+      <p className="font-extrabold text-foreground mb-1.5">{label}</p>
       {payload.map((entry: { name: string; value: number; color: string }) => (
         <p key={entry.name} className="font-bold flex items-center gap-1.5 mt-1" style={{ color: entry.color }}>
           <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
@@ -44,21 +44,21 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
   }));
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
+    <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
         <div>
-          <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Income vs Expenses</h2>
-          <p className="text-xs text-[#33375C]/60 mt-1 font-medium">How your money flows month by month</p>
+          <h2 className="font-bold text-foreground tracking-tight text-base">Income vs Expenses</h2>
+          <p className="text-xs text-muted-foreground/60 mt-1 font-medium">How your money flows month by month</p>
         </div>
-        <div className="flex rounded-xl border border-[#E2E2FF] overflow-hidden bg-[#F0F0FF]/40 p-[2px]">
+        <div className="flex rounded-xl border border-border/50 overflow-hidden bg-secondary/50 p-[2px]">
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setMonths(opt.value)}
               className={
                 months === opt.value
-                  ? "px-3.5 py-1.5 text-xs font-black bg-white text-[#524CF2] rounded-lg shadow-sm transition-all border border-[#E2E2FF]"
-                  : "px-3.5 py-1.5 text-xs font-bold text-[#33375C]/65 hover:text-[#524CF2] transition-colors"
+                  ? "px-3.5 py-1.5 text-xs font-black bg-card text-primary rounded-lg shadow-sm transition-all border border-border/50"
+                  : "px-3.5 py-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
               }
             >
               {opt.label}
@@ -79,10 +79,10 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
                 <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E2E2FF" opacity={0.4} />
-            <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#33375C", fontWeight: 700, opacity: 0.6 }} axisLine={false} tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" opacity={0.25} />
+            <XAxis dataKey="month" tick={{ fontSize: 9, fill: "currentColor", className: "text-muted-foreground/80 font-bold" }} axisLine={false} tickLine={false} />
             <YAxis
-              tick={{ fontSize: 9, fill: "#33375C", fontWeight: 700, opacity: 0.6 }}
+              tick={{ fontSize: 9, fill: "currentColor", className: "text-muted-foreground/80 font-bold" }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
@@ -106,7 +106,7 @@ export function MonthlyTrendChart({ data, defaultMonths = 6 }: MonthlyTrendChart
             />
           </AreaChart>
         </ResponsiveContainer>
-        <div className="flex items-center gap-4 justify-center mt-3 border-t border-[#E2E2FF] pt-3 text-[10px] font-bold text-[#33375C]/60">
+        <div className="flex items-center gap-4 justify-center mt-3 border-t border-border/50 pt-3 text-[10px] font-bold text-muted-foreground/75">
           <div className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm" />
             Inflows

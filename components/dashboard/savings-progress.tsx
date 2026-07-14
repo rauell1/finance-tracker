@@ -13,23 +13,23 @@ export function SavingsProgress({ goals }: SavingsProgressProps) {
   if (active.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#E2E2FF] flex items-center justify-between">
+    <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <PiggyBank className="h-4 w-4 text-[#524CF2]" />
-          <h3 className="font-semibold text-[#0A0D27] text-sm">Savings Goals</h3>
+          <PiggyBank className="h-4 w-4 text-primary" />
+          <h3 className="font-bold text-foreground text-sm">Savings Goals</h3>
         </div>
-        <Link href="/goals" className="text-xs font-semibold text-[#524CF2] hover:underline">View All</Link>
+        <Link href="/goals" className="text-xs font-semibold text-primary hover:underline">View All</Link>
       </div>
-      <div className="divide-y divide-[#E2E2FF]">
+      <div className="divide-y divide-border/50">
         {active.map((g) => (
-          <div key={g.id} className="px-5 py-3.5">
+          <div key={g.id} className="px-5 py-3.5 hover:bg-secondary/20 transition-all">
             <div className="flex justify-between text-sm mb-1.5">
-              <span className="font-semibold text-[#0A0D27] text-xs">{g.name}</span>
-              <span className="text-xs text-[#33375C]/60 font-semibold">{g.progress.toFixed(0)}%</span>
+              <span className="font-bold text-foreground text-xs">{g.name}</span>
+              <span className="text-xs text-muted-foreground/80 font-semibold">{g.progress.toFixed(0)}%</span>
             </div>
-            <Progress value={g.current_amount} max={g.target_amount} indicatorClassName="bg-[#524CF2]" className="h-2" />
-            <p className="text-[10px] text-[#33375C]/50 mt-1 font-semibold">
+            <Progress value={g.current_amount} max={g.target_amount} indicatorClassName="bg-primary" className="h-2" />
+            <p className="text-[10px] text-muted-foreground/60 mt-1 font-semibold">
               {formatCurrency(g.current_amount)} / {formatCurrency(g.target_amount)}
             </p>
           </div>

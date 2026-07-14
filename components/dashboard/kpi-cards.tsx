@@ -40,19 +40,16 @@ export function KPICards({ data, period = "month" }: KPICardsProps) {
 
   const accentStyles = {
     emerald: {
-      iconBg: "bg-emerald-50 text-emerald-600",
-      topBar: "bg-emerald-500",
-      valueColor: "text-[#0A0D27]",
+      iconBg: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400",
+      valueColor: "text-foreground",
     },
     rose: {
-      iconBg: "bg-rose-50 text-rose-600",
-      topBar: "bg-rose-500",
-      valueColor: "text-[#0A0D27]",
+      iconBg: "bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400",
+      valueColor: "text-foreground",
     },
     indigo: {
-      iconBg: "bg-[#F0F0FF] text-[#524CF2]",
-      topBar: "bg-[#524CF2]",
-      valueColor: "text-[#524CF2]",
+      iconBg: "bg-secondary text-primary dark:bg-primary/10 dark:text-primary",
+      valueColor: "text-primary dark:text-primary-foreground/90",
     },
   };
 
@@ -69,21 +66,18 @@ export function KPICards({ data, period = "month" }: KPICardsProps) {
         return (
           <div
             key={card.title}
-            className="group relative overflow-hidden rounded-2xl border border-[#E2E2FF] bg-white p-5 shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover"
+            className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
           >
-            {/* Accent top bar */}
-            <div className={cn("absolute top-0 left-5 right-5 h-[3px] rounded-b-full opacity-70", styles.topBar)} />
-
             <div className="flex items-center justify-between mb-3.5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#33375C]/50">{card.title}</p>
-              <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110", styles.iconBg)}>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{card.title}</p>
+              <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105", styles.iconBg)}>
                 <Icon className="h-4.5 w-4.5" />
               </div>
             </div>
 
-            <p className={cn("text-2xl sm:text-[1.7rem] font-extrabold tracking-tight flex items-baseline", styles.valueColor)}>
+            <p className={cn("text-2xl sm:text-[1.6rem] font-black tracking-tight flex items-baseline", styles.valueColor)}>
               {currency && (
-                <span className="text-xs font-bold text-[#33375C]/40 uppercase mr-1.5 select-none tracking-wider">{currency}</span>
+                <span className="text-xs font-bold text-muted-foreground/45 uppercase mr-1.5 select-none tracking-wider">{currency}</span>
               )}
               <span>{amount}</span>
             </p>
@@ -92,12 +86,14 @@ export function KPICards({ data, period = "month" }: KPICardsProps) {
               <div className="mt-2.5 flex items-center gap-2">
                 <span className={cn(
                   "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold",
-                  changeGood ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                  changeGood
+                    ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400"
+                    : "bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400"
                 )}>
                   {changeGood ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   {formatPercentage(card.change)}
                 </span>
-                <span className="text-[10px] font-semibold text-[#33375C]/40">{vsLabel}</span>
+                <span className="text-[10px] font-semibold text-muted-foreground/50">{vsLabel}</span>
               </div>
             )}
           </div>

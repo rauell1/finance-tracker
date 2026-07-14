@@ -28,31 +28,28 @@ export function HeroBanner({ totalBalance, debts }: HeroBannerProps) {
   const amount = parts.length > 1 ? parts[1] : balanceStr;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#524CF2] via-[#4A44E0] to-[#332DA8] text-white shadow-lg shadow-[#524CF2]/20">
-      {/* Decorative orbs */}
-      <div className="pointer-events-none absolute -top-24 -right-16 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 left-1/4 h-72 w-72 rounded-full bg-white/[0.06] blur-3xl" />
-      {/* Fine grid */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:2.5rem_2.5rem]" />
-
+    <section className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-[#4A44E0] to-[#2D279B] text-white shadow-md shadow-primary/10">
+      {/* Subtle organic light ray */}
+      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-white/5 blur-3xl" />
+      
       <div className="relative p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div>
-            <p className="text-sm font-semibold text-white/70">{greeting()}, Roy</p>
-            <p className="text-xs font-semibold text-white/50 mt-3 uppercase tracking-[0.14em]">Net worth today</p>
-            <p className="mt-1 flex items-baseline gap-2 animate-rise">
+            <p className="text-xs font-bold text-white/60 tracking-wide">{greeting()}, Roy</p>
+            <p className="text-[10px] font-bold text-white/40 mt-3 uppercase tracking-wider">Net Worth Today</p>
+            <p className="mt-1 flex items-baseline gap-1.5 animate-rise">
               {currency && (
-                <span className="text-base font-bold text-white/50 uppercase tracking-wider select-none">{currency}</span>
+                <span className="text-sm font-bold text-white/50 uppercase tracking-wider select-none">{currency}</span>
               )}
-              <span className="text-4xl sm:text-5xl font-extrabold tracking-tight">{amount}</span>
+              <span className="text-3xl sm:text-4xl font-black tracking-tight">{amount}</span>
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <span className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border backdrop-blur-sm",
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold border backdrop-blur-md",
                 fulizaOwed > 0
-                  ? "bg-rose-500/25 border-rose-300/30 text-rose-100"
-                  : "bg-emerald-500/25 border-emerald-300/30 text-emerald-100"
+                  ? "bg-rose-500/10 border-rose-400/20 text-rose-200"
+                  : "bg-emerald-500/10 border-emerald-400/20 text-emerald-200"
               )}>
                 {fulizaOwed > 0 ? <ShieldAlert className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                 {fulizaOwed > 0
@@ -62,8 +59,8 @@ export function HeroBanner({ totalBalance, debts }: HeroBannerProps) {
             </div>
           </div>
 
-          <div className="shrink-0">
-            <Suspense fallback={<div className="h-10 w-64 rounded-2xl bg-white/10" />}>
+          <div className="shrink-0 bg-white/10 backdrop-blur-md rounded-xl p-1 border border-white/10 self-start sm:self-center">
+            <Suspense fallback={<div className="h-10 w-28 rounded-xl bg-white/5" />}>
               <PeriodSelector variant="hero" />
             </Suspense>
           </div>
