@@ -10,22 +10,30 @@ export function LandingContent() {
       <div className="absolute top-[-5%] left-[-15%] w-[70vw] h-[70vw] rounded-full bg-[#524CF2]/[0.03] blur-[100px] pointer-events-none" aria-hidden="true" />
       <div className="absolute top-[25%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#524CF2]/[0.02] blur-[100px] pointer-events-none" aria-hidden="true" />
 
-      {/* Nav */}
       <nav className="sticky top-0 z-50 bg-white/95 border-b border-[#E2E2FF] backdrop-blur-md" aria-label="Main navigation">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#524CF2] flex items-center justify-center shrink-0 shadow-lg shadow-[#524CF2]/25" aria-hidden="true">
-              <TrendingUp className="h-5 w-5 text-white" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-[#524CF2] flex items-center justify-center shrink-0 shadow-lg shadow-[#524CF2]/25" aria-hidden="true">
+              <TrendingUp className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" />
             </div>
-            <span className="font-extrabold text-xl tracking-tight text-[#0A0D27]">FinTrack</span>
+            <span className="font-extrabold text-lg sm:text-xl tracking-tight text-[#0A0D27]">FinTrack</span>
           </div>
-          <div className="flex items-center gap-6">
+
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-6">
             <Link href="/sandbox" className="text-sm font-bold text-[#524CF2] hover:text-[#625DF1] transition-colors">Sandbox Demo</Link>
             <Link href="/login" className="text-sm font-semibold text-[#0A0D27B3] hover:text-[#524CF2] transition-colors">Sign In</Link>
             <Link href="/register" className="text-sm font-bold bg-[#524CF2] hover:bg-[#625DF1] text-white px-5 py-3 rounded-xl shadow-lg shadow-[#524CF2]/15 transition-all">Get Started Free</Link>
           </div>
+
+          {/* Mobile nav – only the two most important CTAs */}
+          <div className="flex sm:hidden items-center gap-2">
+            <Link href="/login" className="text-sm font-semibold text-[#33375C] hover:text-[#524CF2] transition-colors px-2 py-2">Sign In</Link>
+            <Link href="/register" className="text-sm font-bold bg-[#524CF2] hover:bg-[#625DF1] text-white px-4 py-2 rounded-xl shadow-md shadow-[#524CF2]/20 transition-all whitespace-nowrap">Get Started</Link>
+          </div>
         </div>
       </nav>
+
 
       {/* Hero - fully server rendered for SEO */}
       <section className="max-w-7xl mx-auto px-6 pt-20 pb-24 text-center relative z-10">
