@@ -625,6 +625,12 @@ export async function GET(request: NextRequest) {
         }).select("id").single();
         if (txn) {
           ingested.push({ receipt: p.receipt, kind: "transfer", amount: p.amount });
+          if (p.mpesaBal !== null) {
+            try { await setBalance(supabase, mpesa.id, p.mpesaBal); } catch (e) { console.error("Error setting main mpesa balance in transfer:", e); }
+          }
+          if (p.savingsBal !== null && p.savingsBal !== undefined) {
+            try { await setBalance(supabase, savings.id, p.savingsBal); } catch (e) { console.error("Error setting savings balance in transfer:", e); }
+          }
           try {
             const name = p.savingsCode === "kcb_mpesa" ? "KCB M-PESA" : "M-Shwari";
             const code = p.savingsCode;
