@@ -22,6 +22,12 @@ export function RegisterForm() {
 
   async function onSubmit(data: RegisterInput) {
     setIsLoading(true);
+    if (data.email.toLowerCase().trim() !== "royokola3@gmail.com") {
+      toast.error("Sign up is restricted to authorized beta users only.");
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       const supabase = createClient();
       const { data: resData, error } = await supabase.auth.signUp({
