@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { ShieldCheck, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -22,6 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
   const qc = useQueryClient();
+  const router = useRouter();
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["transactions"] });
@@ -30,6 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     qc.invalidateQueries({ queryKey: ["accounts"] });
     qc.invalidateQueries({ queryKey: ["insights"] });
     qc.invalidateQueries({ queryKey: ["notifications"] });
+    router.refresh();
   };
 
   useRealtime({
@@ -41,15 +44,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useRealtime({
     table: "budgets",
-    onInsert: () => qc.invalidateQueries({ queryKey: ["budgets"] }),
-    onUpdate: () => qc.invalidateQueries({ queryKey: ["budgets"] }),
+    onInsert: () => { qc.invalidateQueries({ queryKey: ["budgets"] }); router.refresh(); },
+    onUpdate: () => { qc.invalidateQueries({ queryKey: ["budgets"] }); router.refresh(); },
   });
 
   useRealtime({
     table: "savings_goals",
-    onInsert: () => qc.invalidateQueries({ queryKey: ["savings-goals"] }),
-    onUpdate: () => qc.invalidateQueries({ queryKey: ["savings-goals"] }),
-    onDelete: () => qc.invalidateQueries({ queryKey: ["savings-goals"] }),
+    onInsert: () => { qc.invalidateQueries({ queryKey: ["savings-goals"] }); router.refresh(); },
+    onUpdate: () => { qc.invalidateQueries({ queryKey: ["savings-goals"] }); router.refresh(); },
+    onDelete: () => { qc.invalidateQueries({ queryKey: ["savings-goals"] }); router.refresh(); },
   });
 
   // Verify privacy/terms consent status for current logged-in user

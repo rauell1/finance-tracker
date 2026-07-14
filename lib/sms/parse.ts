@@ -1033,6 +1033,7 @@ export interface NvidiaParsedResult {
   from_account_code?: string;
   to_account_code?: string;
   stated_balance: number | null;
+  savings_balance?: number | null;
   transaction_cost: number | null;
   occurred_on?: string;
 }
@@ -1071,13 +1072,15 @@ Output JSON schema:
   "from_account_code": string | null,
   "to_account_code": string | null,
   "stated_balance": number | null,
+  "savings_balance": number | null,
   "transaction_cost": number | null
 }
 
 Rules:
 1. Respond ONLY with a valid JSON block.
 2. If the text does not contain a financial transaction, set "is_transaction" to false.
-3. Be highly accurate with figures and names.`;
+3. Be highly accurate with figures and names.
+4. For mobile money transfers to/from savings accounts (e.g. KCB M-PESA or M-Shwari), extract the main account balance into "stated_balance" and the savings account balance into "savings_balance" (e.g. "new KCB M-PESA Saving account balance is Ksh120.00" -> 120.00).`;
 
   try {
     const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -1098,8 +1101,7 @@ Rules:
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      console.error("[nvidia-parser] NVIDIA API returned error:", res.status, errText);
+      console.warn(`[nvidia-parser] API returned status ${res.status}`);
       return null;
     }
 
@@ -1107,16 +1109,10 @@ Rules:
     const content = data.choices?.[0]?.message?.content?.trim();
     if (!content) return null;
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.warn("[nvidia-parser] NVIDIA output did not contain JSON block:", content);
-      return null;
-    }
-
-    const parsed: NvidiaParsedResult = JSON.parse(jsonMatch[0]);
-    return parsed;
+    const jsonStr = content.replace(/^```json\s*|```$/g, "").trim();
+    return JSON.parse(jsonStr) as NvidiaParsedResult;
   } catch (err) {
-    console.error("[nvidia-parser] Unexpected parsing error:", err);
+    console.error("[nvidia-parser] Failed to parse with LLM:", err);
     return null;
   }
 }
@@ -1148,6 +1144,7 @@ export async function processSingleBankSms(
         reason: "",
         currency: llmRes.currency || "KES",
         stated_balance: llmRes.stated_balance,
+        savings_balance: llmRes.savings_balance,
         transaction_cost: llmRes.transaction_cost
       } as any;
       isLlmParsed = true;
@@ -1255,6 +1252,19 @@ export async function processSingleBankSms(
       (parsedResult as any).transaction_cost ?? null
     );
 
+    const statedBal = (parsedResult as any).stated_balance;
+    const savingsBal = (parsedResult as any).savings_balance;
+
+    if (fromAcc.account_code === "main") {
+      if (statedBal !== null && statedBal !== undefined) { try { await setBalance(supabase, fromAcc.id, statedBal); } catch {} }
+      if (savingsBal !== null && savingsBal !== undefined) { try { await setBalance(supabase, toAcc.id, savingsBal); } catch {} }
+    } else if (toAcc.account_code === "main") {
+      if (statedBal !== null && statedBal !== undefined) { try { await setBalance(supabase, toAcc.id, statedBal); } catch {} }
+      if (savingsBal !== null && savingsBal !== undefined) { try { await setBalance(supabase, fromAcc.id, savingsBal); } catch {} }
+    } else {
+      if (statedBal !== null && statedBal !== undefined) { try { await setBalance(supabase, fromAcc.id, statedBal); } catch {} }
+    }
+
     try {
       await logWebhook(supabase, smsText, "text/plain", smsText, `llm_learned:${accountCode}`, targetUserId);
     } catch (e) {
@@ -1310,6 +1320,12 @@ export async function processSingleBankSms(
 
   if (error) {
     return { status: "failed", error: error.message };
+  }
+
+  if ((parsedResult as any).stated_balance !== null && (parsedResult as any).stated_balance !== undefined) {
+    try {
+      await setBalance(supabase, bankAccount.id, (parsedResult as any).stated_balance);
+    } catch {}
   }
 
   try {
