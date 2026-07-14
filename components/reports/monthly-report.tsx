@@ -55,10 +55,24 @@ export function MonthlyReport({ month }: { month: string }) {
 
   return (
     <div className="space-y-5 print:space-y-4">
+      {/* Print-only Header */}
+      <div className="hidden print:block border-b-2 border-primary pb-4 mb-6">
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-xl font-black text-foreground">FINTRACK STATEMENT REPORT</h1>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Automated Statement Analysis & Financial Intelligence</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-foreground">{monthLabel}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Prepared for Roy Okola Otieno</p>
+          </div>
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex gap-2 no-print">
         <button onClick={handlePrint} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-[#E2E2FF] text-[#33375C] hover:bg-[#F0F0FF] transition-colors">
-          <Printer className="h-4 w-4" /> Print / PDF
+          <Download className="h-4 w-4" /> Download PDF Report
         </button>
         <button onClick={handleCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-[#E2E2FF] text-[#33375C] hover:bg-[#F0F0FF] transition-colors">
           <Download className="h-4 w-4" /> Download CSV

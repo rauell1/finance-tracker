@@ -133,7 +133,70 @@
 
 /* Print styles for reports */
 @media print {
-  body { background: white !important; color: black !important; }
-  .no-print, nav, aside, header { display: none !important; }
-  .print-break { page-break-before: always; }
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm;
+  }
+
+  body {
+    background: white !important;
+    color: #0A0D27 !important;
+    font-size: 11pt !important;
+    line-height: 1.45 !important;
+  }
+
+  .no-print, nav, aside, header, button, .no-print *, [role="banner"] {
+    display: none !important;
+  }
+
+  /* Make sure container covers the full width in print */
+  main, .max-w-7xl, .space-y-5, .space-y-6, .max-w-none {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Clean up grid for print layout */
+  .grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 1.5rem !important;
+  }
+
+  .grid > * {
+    flex: 1 1 200px !important;
+    margin: 0 !important;
+  }
+
+  /* Avoid splitting cards awkwardly across pages */
+  .bg-white, .bg-card, .rounded-2xl {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1px solid #E2E2FF !important;
+    box-shadow: none !important;
+    margin-bottom: 1.5rem !important;
+    background: white !important;
+  }
+
+  /* AI Insights Card Specific Styling */
+  .bg-gradient-to-br {
+    background: #FAFAFF !important;
+    border-left: 4px solid #524CF2 !important;
+    padding: 1.5rem !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Headers */
+  h1, h2, h3, h4, h5 {
+    color: #0A0D27 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Table styling */
+  .divide-y > * {
+    border-color: #E2E2FF !important;
+  }
 }
