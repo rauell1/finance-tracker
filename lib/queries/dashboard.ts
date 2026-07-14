@@ -148,33 +148,40 @@ export async function getKPIData(month?: string, period: "month" | "quarter" | "
     }
   }
 
-  const { data: accounts } = await supabase.from("accounts").select("id, name, opening_balance, currency_code, account_code, fuliza_limit").eq("is_archived", false);
-  let totalBalance = (accounts ?? []).reduce(
-    (s, a) => s + normalizeAmount(Number(a.opening_balance), a.currency_code, startStr),
-    0
-  );
+  const { data: accounts } = await supabase.from("accounts").select("id, name, opening_balance, current_balance, currency_code, account_code, fuliza_limit").eq("is_archived", false);
   const ids = (accounts ?? []).map((a) => a.id);
   
   // Get fuliza limit for M-PESA account
   const mpesaAccount = (accounts ?? []).find(a => a.account_code === "main");
   const fulizaLimit = mpesaAccount?.fuliza_limit ? Number(mpesaAccount.fuliza_limit) : 0;
-  if (ids.length > 0) {
-    let txns: any[] = [];
+
+  const eatOffset = 3 * 60 * 60 * 1000;
+  const todayStr = new Date(Date.now() + eatOffset).toISOString().split("T")[0];
+
+  let totalBalance = (accounts ?? []).reduce(
+    (s, a) => s + normalizeAmount(Number(a.current_balance ?? a.opening_balance), a.currency_code, todayStr),
+    0
+  );
+
+  if (endStr < todayStr && ids.length > 0) {
+    let adjustmentTxns: any[] = [];
     let page = 0;
     while (true) {
       const { data, error: qErr } = await supabase
         .from("transactions")
         .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, metadata")
         .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
-        .lt("occurred_on", endStr)
+        .gte("occurred_on", endStr)
+        .lt("occurred_on", todayStr)
         .range(page * pageSize, (page + 1) * pageSize - 1);
       if (qErr) throw qErr;
       if (!data || data.length === 0) break;
-      txns = txns.concat(data);
+      adjustmentTxns = adjustmentTxns.concat(data);
       if (data.length < pageSize) break;
       page++;
     }
-    for (const t of txns ?? []) {
+
+    for (const t of adjustmentTxns ?? []) {
       const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
       if (isCounter) continue;
 
@@ -183,12 +190,12 @@ export async function getKPIData(month?: string, period: "month" | "quarter" | "
       const isDestActive = t.transfer_account_id ? ids.includes(t.transfer_account_id) : false;
 
       if (t.txn_type === "income") {
-        if (isSourceActive) totalBalance += amt;
+        if (isSourceActive) totalBalance -= amt;
       } else if (t.txn_type === "expense") {
-        if (isSourceActive) totalBalance -= amt;
+        if (isSourceActive) totalBalance += amt;
       } else if (t.txn_type === "transfer") {
-        if (isSourceActive) totalBalance -= amt;
-        if (isDestActive) totalBalance += amt;
+        if (isSourceActive) totalBalance += amt;
+        if (isDestActive) totalBalance -= amt;
       }
     }
   }
@@ -310,15 +317,20 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
   
   const { startStr, endStr } = getPeriodDates(period, month);
 
-  const { data: accounts } = await supabase.from("accounts").select("id, name, opening_balance, currency_code, account_code, fuliza_limit").eq("is_archived", false);
+  const { data: accounts } = await supabase.from("accounts").select("id, name, opening_balance, current_balance, currency_code, account_code, fuliza_limit").eq("is_archived", false);
   if (!accounts) return [];
   
-  // Get fuliza limit for M-PESA account
   const mpesaAccount = accounts.find(a => a.account_code === "main");
   const fulizaLimit = mpesaAccount?.fuliza_limit ? Number(mpesaAccount.fuliza_limit) : 0;
   
   const ids = accounts.map((a) => a.id);
   if (ids.length === 0) return [];
+
+  const eatOffset = 3 * 60 * 60 * 1000;
+  const todayStr = new Date(Date.now() + eatOffset).toISOString().split("T")[0];
+
+  const queryStart = period === "all" ? "1970-01-01" : startStr;
+  const queryEnd = endStr > todayStr ? endStr : todayStr;
 
   let txns: any[] = [];
   let page = 0;
@@ -328,7 +340,8 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
       .from("transactions")
       .select("account_id, transfer_account_id, amount, txn_type, currency_code, occurred_on, description, metadata")
       .or(`account_id.in.(${ids.join(",")}),transfer_account_id.in.(${ids.join(",")})`)
-      .lt("occurred_on", endStr)
+      .gte("occurred_on", queryStart)
+      .lt("occurred_on", queryEnd)
       .range(page * pageSize, (page + 1) * pageSize - 1);
     if (qErr) throw qErr;
     if (!data || data.length === 0) break;
@@ -341,42 +354,42 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
   for (const a of accounts) {
     let income = 0;
     let expense = 0;
-    let lifetimeIncome = 0;
-    let lifetimeExpense = 0;
+    let balance = normalizeAmount(Number(a.current_balance ?? a.opening_balance), a.currency_code, todayStr);
 
     for (const t of txns ?? []) {
       const isCounter = t.metadata && (t.metadata as any).is_transfer_counter === true;
       if (isCounter) continue;
 
       const amt = normalizeAmount(Number(t.amount), t.currency_code, t.occurred_on);
-      const isCurrentPeriod = t.occurred_on >= startStr;
 
-      if (t.txn_type === "income" && t.account_id === a.id) {
-        lifetimeIncome += amt;
-        if (isCurrentPeriod) income += amt;
-      } else if (t.txn_type === "expense" && t.account_id === a.id) {
-        if (t.description !== "Fuliza repayment") {
-          lifetimeExpense += amt;
-          if (isCurrentPeriod) expense += amt;
-        } else {
-          lifetimeExpense += amt; // Include Fuliza repayment in lifetime expense to calculate cash balance correctly
+      // Current period stats: [startStr, endStr]
+      if (t.occurred_on >= startStr && t.occurred_on < endStr) {
+        if (t.txn_type === "income" && t.account_id === a.id) {
+          income += amt;
+        } else if (t.txn_type === "expense" && t.account_id === a.id && t.description !== "Fuliza repayment") {
+          expense += amt;
+        } else if (t.txn_type === "transfer") {
+          if (t.account_id === a.id) expense += amt;
+          if (t.transfer_account_id === a.id) income += amt;
         }
-      } else if (t.txn_type === "transfer") {
-        // Outflow from a: when account_id === a.id
-        if (t.account_id === a.id) {
-          lifetimeExpense += amt;
-          if (isCurrentPeriod) expense += amt;
-        }
-        // Inflow to a: when transfer_account_id === a.id
-        if (t.transfer_account_id === a.id) {
-          lifetimeIncome += amt;
-          if (isCurrentPeriod) income += amt;
+      }
+
+      // Backward balance adjustment stats: [endStr, todayStr]
+      if (endStr < todayStr && t.occurred_on >= endStr && t.occurred_on < todayStr) {
+        const isSourceActive = t.account_id === a.id;
+        const isDestActive = t.transfer_account_id === a.id;
+
+        if (t.txn_type === "income" && isSourceActive) {
+          balance -= amt;
+        } else if (t.txn_type === "expense" && isSourceActive) {
+          balance += amt;
+        } else if (t.txn_type === "transfer") {
+          if (isSourceActive) balance += amt;
+          if (isDestActive) balance -= amt;
         }
       }
     }
 
-    const openingBalance = normalizeAmount(Number(a.opening_balance), a.currency_code, endStr);
-    const computedBalance = openingBalance + lifetimeIncome - lifetimeExpense;
     results.push({
       account_id: a.id,
       account_name: a.name,
@@ -384,7 +397,7 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
       income,
       expense,
       net: income - expense,
-      balance: computedBalance,
+      balance,
       fuliza_limit: a.fuliza_limit ? Number(a.fuliza_limit) : 0,
     });
   }

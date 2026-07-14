@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
+import { BottomNav } from "./bottom-nav";
 import { useRealtime } from "@/hooks/use-realtime";
 import { createClient } from "@/lib/supabase/browser";
 import { ShieldCheck, Check, Loader2 } from "lucide-react";
@@ -101,32 +102,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-white via-white to-[#F0F0FF]/40 text-[#0A0D27]">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <Topbar onMobileMenuClick={() => setMobileNavOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-20 lg:pb-6">
           <div className="max-w-7xl mx-auto w-full">
             {children}
           </div>
         </main>
       </div>
+      <BottomNav onMoreClick={() => setMobileNavOpen(true)} />
 
       {/* Consent Modal Overlay */}
       {showConsentModal && (
-        <div className="fixed inset-0 z-[9999] bg-[#0A0D27]/40 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-[#E2E2FF] w-full max-w-lg p-6 sm:p-8 shadow-2xl shadow-[#524CF2]/10 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[9999] bg-background/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card rounded-3xl border border-border w-full max-w-lg p-6 sm:p-8 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="text-center space-y-2">
-              <div className="h-12 w-12 rounded-2xl bg-[#524CF2]/10 flex items-center justify-center mx-auto text-[#524CF2]">
+              <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto text-primary">
                 <ShieldCheck className="h-6 w-6" />
               </div>
-              <h2 className="text-xl font-extrabold text-[#0A0D27]">Required Update: Terms &amp; Privacy</h2>
-              <p className="text-xs text-[#33375C]/60 leading-relaxed max-w-sm mx-auto">
+              <h2 className="text-xl font-extrabold text-foreground">Required Update: Terms &amp; Privacy</h2>
+              <p className="text-xs text-muted-foreground/80 leading-relaxed max-w-sm mx-auto">
                 To comply with the Kenya Data Protection Act, 2019 (DPA), GDPR, and global privacy standards, please read and agree to our updated policies before continuing.
               </p>
             </div>
 
-            <div className="space-y-4 py-2 border-y border-[#E2E2FF]">
+            <div className="space-y-4 py-2 border-y border-border/50">
               {/* Terms of Service Checkbox */}
               <div className="flex items-start gap-3">
                 <input
@@ -134,14 +136,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   type="checkbox"
                   checked={acceptTerms}
                   onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="h-4.5 w-4.5 rounded border-[#E2E2FF] text-[#524CF2] focus:ring-[#524CF2] mt-0.5 cursor-pointer"
+                  className="h-4.5 w-4.5 rounded border-border bg-background text-primary focus:ring-primary mt-0.5 cursor-pointer"
                 />
-                <label htmlFor="modalAcceptTerms" className="text-xs font-semibold text-[#33375C] cursor-pointer leading-tight">
+                <label htmlFor="modalAcceptTerms" className="text-xs font-semibold text-muted-foreground cursor-pointer leading-tight">
                   I accept the updated{" "}
-                  <Link href="/terms" target="_blank" className="text-[#524CF2] hover:underline font-bold">
+                  <Link href="/terms" target="_blank" className="text-primary hover:underline font-bold">
                     Terms of Service
                   </Link>
-                  <span className="block text-[10px] text-[#33375C]/50 font-normal mt-1">Rules, limitations, and standard terms of service.</span>
+                  <span className="block text-[10px] text-muted-foreground/60 font-normal mt-1">Rules, limitations, and standard terms of service.</span>
                 </label>
               </div>
 
@@ -152,14 +154,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   type="checkbox"
                   checked={acceptPrivacy}
                   onChange={(e) => setAcceptPrivacy(e.target.checked)}
-                  className="h-4.5 w-4.5 rounded border-[#E2E2FF] text-[#524CF2] focus:ring-[#524CF2] mt-0.5 cursor-pointer"
+                  className="h-4.5 w-4.5 rounded border-border bg-background text-primary focus:ring-primary mt-0.5 cursor-pointer"
                 />
-                <label htmlFor="modalAcceptPrivacy" className="text-xs font-semibold text-[#33375C] cursor-pointer leading-tight">
+                <label htmlFor="modalAcceptPrivacy" className="text-xs font-semibold text-muted-foreground cursor-pointer leading-tight">
                   I consent to the updated{" "}
-                  <Link href="/privacy" target="_blank" className="text-[#524CF2] hover:underline font-bold">
+                  <Link href="/privacy" target="_blank" className="text-primary hover:underline font-bold">
                     Privacy Policy
                   </Link>
-                  <span className="block text-[10px] text-[#33375C]/50 font-normal mt-1">Details on how we collect, process, and secure your financial statements.</span>
+                  <span className="block text-[10px] text-muted-foreground/60 font-normal mt-1">Details on how we collect, process, and secure your financial statements.</span>
                 </label>
               </div>
             </div>
@@ -167,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={handleAcceptConsent}
               disabled={consentLoading || !acceptTerms || !acceptPrivacy}
-              className="w-full h-11 bg-[#524CF2] hover:bg-[#625DF1] disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-[#524CF2]/15 transition-all flex items-center justify-center gap-2"
+              className="w-full h-11 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/15 transition-all flex items-center justify-center gap-2"
             >
               {consentLoading ? (
                 <>
