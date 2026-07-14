@@ -26,7 +26,7 @@ export function LandingContent() {
             <Link href="/register" className="text-sm font-bold bg-[#524CF2] hover:bg-[#625DF1] text-white px-5 py-3 rounded-xl shadow-lg shadow-[#524CF2]/15 transition-all">Get Started Free</Link>
           </div>
 
-          {/* Mobile nav – only the two most important CTAs */}
+          {/* Mobile nav - only the two most important CTAs */}
           <div className="flex sm:hidden items-center gap-2">
             <Link href="/login" className="text-sm font-semibold text-[#33375C] hover:text-[#524CF2] transition-colors px-2 py-2">Sign In</Link>
             <Link href="/register" className="text-sm font-bold bg-[#524CF2] hover:bg-[#625DF1] text-white px-4 py-2 rounded-xl shadow-md shadow-[#524CF2]/20 transition-all whitespace-nowrap">Get Started</Link>
