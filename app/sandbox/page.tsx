@@ -10,7 +10,7 @@ import {
   Webhook, Settings, Plus, Search, Calendar, CheckCircle2, Pencil, Trash2,
   AlertCircle, SlidersHorizontal, ArrowUpDown, ChevronLeft, ChevronRight,
   Eye, RefreshCw, Smartphone, Info, User, Check, X, ShieldCheck, Loader2,
-  TrendingUp, LogOut
+  TrendingUp, LogOut, FileText
 } from "lucide-react";
 import { Topbar } from "@/components/layout/topbar";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -32,6 +32,7 @@ import { DebtsClient } from "@/components/forms/debts-client";
 import { RecurringClient } from "@/components/forms/recurring-client";
 import BudgetsPage from "@/app/(app)/budgets/page";
 import GoalsPage from "@/app/(app)/goals/page";
+import ReportsPage from "@/app/(app)/reports/page";
 
 // --- MOCK DATABASE INITIAL VALUES ---
 const INITIAL_CATEGORIES = [
@@ -314,7 +315,7 @@ export default function PublicSandboxPage() {
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
 
   // Tab navigation state
-  const [activeTab, setActiveTab] = useState<"dashboard" | "transactions" | "budgets" | "debts" | "goals" | "recurring" | "webhook-logs">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "transactions" | "reports" | "budgets" | "debts" | "goals" | "recurring" | "webhook-logs">("dashboard");
 
   // Console + mobile nav visibility
   const [consoleExpanded, setConsoleExpanded] = useState(true);
@@ -1263,6 +1264,7 @@ export default function PublicSandboxPage() {
             <div className="space-y-0.5">
               {navBtn("dashboard", "Dashboard", LayoutDashboard)}
               {navBtn("transactions", "Transactions", ArrowLeftRight)}
+              {navBtn("reports", "Reports", FileText)}
             </div>
           </div>
           <div>
@@ -2063,6 +2065,24 @@ export default function PublicSandboxPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* TAB: REPORTS */}
+            {activeTab === "reports" && (
+              <div className="space-y-4">
+                {!isLiveMode && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                    <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-amber-800">Client Mock Mode: Live Database Warning</h4>
+                      <p className="text-[11px] text-amber-700/95 mt-1 leading-relaxed">
+                        Reports are compiled directly on the database. The report below displays data from your actual Supabase tables rather than the sandbox's in-memory mock state. To make real changes, switch to 🟢 Supabase Live mode.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <ReportsPage />
               </div>
             )}
 
