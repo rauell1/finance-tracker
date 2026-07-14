@@ -25,7 +25,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 no-print">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-[#524CF2]" />
           <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Monthly Report</h1>

@@ -20,7 +20,7 @@ export function BottomNav({ onMoreClick }: BottomNavProps) {
   const pathname = usePathname();
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/90 backdrop-blur-lg border-t border-border/50 pb-safe-bottom">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/90 backdrop-blur-lg border-t border-border/50 pb-safe-bottom no-print">
       <div className="flex items-center justify-around h-14 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
