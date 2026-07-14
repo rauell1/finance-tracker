@@ -1,8 +1,6 @@
-import { Suspense } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Debt } from "@/types/domain";
-import { PeriodSelector } from "./period-selector";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 
 interface HeroBannerProps {
@@ -57,12 +55,6 @@ export function HeroBanner({ totalBalance, debts }: HeroBannerProps) {
                   : "Fuliza clear · KES 1,500 available"}
               </span>
             </div>
-          </div>
-
-          <div className="shrink-0 bg-white/10 backdrop-blur-md rounded-xl p-1 border border-white/10 self-start sm:self-center">
-            <Suspense fallback={<div className="h-10 w-28 rounded-xl bg-white/5" />}>
-              <PeriodSelector variant="hero" />
-            </Suspense>
           </div>
         </div>
       </div>

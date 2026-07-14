@@ -47,9 +47,6 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         debts={debts}
       />
 
-      {/* KPI cards */}
-      <KPICards data={kpi} period={period} />
-
       {/* Account balances */}
       <section>
         <div className="flex items-center gap-2 mb-3.5">
@@ -58,6 +55,9 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         </div>
         <AccountBalanceCards accounts={accountComparison} />
       </section>
+
+      {/* KPI cards */}
+      <KPICards data={kpi} period={period} />
 
       {/* Trend chart + Category donut */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 sm:gap-6">

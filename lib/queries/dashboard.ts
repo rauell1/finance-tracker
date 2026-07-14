@@ -401,6 +401,12 @@ export async function getAccountComparison(month?: string, period: "month" | "qu
       fuliza_limit: a.fuliza_limit ? Number(a.fuliza_limit) : 0,
     });
   }
+  // Sort results so that the account with account_code === "main" (MPESA) comes first
+  results.sort((a, b) => {
+    if (a.account_code === "main") return -1;
+    if (b.account_code === "main") return 1;
+    return a.account_name.localeCompare(b.account_name);
+  });
   return results;
 }
 export async function detectRecurringExpenses() {
