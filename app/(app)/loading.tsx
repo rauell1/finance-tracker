@@ -11,7 +11,7 @@ export default function GenericAppLoading() {
       </div>
 
       {/* Main Card placeholder */}
-      <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 sm:p-6 min-h-[400px] flex flex-col justify-between">
+      <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 sm:p-6 min-h-[400px] flex flex-col justify-between">
         <div className="space-y-4">
           <div className="h-5 w-1/4 bg-[#0A0D27]/10 rounded-full" />
           <div className="h-4.5 w-3/4 bg-[#33375C]/10 rounded-full" />
@@ -30,9 +30,9 @@ export default function GenericAppLoading() {
           ))}
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-[#E2E2FF]">
+        <div className="flex justify-end gap-3 pt-4 border-t border-[#DCFCE7]">
           <div className="h-9 w-20 bg-[#33375C]/5 rounded-lg" />
-          <div className="h-9 w-28 bg-[#524CF2]/15 rounded-lg" />
+          <div className="h-9 w-28 bg-[#EA580C]/15 rounded-lg" />
         </div>
       </div>
     </div>

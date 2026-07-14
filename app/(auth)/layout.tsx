@@ -5,13 +5,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="min-h-screen relative overflow-hidden bg-white text-[#0A0D27]">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-32 -left-32 h-80 w-80 rounded-full bg-[#524CF2]/[0.06] blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[#524CF2]/[0.06] blur-3xl" />
+        <div className="absolute -top-32 -left-32 h-80 w-80 rounded-full bg-[#EA580C]/[0.06] blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[#EA580C]/[0.06] blur-3xl" />
       </div>
 
       <div className="relative grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
         {/* Left marketing pane */}
-        <aside className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-[#524CF2] via-[#4540D8] to-[#2F2B8F] text-white relative overflow-hidden">
+        <aside className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-[#EA580C] via-[#4540D8] to-[#2F2B8F] text-white relative overflow-hidden">
           <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-white/5 blur-3xl pointer-events-none" />
 

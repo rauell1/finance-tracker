@@ -26,7 +26,7 @@ const DEBT_TYPE_LABELS: Record<DebtType, string> = {
 };
 
 const DEBT_TYPE_COLOR: Record<DebtType, string> = {
-  loan: "bg-[#F0F0FF] text-[#524CF2] border-[#E2E2FF]",
+  loan: "bg-[#FEF9C3] text-[#EA580C] border-[#DCFCE7]",
   overdraft: "bg-amber-50 text-amber-700 border-amber-200",
   credit_card: "bg-violet-50 text-violet-700 border-violet-200",
   fuliza: "bg-rose-50 text-rose-700 border-rose-200",
@@ -184,16 +184,16 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Landmark className="h-5 w-5 text-[#524CF2]" />
+          <Landmark className="h-5 w-5 text-[#EA580C]" />
           <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Debts</h1>
         </div>
-        <Button size="sm" onClick={openCreate} className="bg-[#524CF2] hover:bg-[#625DF1] text-white">
+        <Button size="sm" onClick={openCreate} className="bg-[#EA580C] hover:bg-[#C2410C] text-white">
           <Plus className="h-4 w-4 mr-1" /> Add Debt
         </Button>
       </div>
 
       {/* Hero card */}
-      <div className="bg-gradient-to-br from-white to-[#F0F0FF]/40 rounded-2xl border border-[#E2E2FF] shadow-sm p-5 sm:p-6">
+      <div className="bg-gradient-to-br from-white to-[#FEF9C3]/40 rounded-2xl border border-[#DCFCE7] shadow-sm p-5 sm:p-6">
         <p className="text-[10px] uppercase font-bold tracking-wider text-[#33375C]/60">Total Outstanding</p>
         <p className={cn("text-3xl sm:text-4xl font-bold mt-1", totalOutstanding > 0 ? "text-rose-600" : "text-emerald-600")}>
           {formatCurrency(totalOutstanding)}
@@ -204,7 +204,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
       </div>
 
       {debts.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
           <div className="h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
             <Landmark className="h-7 w-7 text-emerald-600" />
           </div>
@@ -214,7 +214,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {debts.map((d) => (
-            <div key={d.id} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 hover:border-[#524CF2]/30 transition-colors">
+            <div key={d.id} className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 hover:border-[#EA580C]/30 transition-colors">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -264,13 +264,13 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#E2E2FF]">
-                <Button size="sm" className="bg-[#524CF2] hover:bg-[#625DF1] text-white flex-1" onClick={() => openPay(d)}>
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#DCFCE7]">
+                <Button size="sm" className="bg-[#EA580C] hover:bg-[#C2410C] text-white flex-1" onClick={() => openPay(d)}>
                   <CreditCard className="h-4 w-4 mr-1" /> Record Payment
                 </Button>
                 <button
                   onClick={() => openEdit(d)}
-                  className="h-8 w-8 rounded-lg border border-[#E2E2FF] flex items-center justify-center text-[#33375C] hover:bg-[#F0F0FF]"
+                  className="h-8 w-8 rounded-lg border border-[#DCFCE7] flex items-center justify-center text-[#33375C] hover:bg-[#FEF9C3]"
                   aria-label="Edit"
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -290,7 +290,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
 
       {/* Create/Edit debt dialog */}
       <Dialog open={debtDialog} onOpenChange={setDebtDialog}>
-        <DialogContent className="bg-white border-[#E2E2FF] max-w-md">
+        <DialogContent className="bg-white border-[#DCFCE7] max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[#0A0D27]">{editing ? "Edit" : "New"} Debt</DialogTitle>
           </DialogHeader>
@@ -304,7 +304,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
               <select
                 value={form.debt_type}
                 onChange={(e) => setForm({ ...form, debt_type: e.target.value as DebtType })}
-                className="flex h-9 w-full rounded-md border border-[#E2E2FF] bg-white px-3 py-1 text-sm shadow-sm"
+                className="flex h-9 w-full rounded-md border border-[#DCFCE7] bg-white px-3 py-1 text-sm shadow-sm"
               >
                 {Object.entries(DEBT_TYPE_LABELS).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
@@ -338,7 +338,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDebtDialog(false)} disabled={saving}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={saving} className="bg-[#524CF2] hover:bg-[#625DF1] text-white">
+            <Button onClick={handleSubmit} disabled={saving} className="bg-[#EA580C] hover:bg-[#C2410C] text-white">
               {saving ? "Saving..." : editing ? "Save changes" : "Create"}
             </Button>
           </DialogFooter>
@@ -347,7 +347,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
 
       {/* Pay dialog */}
       <Dialog open={payDialog} onOpenChange={setPayDialog}>
-        <DialogContent className="bg-white border-[#E2E2FF] max-w-sm">
+        <DialogContent className="bg-white border-[#DCFCE7] max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-[#0A0D27]">Record payment</DialogTitle>
           </DialogHeader>
@@ -366,7 +366,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
                 <select
                   value={payForm.account_id}
                   onChange={(e) => setPayForm({ ...payForm, account_id: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-[#E2E2FF] bg-white px-3 py-1 text-sm shadow-sm"
+                  className="flex h-9 w-full rounded-md border border-[#DCFCE7] bg-white px-3 py-1 text-sm shadow-sm"
                 >
                   {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
@@ -375,7 +375,7 @@ export function DebtsClient({ initialDebts, accounts }: Props) {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayDialog(false)} disabled={saving}>Cancel</Button>
-            <Button onClick={handlePay} disabled={saving} className="bg-[#524CF2] hover:bg-[#625DF1] text-white">
+            <Button onClick={handlePay} disabled={saving} className="bg-[#EA580C] hover:bg-[#C2410C] text-white">
               {saving ? "Recording..." : "Record"}
             </Button>
           </DialogFooter>

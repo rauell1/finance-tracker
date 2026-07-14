@@ -15,7 +15,7 @@ interface RecentTransactionsProps {
 const typeConfig = {
   income: { amountColor: "text-emerald-600", prefix: "+", dot: "bg-emerald-500" },
   expense: { amountColor: "text-rose-600", prefix: "−", dot: "bg-rose-500" },
-  transfer: { amountColor: "text-[#524CF2]", prefix: "", dot: "bg-[#524CF2]" },
+  transfer: { amountColor: "text-[#EA580C]", prefix: "", dot: "bg-[#EA580C]" },
 };
 
 const categoryIcons: { pattern: RegExp; icon: LucideIcon }[] = [
@@ -84,7 +84,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                 {/* Category icon */}
                 <div
                   className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-white shadow-sm group-hover:scale-105 transition-transform duration-200"
-                  style={{ backgroundColor: txn.category?.color ?? (txn.txn_type === "transfer" ? "#524CF2" : "#94a3b8") }}
+                  style={{ backgroundColor: txn.category?.color ?? (txn.txn_type === "transfer" ? "#EA580C" : "#94a3b8") }}
                 >
                   <Icon className="h-4.5 w-4.5" />
                 </div>

@@ -23,7 +23,7 @@ export default async function WebhookLogsPage() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2.5">
-          <Webhook className="h-6 w-6 text-[#524CF2]" />
+          <Webhook className="h-6 w-6 text-[#EA580C]" />
           <h1 className="text-2xl sm:text-3xl font-bold text-[#0A0D27] tracking-tight">Webhook Logs</h1>
         </div>
         <p className="text-sm text-[#33375C]/60 mt-1">

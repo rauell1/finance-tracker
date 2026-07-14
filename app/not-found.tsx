@@ -10,13 +10,13 @@ export default function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FC] px-4">
       <div className="text-center max-w-md">
-        <h1 className="text-6xl font-black text-[#524CF2] mb-4">404</h1>
+        <h1 className="text-6xl font-black text-[#EA580C] mb-4">404</h1>
         <p className="text-xl text-[#33375C]/70 mb-6">
           Sorry, the page you're looking for doesn't exist.
         </p>
         <Link
           href="/"
-          className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[#524CF2] rounded-xl hover:bg-[#433BC2] transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[#EA580C] rounded-xl hover:bg-[#433BC2] transition-colors"
         >
           Back to Home
         </Link>

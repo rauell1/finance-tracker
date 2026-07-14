@@ -61,7 +61,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center justify-between gap-3 px-5 py-5">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#625DF1] to-[#4038C7] flex items-center justify-center shrink-0 shadow-lg shadow-[#524CF2]/15">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#C2410C] to-[#4038C7] flex items-center justify-center shrink-0 shadow-lg shadow-[#EA580C]/15">
             <TrendingUp className="h-5 w-5 text-white" />
           </div>
           <div className="flex flex-col">

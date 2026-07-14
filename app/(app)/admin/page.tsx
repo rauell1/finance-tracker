@@ -26,8 +26,8 @@ export default async function AdminPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start gap-4">
-        <div className="h-11 w-11 rounded-xl bg-[#F0F0FF] flex items-center justify-center shrink-0">
-          <ShieldCheck className="h-5 w-5 text-[#524CF2]" />
+        <div className="h-11 w-11 rounded-xl bg-[#FEF9C3] flex items-center justify-center shrink-0">
+          <ShieldCheck className="h-5 w-5 text-[#EA580C]" />
         </div>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#0A0D27] tracking-tight">Admin</h1>
@@ -38,8 +38,8 @@ export default async function AdminPage() {
       </div>
 
       {/* Info callout */}
-      <div className="flex items-start gap-3 rounded-xl border border-[#524CF2]/20 bg-[#F8F8FF] px-4 py-3.5">
-        <Info className="h-4 w-4 text-[#524CF2] mt-0.5 shrink-0" />
+      <div className="flex items-start gap-3 rounded-xl border border-[#EA580C]/20 bg-[#F8F8FF] px-4 py-3.5">
+        <Info className="h-4 w-4 text-[#EA580C] mt-0.5 shrink-0" />
         <p className="text-sm text-[#33375C]/80 leading-relaxed">
           <strong>Accounts</strong> - rewrites the opening balance so the computed balance matches your statement.
           Transaction history is never changed.

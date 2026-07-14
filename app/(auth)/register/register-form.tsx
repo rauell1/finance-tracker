@@ -62,7 +62,7 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-xl shadow-[#524CF2]/[0.06] p-7 sm:p-8">
+    <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-xl shadow-[#EA580C]/[0.06] p-7 sm:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Create your account</h1>
         <p className="text-sm text-[#33375C]/70 mt-1">Get started with FinTrack today</p>
@@ -123,12 +123,12 @@ export function RegisterForm() {
             <input
               id="acceptTerms"
               type="checkbox"
-              className="h-4 w-4 rounded border-[#E2E2FF] text-[#524CF2] focus:ring-[#524CF2] mt-0.5 cursor-pointer"
+              className="h-4 w-4 rounded border-[#DCFCE7] text-[#EA580C] focus:ring-[#EA580C] mt-0.5 cursor-pointer"
               {...register("acceptTerms")}
             />
             <label htmlFor="acceptTerms" className="text-xs text-[#33375C]/75 leading-tight font-medium cursor-pointer">
               I accept the{" "}
-              <Link href="/terms" target="_blank" className="text-[#524CF2] hover:underline font-semibold">
+              <Link href="/terms" target="_blank" className="text-[#EA580C] hover:underline font-semibold">
                 Terms of Service
               </Link>
             </label>
@@ -142,12 +142,12 @@ export function RegisterForm() {
             <input
               id="acceptPrivacy"
               type="checkbox"
-              className="h-4 w-4 rounded border-[#E2E2FF] text-[#524CF2] focus:ring-[#524CF2] mt-0.5 cursor-pointer"
+              className="h-4 w-4 rounded border-[#DCFCE7] text-[#EA580C] focus:ring-[#EA580C] mt-0.5 cursor-pointer"
               {...register("acceptPrivacy")}
             />
             <label htmlFor="acceptPrivacy" className="text-xs text-[#33375C]/75 leading-tight font-medium cursor-pointer">
               I accept the{" "}
-              <Link href="/privacy" target="_blank" className="text-[#524CF2] hover:underline font-semibold">
+              <Link href="/privacy" target="_blank" className="text-[#EA580C] hover:underline font-semibold">
                 Privacy Policy
               </Link>{" "}
               (DPA, GDPR &amp; CCPA compliant)
@@ -161,10 +161,10 @@ export function RegisterForm() {
         </Button>
       </form>
 
-      <div className="border-t border-[#E2E2FF] mt-5 pt-4 text-center">
+      <div className="border-t border-[#DCFCE7] mt-5 pt-4 text-center">
         <p className="text-xs text-[#33375C]/70">
           Already have an account?{" "}
-          <Link href="/login" className="font-bold text-[#524CF2] hover:underline">
+          <Link href="/login" className="font-bold text-[#EA580C] hover:underline">
             Sign In
           </Link>
         </p>

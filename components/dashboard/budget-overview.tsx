@@ -14,7 +14,7 @@ const progressColors = {
 };
 
 const statusBadge = {
-  safe: "bg-[#F0F0FF] border-[#E2E2FF] text-[#524CF2] dark:bg-primary/10 dark:border-primary/20 dark:text-primary",
+  safe: "bg-[#FEF9C3] border-[#DCFCE7] text-[#EA580C] dark:bg-primary/10 dark:border-primary/20 dark:text-primary",
   warning: "bg-amber-50 border-amber-100 text-amber-600 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400",
   over: "bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400",
 };

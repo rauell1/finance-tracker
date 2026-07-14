@@ -334,7 +334,7 @@ export default function SettingsPage() {
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#33375C]/60 bg-[#F0F0FF] border border-[#E2E2FF] rounded-full dark:bg-[#F0F0FF]/10 dark:text-[#33375C]/40">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#33375C]/60 bg-[#FEF9C3] border border-[#DCFCE7] rounded-full dark:bg-[#FEF9C3]/10 dark:text-[#33375C]/40">
             <span className="h-1.5 w-1.5 rounded-full bg-[#33375C]/40 shrink-0" />
             Not Configured
           </span>
@@ -350,7 +350,7 @@ export default function SettingsPage() {
     <div className="space-y-5 sm:space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <SettingsIcon className="h-5 w-5 text-[#524CF2]" />
+        <SettingsIcon className="h-5 w-5 text-[#EA580C]" />
         <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Settings</h1>
       </div>
 
@@ -358,8 +358,8 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 sm:gap-6">
         {/* Profile column (left) */}
         <div className="lg:col-span-2 space-y-5">
-          <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+          <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20">
               <h2 className="font-semibold text-[#0A0D27] text-sm">Profile</h2>
             </div>
             <div className="p-5 space-y-5">
@@ -367,7 +367,7 @@ export default function SettingsPage() {
                 <Skeleton className="h-14 w-full" />
               ) : (
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-full bg-[#524CF2] text-white text-lg font-bold flex items-center justify-center shrink-0 shadow-md shadow-[#524CF2]/20">
+                  <div className="h-14 w-14 rounded-full bg-[#EA580C] text-white text-lg font-bold flex items-center justify-center shrink-0 shadow-md shadow-[#EA580C]/20">
                     {initials}
                   </div>
                   <div className="min-w-0">
@@ -386,7 +386,7 @@ export default function SettingsPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Your full name"
-                    className="w-full h-10 px-3 text-sm border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                    className="w-full h-10 px-3 text-sm border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                   />
                 </div>
                 <div>
@@ -396,7 +396,7 @@ export default function SettingsPage() {
                   <select
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full h-10 px-3 text-sm border border-[#E2E2FF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 bg-white"
+                    className="w-full h-10 px-3 text-sm border border-[#DCFCE7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 bg-white"
                   >
                     <option value="KES">KES - Kenyan Shilling</option>
                     <option value="USD">USD - US Dollar</option>
@@ -413,7 +413,7 @@ export default function SettingsPage() {
                   "flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all w-full justify-center sm:w-auto",
                   saved
                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-[#524CF2] text-white hover:bg-[#625DF1] shadow-sm shadow-[#524CF2]/15"
+                    : "bg-[#EA580C] text-white hover:bg-[#C2410C] shadow-sm shadow-[#EA580C]/15"
                 )}
               >
                 <Save className="h-4 w-4" />
@@ -425,15 +425,15 @@ export default function SettingsPage() {
 
         {/* Accounts column (right) */}
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20 flex items-center justify-between">
+          <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20 flex items-center justify-between">
               <div>
                 <h2 className="font-semibold text-[#0A0D27] text-sm">Linked Accounts</h2>
                 <p className="text-xs text-[#33375C]/60 mt-0.5">Your wallets &amp; bank accounts</p>
               </div>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="h-8 px-3 rounded-lg bg-[#524CF2] text-white hover:bg-[#625DF1] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-[#524CF2]/10"
+                className="h-8 px-3 rounded-lg bg-[#EA580C] text-white hover:bg-[#C2410C] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-[#EA580C]/10"
               >
                 {showAddForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                 {showAddForm ? "Cancel" : "Add Account"}
@@ -442,7 +442,7 @@ export default function SettingsPage() {
 
             {/* Add Account Inline Form */}
             {showAddForm && (
-              <form onSubmit={handleCreateAccount} className="p-5 border-b border-[#E2E2FF] bg-[#F0F0FF]/10 space-y-4">
+              <form onSubmit={handleCreateAccount} className="p-5 border-b border-[#DCFCE7] bg-[#FEF9C3]/10 space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[#33375C]/80">Create Custom Account</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
@@ -465,7 +465,7 @@ export default function SettingsPage() {
                           setNewAccCode("");
                         }
                       }}
-                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                      className="w-full h-9 px-3 text-xs border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                     >
                       {KENYAN_BANKS.map((b) => (
                         <option key={b.code} value={b.code}>
@@ -483,7 +483,7 @@ export default function SettingsPage() {
                       placeholder="e.g. Equity Bank"
                       value={newAccName}
                       onChange={(e) => handleNameChange(e.target.value)}
-                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                      className="w-full h-9 px-3 text-xs border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                     />
                   </div>
                   <div>
@@ -495,7 +495,7 @@ export default function SettingsPage() {
                       placeholder="e.g. equity"
                       value={newAccCode}
                       onChange={(e) => setNewAccCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                      className="w-full h-9 px-3 text-xs border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                     />
                   </div>
                   <div>
@@ -505,7 +505,7 @@ export default function SettingsPage() {
                     <select
                       value={newAccCurrency}
                       onChange={(e) => setNewAccCurrency(e.target.value)}
-                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                      className="w-full h-9 px-3 text-xs border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                     >
                       <option value="KES">KES - Kenyan Shilling</option>
                       <option value="USD">USD - US Dollar</option>
@@ -523,7 +523,7 @@ export default function SettingsPage() {
                       placeholder="0"
                       value={newAccBalance}
                       onChange={(e) => setNewAccBalance(e.target.value)}
-                      className="w-full h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                      className="w-full h-9 px-3 text-xs border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                     />
                   </div>
                 </div>
@@ -537,15 +537,15 @@ export default function SettingsPage() {
               </form>
             )}
 
-            <div className="divide-y divide-[#E2E2FF]">
+            <div className="divide-y divide-[#DCFCE7]">
               {loading ? (
                 <div className="p-5 space-y-3">
                   {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
                 </div>
               ) : accounts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-                  <div className="h-12 w-12 rounded-full bg-[#F0F0FF] flex items-center justify-center mb-3">
-                    <Wallet className="h-6 w-6 text-[#524CF2]" />
+                  <div className="h-12 w-12 rounded-full bg-[#FEF9C3] flex items-center justify-center mb-3">
+                    <Wallet className="h-6 w-6 text-[#EA580C]" />
                   </div>
                   <p className="text-sm font-semibold text-[#0A0D27]">No accounts found</p>
                 </div>
@@ -554,9 +554,9 @@ export default function SettingsPage() {
                   const Icon = accountIcons[account.account_code] ?? Wallet;
                   const isProtected = account.account_code === "main";
                   return (
-                    <div key={account.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#F0F0FF]/20 transition-colors">
+                    <div key={account.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#FEF9C3]/20 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", accountColors[account.account_code] ?? "bg-[#F0F0FF] text-[#524CF2] dark:bg-[#F0F0FF]/10")}>
+                        <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", accountColors[account.account_code] ?? "bg-[#FEF9C3] text-[#EA580C] dark:bg-[#FEF9C3]/10")}>
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
@@ -590,7 +590,7 @@ export default function SettingsPage() {
                                   });
                                 } catch { /* non-fatal */ }
                               }}
-                              className="h-8 w-24 px-2 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+                              className="h-8 w-24 px-2 text-xs border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                               title="Your Fuliza overdraft limit. M-PESA balance can go negative up to this amount."
                             />
                           </div>
@@ -621,13 +621,13 @@ export default function SettingsPage() {
       </div>
 
       {/* Connection Status & Troubleshooter */}
-      <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20 flex items-center justify-between">
+      <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20 flex items-center justify-between">
           <div>
             <h2 className="font-bold text-[#0A0D27] text-sm">Connection Status &amp; Troubleshooter</h2>
             <p className="text-xs text-[#33375C]/60 mt-0.5 font-medium">Verify if your device SMS webhooks are working properly</p>
           </div>
-          <Activity className="h-5 w-5 text-[#524CF2]" />
+          <Activity className="h-5 w-5 text-[#EA580C]" />
         </div>
         <div className="p-5">
           {loadingStatus ? (
@@ -638,16 +638,16 @@ export default function SettingsPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* MacroDroid Status */}
-              <div className="border border-[#E2E2FF] rounded-xl p-4 space-y-4">
+              <div className="border border-[#DCFCE7] rounded-xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-[#524CF2]" />
+                    <Smartphone className="h-5 w-5 text-[#EA580C]" />
                     <span className="font-bold text-xs text-[#0A0D27]">MacroDroid Ingestion</span>
                   </div>
                   {renderStatusBadge(statusData?.macrodroid?.status)}
                 </div>
                 
-                <div className="text-xs text-[#33375C]/80 space-y-2 bg-[#F0F0FF]/10 p-3 rounded-lg border border-[#E2E2FF]/40">
+                <div className="text-xs text-[#33375C]/80 space-y-2 bg-[#FEF9C3]/10 p-3 rounded-lg border border-[#DCFCE7]/40">
                   <p className="font-medium text-[10px] text-[#33375C]/50 uppercase tracking-wider">Last Activity</p>
                   {statusData?.macrodroid?.last_log ? (
                     <div className="space-y-1">
@@ -669,7 +669,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => handleTestConnection("macrodroid")}
                     disabled={testingMacrodroid}
-                    className="flex-1 h-9 rounded-lg bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-[#524CF2]/10 disabled:opacity-50"
+                    className="flex-1 h-9 rounded-lg bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-[#EA580C]/10 disabled:opacity-50"
                   >
                     {testingMacrodroid ? (
                       <>
@@ -689,16 +689,16 @@ export default function SettingsPage() {
               </div>
 
               {/* SMS Gateway Status */}
-              <div className="border border-[#E2E2FF] rounded-xl p-4 space-y-4">
+              <div className="border border-[#DCFCE7] rounded-xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <RefreshCw className="h-5 w-5 text-[#524CF2]" />
+                    <RefreshCw className="h-5 w-5 text-[#EA580C]" />
                     <span className="font-bold text-xs text-[#0A0D27]">SMS Gateway Ingestion</span>
                   </div>
                   {renderStatusBadge(statusData?.gateway?.status)}
                 </div>
 
-                <div className="text-xs text-[#33375C]/80 space-y-2 bg-[#F0F0FF]/10 p-3 rounded-lg border border-[#E2E2FF]/40">
+                <div className="text-xs text-[#33375C]/80 space-y-2 bg-[#FEF9C3]/10 p-3 rounded-lg border border-[#DCFCE7]/40">
                   <p className="font-medium text-[10px] text-[#33375C]/50 uppercase tracking-wider">Last Activity</p>
                   {statusData?.gateway?.last_log ? (
                     <div className="space-y-1">
@@ -720,7 +720,7 @@ export default function SettingsPage() {
                   <button
                     onClick={() => handleTestConnection("gateway")}
                     disabled={testingGateway}
-                    className="flex-1 h-9 rounded-lg bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-[#524CF2]/10 disabled:opacity-50"
+                    className="flex-1 h-9 rounded-lg bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-[#EA580C]/10 disabled:opacity-50"
                   >
                     {testingGateway ? (
                       <>
@@ -750,8 +750,8 @@ export default function SettingsPage() {
       </div>
 
       {/* Row 3: Data Tools - full width */}
-      <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+      <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20">
           <h2 className="font-semibold text-[#0A0D27] text-sm">Data Tools</h2>
           <p className="text-xs text-[#33375C]/60 mt-0.5">Maintenance and cleanup</p>
         </div>
@@ -779,7 +779,7 @@ export default function SettingsPage() {
                 }
               }}
               disabled={recategorizing}
-              className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#524CF2] text-white hover:bg-[#625DF1] transition-colors shadow-sm disabled:opacity-50"
+              className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#EA580C] text-white hover:bg-[#C2410C] transition-colors shadow-sm disabled:opacity-50"
             >
               <RefreshCw className={cn("h-4 w-4", recategorizing && "animate-spin")} />
               {recategorizing ? "Processing..." : "Recategorize All"}

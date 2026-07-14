@@ -45,7 +45,7 @@ const empty = (type: ObligationType): FormState => ({
 });
 
 function pillForDueIn(days: number | null) {
-  if (days === null) return { label: "No date", className: "bg-[#F0F0FF] text-[#33375C] border-[#E2E2FF]" };
+  if (days === null) return { label: "No date", className: "bg-[#FEF9C3] text-[#33375C] border-[#DCFCE7]" };
   if (days < 0) return { label: `${Math.abs(days)}d overdue`, className: "bg-rose-50 text-rose-700 border-rose-200" };
   if (days === 0) return { label: "Due today", className: "bg-rose-50 text-rose-700 border-rose-200" };
   if (days <= 3) return { label: `Due in ${days}d`, className: "bg-amber-50 text-amber-700 border-amber-200" };
@@ -169,9 +169,9 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Receipt className="h-5 w-5 text-[#524CF2]" />
+          <Receipt className="h-5 w-5 text-[#EA580C]" />
           <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Bills & Subscriptions</h1>
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#F0F0FF] text-[#524CF2] border border-[#E2E2FF]">
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#FEF9C3] text-[#EA580C] border border-[#DCFCE7]">
             {obligations.length}
           </span>
         </div>
@@ -180,14 +180,14 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
             variant="outline"
             size="sm"
             onClick={() => openCreate("subscription")}
-            className="border-[#E2E2FF] text-[#33375C]"
+            className="border-[#DCFCE7] text-[#33375C]"
           >
             <Plus className="h-4 w-4 mr-1" /> Subscription
           </Button>
           <Button
             size="sm"
             onClick={() => openCreate("bill")}
-            className="bg-[#524CF2] hover:bg-[#625DF1] text-white"
+            className="bg-[#EA580C] hover:bg-[#C2410C] text-white"
           >
             <Plus className="h-4 w-4 mr-1" /> Bill
           </Button>
@@ -195,14 +195,14 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
       </div>
 
       {/* Tabs */}
-      <div className="inline-flex p-1 rounded-xl bg-[#F0F0FF] border border-[#E2E2FF]">
+      <div className="inline-flex p-1 rounded-xl bg-[#FEF9C3] border border-[#DCFCE7]">
         {(["bill", "subscription"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
               "px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors",
-              tab === t ? "bg-white text-[#524CF2] shadow-sm" : "text-[#33375C]/60 hover:text-[#524CF2]"
+              tab === t ? "bg-white text-[#EA580C] shadow-sm" : "text-[#33375C]/60 hover:text-[#EA580C]"
             )}
           >
             {t === "bill" ? `Bills (${bills})` : `Subscriptions (${subs})`}
@@ -212,14 +212,14 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
-          <div className="h-14 w-14 rounded-full bg-[#F0F0FF] flex items-center justify-center mb-4">
-            <Receipt className="h-7 w-7 text-[#524CF2]" />
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
+          <div className="h-14 w-14 rounded-full bg-[#FEF9C3] flex items-center justify-center mb-4">
+            <Receipt className="h-7 w-7 text-[#EA580C]" />
           </div>
           <p className="text-base font-semibold text-[#0A0D27]">No {tab === "bill" ? "bills" : "subscriptions"} yet</p>
           <p className="text-sm mt-1 text-[#33375C]/60 max-w-sm">Track recurring payments so they never surprise you.</p>
           <Button
-            className="mt-4 bg-[#524CF2] hover:bg-[#625DF1] text-white"
+            className="mt-4 bg-[#EA580C] hover:bg-[#C2410C] text-white"
             size="sm"
             onClick={() => openCreate(tab)}
           >
@@ -231,7 +231,7 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
           {filtered.map((o) => {
             const pill = pillForDueIn(o.due_in_days);
             return (
-              <div key={o.id} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 hover:border-[#524CF2]/30 transition-colors">
+              <div key={o.id} className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 hover:border-[#EA580C]/30 transition-colors">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -269,17 +269,17 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#E2E2FF]">
+                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#DCFCE7]">
                   <Button
                     size="sm"
-                    className="bg-[#524CF2] hover:bg-[#625DF1] text-white flex-1"
+                    className="bg-[#EA580C] hover:bg-[#C2410C] text-white flex-1"
                     onClick={() => handlePay(o.id)}
                   >
                     <CheckCircle2 className="h-4 w-4 mr-1" /> Mark as Paid
                   </Button>
                   <button
                     onClick={() => openEdit(o)}
-                    className="h-8 w-8 rounded-lg border border-[#E2E2FF] flex items-center justify-center text-[#33375C] hover:bg-[#F0F0FF]"
+                    className="h-8 w-8 rounded-lg border border-[#DCFCE7] flex items-center justify-center text-[#33375C] hover:bg-[#FEF9C3]"
                     aria-label="Edit"
                   >
                     <Pencil className="h-3.5 w-3.5" />
@@ -299,7 +299,7 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-white border-[#E2E2FF] max-w-md">
+        <DialogContent className="bg-white border-[#DCFCE7] max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[#0A0D27]">
               {editing ? "Edit" : "New"} {form.obligation_type === "bill" ? "Bill" : "Subscription"}
@@ -329,7 +329,7 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
                 <select
                   value={form.recurrence}
                   onChange={(e) => setForm({ ...form, recurrence: e.target.value as Recurrence })}
-                  className="flex h-9 w-full rounded-md border border-[#E2E2FF] bg-white px-3 py-1 text-sm shadow-sm"
+                  className="flex h-9 w-full rounded-md border border-[#DCFCE7] bg-white px-3 py-1 text-sm shadow-sm"
                 >
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
@@ -364,7 +364,7 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
               <select
                 value={form.category_id}
                 onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-                className="flex h-9 w-full rounded-md border border-[#E2E2FF] bg-white px-3 py-1 text-sm shadow-sm"
+                className="flex h-9 w-full rounded-md border border-[#DCFCE7] bg-white px-3 py-1 text-sm shadow-sm"
               >
                 <option value="">- None -</option>
                 {categories.map((c) => (
@@ -377,7 +377,7 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
               <select
                 value={form.account_id}
                 onChange={(e) => setForm({ ...form, account_id: e.target.value })}
-                className="flex h-9 w-full rounded-md border border-[#E2E2FF] bg-white px-3 py-1 text-sm shadow-sm"
+                className="flex h-9 w-full rounded-md border border-[#DCFCE7] bg-white px-3 py-1 text-sm shadow-sm"
               >
                 <option value="">- None -</option>
                 {accounts.map((a) => (
@@ -402,7 +402,7 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
             <Button
               onClick={handleSubmit}
               disabled={saving}
-              className="bg-[#524CF2] hover:bg-[#625DF1] text-white"
+              className="bg-[#EA580C] hover:bg-[#C2410C] text-white"
             >
               {saving ? "Saving..." : editing ? "Save changes" : "Create"}
             </Button>

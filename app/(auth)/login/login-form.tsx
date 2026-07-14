@@ -37,7 +37,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-xl shadow-[#524CF2]/[0.06] p-7 sm:p-8">
+    <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-xl shadow-[#EA580C]/[0.06] p-7 sm:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Welcome back</h1>
         <p className="text-sm text-[#33375C]/70 mt-1">Sign in to your FinTrack account</p>
@@ -67,9 +67,9 @@ export function LoginForm() {
       </form>
       <p className="text-center text-[10px] text-[#33375C]/60 mt-4 leading-relaxed">
         By signing in, you agree to our{" "}
-        <Link href="/terms" className="underline hover:text-[#524CF2]">Terms of Service</Link>{" "}
+        <Link href="/terms" className="underline hover:text-[#EA580C]">Terms of Service</Link>{" "}
         and{" "}
-        <Link href="/privacy" className="underline hover:text-[#524CF2]">Privacy Policy</Link>{" "}
+        <Link href="/privacy" className="underline hover:text-[#EA580C]">Privacy Policy</Link>{" "}
         (DPA, GDPR &amp; CCPA compliant).
       </p>
       <p className="text-center text-xs text-[#33375C]/40 mt-5 flex items-center justify-center gap-1.5">

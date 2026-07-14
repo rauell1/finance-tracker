@@ -52,35 +52,35 @@ export default function GoalsPage() {
     <div className="space-y-5 sm:space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Crosshair className="h-5 w-5 text-[#524CF2]" />
+          <Crosshair className="h-5 w-5 text-[#EA580C]" />
           <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Savings Goals</h1>
         </div>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#524CF2] text-white text-sm font-semibold hover:bg-[#625DF1] transition-colors shadow-sm"
+          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#EA580C] text-white text-sm font-semibold hover:bg-[#C2410C] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" /> Add Goal
         </button>
       </div>
 
       {showAdd && (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 space-y-4">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 space-y-4">
           <h2 className="font-semibold text-[#0A0D27] text-sm">New Goal</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input placeholder="Goal name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-10 px-3 text-sm border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30" />
-            <input placeholder="Target amount" type="number" value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} className="h-10 px-3 text-sm border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30" />
-            <input placeholder="Current saved" type="number" value={form.current_amount} onChange={(e) => setForm({ ...form, current_amount: e.target.value })} className="h-10 px-3 text-sm border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30" />
-            <input placeholder="Target date" type="date" value={form.target_date} onChange={(e) => setForm({ ...form, target_date: e.target.value })} className="h-10 px-3 text-sm border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30" />
+            <input placeholder="Goal name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-10 px-3 text-sm border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30" />
+            <input placeholder="Target amount" type="number" value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} className="h-10 px-3 text-sm border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30" />
+            <input placeholder="Current saved" type="number" value={form.current_amount} onChange={(e) => setForm({ ...form, current_amount: e.target.value })} className="h-10 px-3 text-sm border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30" />
+            <input placeholder="Target date" type="date" value={form.target_date} onChange={(e) => setForm({ ...form, target_date: e.target.value })} className="h-10 px-3 text-sm border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30" />
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => createMut.mutate({ name: form.name, target_amount: Number(form.target_amount), current_amount: Number(form.current_amount), target_date: form.target_date || null })}
               disabled={!form.name || !form.target_amount || createMut.isPending}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#524CF2] text-white hover:bg-[#625DF1] disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#EA580C] text-white hover:bg-[#C2410C] disabled:opacity-50 transition-colors"
             >
               {createMut.isPending ? "Creating..." : "Create Goal"}
             </button>
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm font-semibold rounded-lg border border-[#E2E2FF] text-[#33375C] hover:bg-[#F0F0FF]">Cancel</button>
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm font-semibold rounded-lg border border-[#DCFCE7] text-[#33375C] hover:bg-[#FEF9C3]">Cancel</button>
           </div>
         </div>
       )}
@@ -90,9 +90,9 @@ export default function GoalsPage() {
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
         </div>
       ) : goals.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
-          <div className="h-14 w-14 rounded-full bg-[#F0F0FF] flex items-center justify-center mb-4">
-            <PiggyBank className="h-7 w-7 text-[#524CF2]" />
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
+          <div className="h-14 w-14 rounded-full bg-[#FEF9C3] flex items-center justify-center mb-4">
+            <PiggyBank className="h-7 w-7 text-[#EA580C]" />
           </div>
           <p className="text-base font-semibold text-[#0A0D27]">No savings goals yet</p>
           <p className="text-sm mt-1 text-[#33375C]/60 max-w-sm">Create a goal to start tracking your savings progress.</p>
@@ -102,9 +102,9 @@ export default function GoalsPage() {
           {goals.map((goal) => {
             const pct = goal.progress;
             const status = pct >= 100 ? "over" : pct >= 75 ? "warning" : "safe";
-            const progressColor = status === "over" ? "bg-emerald-500" : status === "warning" ? "bg-amber-500" : "bg-[#524CF2]";
+            const progressColor = status === "over" ? "bg-emerald-500" : status === "warning" ? "bg-amber-500" : "bg-[#EA580C]";
             return (
-              <div key={goal.id} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 hover:border-[#524CF2]/30 transition-colors">
+              <div key={goal.id} className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 hover:border-[#EA580C]/30 transition-colors">
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-semibold text-[#0A0D27] text-sm">{goal.name}</span>
                   <div className="flex items-center gap-2">
@@ -135,7 +135,7 @@ export default function GoalsPage() {
                           updateMut.mutate({ id: goal.id, current_amount: goal.current_amount + Number(amt) });
                         }
                       }}
-                      className="text-xs font-semibold text-[#524CF2] hover:underline"
+                      className="text-xs font-semibold text-[#EA580C] hover:underline"
                     >
                       + Add Savings
                     </button>

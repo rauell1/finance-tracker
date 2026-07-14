@@ -26,7 +26,7 @@ export function ThemeToggle() {
       onClick={toggle}
       className={cn(
         "group flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors w-full",
-        "text-[#33375C] hover:bg-[#F0F0FF] hover:text-[#524CF2]"
+        "text-[#33375C] hover:bg-[#FEF9C3] hover:text-[#EA580C]"
       )}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
     >

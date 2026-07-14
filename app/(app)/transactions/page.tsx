@@ -46,10 +46,10 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <ArrowLeftRight className="h-5 w-5 text-[#524CF2]" />
+            <ArrowLeftRight className="h-5 w-5 text-[#EA580C]" />
             <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Transactions</h1>
           </div>
-          <span className="bg-[#F0F0FF] text-[#524CF2] text-xs font-semibold px-2.5 py-1 rounded-full">
+          <span className="bg-[#FEF9C3] text-[#EA580C] text-xs font-semibold px-2.5 py-1 rounded-full">
             {total}
           </span>
         </div>
@@ -59,7 +59,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
       </div>
 
       {/* Filter bar */}
-      <form method="GET" action="/transactions" className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-3 sm:p-4">
+      <form method="GET" action="/transactions" className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-3 sm:p-4">
         <div className="flex flex-wrap gap-2.5">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#33375C]/40" />
@@ -67,13 +67,13 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
               name="search"
               defaultValue={params.search ?? ""}
               placeholder="Search description…"
-              className="w-full h-9 pl-8 pr-3 text-sm border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+              className="w-full h-9 pl-8 pr-3 text-sm border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
             />
           </div>
           <select
             name="account_id"
             defaultValue={params.account_id ?? ""}
-            className="h-9 px-3 text-sm border border-[#E2E2FF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 bg-white"
+            className="h-9 px-3 text-sm border border-[#DCFCE7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 bg-white"
           >
             <option value="">All accounts</option>
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -81,7 +81,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           <select
             name="category_id"
             defaultValue={params.category_id ?? ""}
-            className="h-9 px-3 text-sm border border-[#E2E2FF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 bg-white"
+            className="h-9 px-3 text-sm border border-[#DCFCE7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 bg-white"
           >
             <option value="">All categories</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -89,7 +89,7 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
           <select
             name="txn_type"
             defaultValue={params.txn_type ?? ""}
-            className="h-9 px-3 text-sm border border-[#E2E2FF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 bg-white"
+            className="h-9 px-3 text-sm border border-[#DCFCE7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 bg-white"
           >
             <option value="">All types</option>
             <option value="income">Income</option>
@@ -100,17 +100,17 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
             name="date_from"
             type="date"
             defaultValue={params.date_from ?? ""}
-            className="h-9 px-3 text-sm border border-[#E2E2FF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+            className="h-9 px-3 text-sm border border-[#DCFCE7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
           />
           <input
             name="date_to"
             type="date"
             defaultValue={params.date_to ?? ""}
-            className="h-9 px-3 text-sm border border-[#E2E2FF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+            className="h-9 px-3 text-sm border border-[#DCFCE7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
           />
           <button
             type="submit"
-            className="h-9 px-4 text-sm font-semibold bg-[#524CF2] text-white rounded-lg hover:bg-[#625DF1] transition-colors"
+            className="h-9 px-4 text-sm font-semibold bg-[#EA580C] text-white rounded-lg hover:bg-[#C2410C] transition-colors"
           >
             Apply
           </button>
@@ -118,19 +118,19 @@ export default async function TransactionsPage({ searchParams }: PageProps) {
 
         {/* Active filter chips */}
         {activeFilters.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-[#E2E2FF]">
+          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-[#DCFCE7]">
             <span className="text-[10px] uppercase font-bold tracking-wider text-[#33375C]/60">Active:</span>
             {activeFilters.map((f) => (
               <Link
                 key={f.label}
                 href={f.href}
-                className="inline-flex items-center gap-1 bg-[#F0F0FF] text-[#524CF2] text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-[#E2E2FF] transition-colors"
+                className="inline-flex items-center gap-1 bg-[#FEF9C3] text-[#EA580C] text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-[#DCFCE7] transition-colors"
               >
                 {f.label}
                 <X className="h-3 w-3" />
               </Link>
             ))}
-            <Link href="/transactions" className="text-xs text-[#33375C]/60 font-semibold hover:text-[#524CF2] ml-1">Clear all</Link>
+            <Link href="/transactions" className="text-xs text-[#33375C]/60 font-semibold hover:text-[#EA580C] ml-1">Clear all</Link>
           </div>
         )}
       </form>

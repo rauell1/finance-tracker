@@ -21,7 +21,7 @@ const reasonStyle = (reason: string) => {
     return "bg-rose-50 text-rose-700 border-rose-200";
   if (reason === "not_mpesa")
     return "bg-amber-50 text-amber-700 border-amber-200";
-  return "bg-[#F0F0FF] text-[#524CF2] border-[#E2E2FF]";
+  return "bg-[#FEF9C3] text-[#EA580C] border-[#DCFCE7]";
 };
 
 function formatWhen(iso: string) {
@@ -75,7 +75,7 @@ function LogRow({ log }: { log: WebhookLog }) {
   const preview = (log.sms_text || log.raw_body || "").trim();
 
   return (
-    <div className="px-5 sm:px-6 py-4 hover:bg-[#F0F0FF]/15 transition-colors">
+    <div className="px-5 sm:px-6 py-4 hover:bg-[#FEF9C3]/15 transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -103,7 +103,7 @@ function LogRow({ log }: { log: WebhookLog }) {
             )}
           </button>
           {open && log.replay_result && (
-            <pre className="mt-2 text-[10px] bg-[#F0F0FF]/60 border border-[#E2E2FF] rounded-lg p-3 overflow-x-auto text-[#33375C] font-semibold whitespace-pre-wrap break-all">
+            <pre className="mt-2 text-[10px] bg-[#FEF9C3]/60 border border-[#DCFCE7] rounded-lg p-3 overflow-x-auto text-[#33375C] font-semibold whitespace-pre-wrap break-all">
               {JSON.stringify(log.replay_result, null, 2)}
             </pre>
           )}
@@ -112,7 +112,7 @@ function LogRow({ log }: { log: WebhookLog }) {
           <button
             onClick={handleReplay}
             disabled={busy !== null || pending}
-            className="h-8 px-3 rounded-lg bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="h-8 px-3 rounded-lg bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             <RotateCw className={cn("h-3 w-3", busy === "replay" && "animate-spin")} />
             Replay
@@ -120,7 +120,7 @@ function LogRow({ log }: { log: WebhookLog }) {
           <button
             onClick={handleDelete}
             disabled={busy !== null || pending}
-            className="h-8 w-8 rounded-lg border border-[#E2E2FF] text-[#33375C]/60 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-colors disabled:opacity-50 inline-flex items-center justify-center"
+            className="h-8 w-8 rounded-lg border border-[#DCFCE7] text-[#33375C]/60 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-colors disabled:opacity-50 inline-flex items-center justify-center"
             aria-label="Dismiss log"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -133,8 +133,8 @@ function LogRow({ log }: { log: WebhookLog }) {
 
 export function WebhookLogsList({ logs }: { logs: WebhookLog[] }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#E2E2FF]">
+    <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-card overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-[#DCFCE7]">
         <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Unprocessed Deliveries</h2>
         <span className="text-xs font-bold text-[#33375C]/50">{logs.length} log{logs.length === 1 ? "" : "s"}</span>
       </div>
@@ -148,7 +148,7 @@ export function WebhookLogsList({ logs }: { logs: WebhookLog[] }) {
           <p className="text-xs mt-1 text-[#33375C]/60">Every webhook delivery has been processed into a transaction.</p>
         </div>
       ) : (
-        <div className="divide-y divide-[#E2E2FF]">
+        <div className="divide-y divide-[#DCFCE7]">
           {logs.map((log) => (
             <LogRow key={log.id} log={log} />
           ))}

@@ -17,7 +17,7 @@ const accountMeta: Record<string, { label: string; icon: typeof Wallet; accent: 
   bank_b:    { label: "I&M Bank",  icon: Landmark,   accent: "text-violet-600",  ring: "bg-violet-500",  bg: "bg-violet-50" },
   bank_c:    { label: "SBM Bank",  icon: Landmark,   accent: "text-amber-600",   ring: "bg-amber-500",   bg: "bg-amber-50" },
 };
-const defaultMeta = { label: "Account", icon: Wallet, accent: "text-[#524CF2]", ring: "bg-[#524CF2]", bg: "bg-[#F0F0FF]" };
+const defaultMeta = { label: "Account", icon: Wallet, accent: "text-[#EA580C]", ring: "bg-[#EA580C]", bg: "bg-[#FEF9C3]" };
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -76,7 +76,7 @@ function AccountCard({ account, onUpdated }: { account: Account; onUpdated: (id:
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E2E2FF] p-5 hover:border-[#524CF2]/30 hover:shadow-md hover:shadow-[#524CF2]/[0.04] transition-all">
+    <div className="bg-white rounded-2xl border border-[#DCFCE7] p-5 hover:border-[#EA580C]/30 hover:shadow-md hover:shadow-[#EA580C]/[0.04] transition-all">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -107,7 +107,7 @@ function AccountCard({ account, onUpdated }: { account: Account; onUpdated: (id:
               if (e.key === "Escape") cancel();
             }}
             autoFocus
-            className="w-full rounded-lg border border-[#524CF2]/40 bg-[#F8F8FF] px-3 py-2.5 text-lg font-bold text-[#0A0D27] focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 focus:border-[#524CF2]"
+            className="w-full rounded-lg border border-[#EA580C]/40 bg-[#F8F8FF] px-3 py-2.5 text-lg font-bold text-[#0A0D27] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
           />
           <div className="flex gap-2">
             <button
@@ -115,7 +115,7 @@ function AccountCard({ account, onUpdated }: { account: Account; onUpdated: (id:
               disabled={saving}
               className={cn(
                 "flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
-                "bg-[#524CF2] text-white hover:bg-[#3f3acc] disabled:opacity-50"
+                "bg-[#EA580C] text-white hover:bg-[#7C2D12] disabled:opacity-50"
               )}
             >
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
@@ -124,7 +124,7 @@ function AccountCard({ account, onUpdated }: { account: Account; onUpdated: (id:
             <button
               onClick={cancel}
               disabled={saving}
-              className="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-[#33375C] border border-[#E2E2FF] hover:bg-[#F0F0FF] disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-[#33375C] border border-[#DCFCE7] hover:bg-[#FEF9C3] disabled:opacity-50"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -144,7 +144,7 @@ function AccountCard({ account, onUpdated }: { account: Account; onUpdated: (id:
               onClick={startEdit}
               className={cn(
                 "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors shrink-0",
-                "border border-[#E2E2FF] text-[#524CF2] hover:bg-[#F0F0FF] hover:border-[#524CF2]/30"
+                "border border-[#DCFCE7] text-[#EA580C] hover:bg-[#FEF9C3] hover:border-[#EA580C]/30"
               )}
             >
               <Pencil className="h-3 w-3" />
@@ -152,7 +152,7 @@ function AccountCard({ account, onUpdated }: { account: Account; onUpdated: (id:
             </button>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-[#E2E2FF] grid grid-cols-2 gap-3 text-xs">
+          <div className="mt-4 pt-3 border-t border-[#DCFCE7] grid grid-cols-2 gap-3 text-xs">
             <div>
               <p className="text-[10px] uppercase font-semibold text-[#33375C]/50 tracking-wider">Opening</p>
               <p className="text-[#33375C]/70 font-semibold mt-0.5 truncate">KES {fmt(account.opening_balance)}</p>

@@ -16,7 +16,7 @@ const accountMeta: Record<string, { label: string; icon: typeof Wallet; accent: 
   bank_c:    { label: "SBM Bank",   icon: Landmark,   accent: "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/20" },
 };
 
-const defaultMeta = { label: "Account", icon: Wallet, accent: "text-[#524CF2] bg-[#F0F0FF] dark:text-primary dark:bg-primary/10" };
+const defaultMeta = { label: "Account", icon: Wallet, accent: "text-[#EA580C] bg-[#FEF9C3] dark:text-primary dark:bg-primary/10" };
 
 function healthAccent(balance: number): { dot: string; tag: string | null; tagStyle: string } {
   if (balance < 0) return { dot: "bg-rose-500", tag: "Overdraft Active", tagStyle: "bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30" };

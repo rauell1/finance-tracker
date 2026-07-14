@@ -83,20 +83,20 @@ export default function BudgetsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-[#524CF2]" />
+          <Target className="h-5 w-5 text-[#EA580C]" />
           <h1 className="text-2xl font-bold text-[#0A0D27] tracking-tight">Budgets</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setMonth((m) => addMonths(m, -1))} className="h-9 w-9 rounded-lg border border-[#E2E2FF] bg-white flex items-center justify-center hover:bg-[#F0F0FF] text-[#33375C] transition-colors"><ChevronLeft className="h-4 w-4" /></button>
+          <button onClick={() => setMonth((m) => addMonths(m, -1))} className="h-9 w-9 rounded-lg border border-[#DCFCE7] bg-white flex items-center justify-center hover:bg-[#FEF9C3] text-[#33375C] transition-colors"><ChevronLeft className="h-4 w-4" /></button>
           <span className="text-sm font-semibold text-[#0A0D27] min-w-[140px] text-center">{getMonthName(month)}</span>
-          <button onClick={() => setMonth((m) => addMonths(m, 1))} disabled={isCurrentMonth} className="h-9 w-9 rounded-lg border border-[#E2E2FF] bg-white flex items-center justify-center hover:bg-[#F0F0FF] text-[#33375C] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="h-4 w-4" /></button>
+          <button onClick={() => setMonth((m) => addMonths(m, 1))} disabled={isCurrentMonth} className="h-9 w-9 rounded-lg border border-[#DCFCE7] bg-white flex items-center justify-center hover:bg-[#FEF9C3] text-[#33375C] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="h-4 w-4" /></button>
         </div>
       </div>
 
       {/* Income/Expense Tabs */}
-      <div className="inline-flex p-1 rounded-xl bg-[#F0F0FF] border border-[#E2E2FF]">
+      <div className="inline-flex p-1 rounded-xl bg-[#FEF9C3] border border-[#DCFCE7]">
         {(["expense", "income"] as const).map((t) => (
-          <button key={t} onClick={() => setTxnType(t)} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors", txnType === t ? "bg-white text-[#524CF2] shadow-sm" : "text-[#33375C]/60 hover:text-[#524CF2]")}>
+          <button key={t} onClick={() => setTxnType(t)} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors", txnType === t ? "bg-white text-[#EA580C] shadow-sm" : "text-[#33375C]/60 hover:text-[#EA580C]")}>
             {t} ({allBudgets.filter((b) => (b.txn_type ?? "expense") === t).length})
           </button>
         ))}
@@ -106,7 +106,7 @@ export default function BudgetsPage() {
       {isLoading ? (
         <Skeleton className="h-36 rounded-2xl" />
       ) : budgets.length > 0 ? (
-        <div className="bg-gradient-to-br from-white to-[#F0F0FF]/40 rounded-2xl border border-[#E2E2FF] shadow-sm p-5 sm:p-6">
+        <div className="bg-gradient-to-br from-white to-[#FEF9C3]/40 rounded-2xl border border-[#DCFCE7] shadow-sm p-5 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
             <div>
               <p className="text-[10px] uppercase font-bold tracking-wider text-[#33375C]/60">Total Spent</p>
@@ -117,7 +117,7 @@ export default function BudgetsPage() {
               <p className={cn("text-xl sm:text-2xl font-bold mt-1", totalRemaining >= 0 ? "text-emerald-600" : "text-rose-600")}>{formatCurrency(Math.abs(totalRemaining))}</p>
             </div>
           </div>
-          <div className="h-3 w-full rounded-full bg-[#F0F0FF] overflow-hidden">
+          <div className="h-3 w-full rounded-full bg-[#FEF9C3] overflow-hidden">
             <div className={cn("h-full rounded-full transition-all duration-500", progressColors[overallStatus])} style={{ width: `${overallPct}%` }} />
           </div>
           <p className="text-xs text-[#33375C]/60 mt-2 font-semibold">{overallPct.toFixed(0)}% used · {budgets.length} budget{budgets.length === 1 ? "" : "s"}</p>
@@ -128,8 +128,8 @@ export default function BudgetsPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}</div>
       ) : budgets.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
-          <div className="h-14 w-14 rounded-full bg-[#F0F0FF] flex items-center justify-center mb-4"><Target className="h-7 w-7 text-[#524CF2]" /></div>
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
+          <div className="h-14 w-14 rounded-full bg-[#FEF9C3] flex items-center justify-center mb-4"><Target className="h-7 w-7 text-[#EA580C]" /></div>
           <p className="text-base font-semibold text-[#0A0D27]">No budgets for {getMonthName(month)}</p>
           <p className="text-sm mt-1 text-[#33375C]/60 max-w-sm">Create a budget for a category to start tracking how you spend each month.</p>
         </div>
@@ -138,7 +138,7 @@ export default function BudgetsPage() {
           {budgets.map((budget) => {
             const proj = projMap.get(budget.category_id);
             return (
-              <div key={budget.id} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 hover:border-[#524CF2]/30 transition-colors">
+              <div key={budget.id} className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 hover:border-[#EA580C]/30 transition-colors">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: budget.category?.color ?? "#64748B" }} />
@@ -183,13 +183,13 @@ export default function BudgetsPage() {
 
       {/* Budget Suggestions */}
       {suggestions.length > 0 && txnType === "expense" && (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20 flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20 flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-amber-500" />
             <h3 className="font-semibold text-[#0A0D27] text-sm">Suggested Budgets</h3>
             <span className="text-xs text-[#33375C]/50 ml-1">Based on last 3 months</span>
           </div>
-          <div className="divide-y divide-[#E2E2FF]">
+          <div className="divide-y divide-[#DCFCE7]">
             {suggestions.slice(0, 6).map((s) => (
               <div key={s.category_id} className="flex items-center justify-between px-5 py-3.5">
                 <div>
@@ -197,7 +197,7 @@ export default function BudgetsPage() {
                   <p className="text-xs text-[#33375C]/50 mt-0.5">Avg: {formatCurrency(s.avg_spend)}/mo</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-3.5 w-3.5 text-[#524CF2]" />
+                  <TrendingUp className="h-3.5 w-3.5 text-[#EA580C]" />
                   <span className="font-bold text-sm text-[#0A0D27]">{formatCurrency(s.suggested_amount)}</span>
                 </div>
               </div>

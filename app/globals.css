@@ -13,24 +13,24 @@
     --popover: 0 0% 100%;
     --popover-foreground: 235 60% 10%;
 
-    --primary: 242 88% 62%; /* #524CF2 */
+    --primary: 18 89% 48%; /* #EA580C */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 100% 97%; /* #F0F0FF */
-    --secondary-foreground: 242 88% 62%;
+    --secondary: 48 96% 89%; /* #FEF9C3 */
+    --secondary-foreground: 18 89% 30%;
 
     --muted: 240 100% 97%;
     --muted-foreground: 235 25% 45%;
 
     --accent: 240 100% 97%;
-    --accent-foreground: 242 88% 62%;
+    --accent-foreground: 18 89% 48%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 240 100% 94%; /* #E2E2FF */
+    --border: 142 60% 93%; /* #DCFCE7 */
     --input: 240 100% 94%;
-    --ring: 242 88% 62%;
+    --ring: 18 89% 48%;
     --radius: 1rem;
   }
 
@@ -44,11 +44,11 @@
     --popover: 235 45% 13%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 242 88% 62%; /* #524CF2 stays */
+    --primary: 18 89% 48%; /* #EA580C stays */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 235 45% 17%; /* #161A3E */
-    --secondary-foreground: 242 80% 75%;
+    --secondary: 48 45% 15%; /* #161A3E */
+    --secondary-foreground: 48 80% 75%;
 
     --muted: 235 45% 17%;
     --muted-foreground: 235 20% 60%;
@@ -59,9 +59,9 @@
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 235 45% 18%; /* #1E2247 */
+    --border: 142 30% 15%; /* #1E2247 */
     --input: 235 45% 18%;
-    --ring: 242 88% 62%;
+    --ring: 18 89% 48%;
     --radius: 1rem;
   }
 }
@@ -173,7 +173,7 @@
   .bg-white, .bg-card, .rounded-2xl {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border: 1px solid #E2E2FF !important;
+    border: 1px solid #DCFCE7 !important;
     box-shadow: none !important;
     margin-bottom: 1.5rem !important;
     background: white !important;
@@ -182,7 +182,7 @@
   /* AI Insights Card Specific Styling */
   .bg-gradient-to-br {
     background: #FAFAFF !important;
-    border-left: 4px solid #524CF2 !important;
+    border-left: 4px solid #EA580C !important;
     padding: 1.5rem !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
@@ -197,6 +197,6 @@
 
   /* Table styling */
   .divide-y > * {
-    border-color: #E2E2FF !important;
+    border-color: #DCFCE7 !important;
   }
 }

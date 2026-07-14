@@ -99,7 +99,7 @@ const INITIAL_TRANSACTIONS = [
     txn_type: "transfer",
     occurred_on: "2026-07-12",
     category_id: "cat-oth",
-    category: { id: "cat-oth", name: "Transfer", color: "#524CF2" },
+    category: { id: "cat-oth", name: "Transfer", color: "#EA580C" },
     account_id: "acc-main",
     account: { id: "acc-main", name: "M-Pesa", account_code: "main" },
     transfer_account_id: "acc-kcb",
@@ -634,7 +634,7 @@ export default function PublicSandboxPage() {
       desc = `Transfer to ${isKcb ? "KCB M-Pesa Savings" : "M-Shwari"}`;
       categoryId = "cat-oth";
       categoryName = "Transfer";
-      categoryColor = "#524CF2";
+      categoryColor = "#EA580C";
     } else if (/received/i.test(text) || /credited/i.test(text)) {
       txnType = "income";
       desc = "Received Money";
@@ -1243,7 +1243,7 @@ export default function PublicSandboxPage() {
       <>
         <div className="flex items-center justify-between gap-3 px-5 py-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#625DF1] to-[#4038C7] flex items-center justify-center shrink-0 shadow-lg shadow-[#524CF2]/15">
+            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#C2410C] to-[#4038C7] flex items-center justify-center shrink-0 shadow-lg shadow-[#EA580C]/15">
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <div className="flex flex-col">
@@ -1324,7 +1324,7 @@ export default function PublicSandboxPage() {
       <div className="space-y-6">
         
         {/* TOP STATUS AND MODE BAR */}
-        <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm p-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-white rounded-3xl border border-[#DCFCE7] shadow-sm p-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shrink-0 shadow-md">
               <SlidersHorizontal className="h-5 w-5" />
@@ -1337,7 +1337,7 @@ export default function PublicSandboxPage() {
           <div className="flex flex-wrap items-center gap-3">
             
             {/* Mode Switcher */}
-            <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-[#F0F0FF] border border-[#E2E2FF]">
+            <div className="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-[#FEF9C3] border border-[#DCFCE7]">
               <button
                 onClick={() => handleModeToggle(false)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -1363,7 +1363,7 @@ export default function PublicSandboxPage() {
             {/* Refresh Button */}
             <button
               onClick={handleReset}
-              className="inline-flex items-center justify-center h-9 px-3.5 rounded-xl border border-[#E2E2FF] bg-white text-xs font-bold text-[#33375C] hover:bg-[#F0F0FF] transition-all gap-1.5"
+              className="inline-flex items-center justify-center h-9 px-3.5 rounded-xl border border-[#DCFCE7] bg-white text-xs font-bold text-[#33375C] hover:bg-[#FEF9C3] transition-all gap-1.5"
             >
               {loadingLive ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1472,7 +1472,7 @@ export default function PublicSandboxPage() {
 
         {/* LOADING INDICATOR FOR LIVE DATA */}
         {loadingLive && (
-          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-3xl border border-[#E2E2FF] shadow-sm">
+          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-3xl border border-[#DCFCE7] shadow-sm">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
             <p className="text-sm mt-3 text-[#33375C]/60 font-semibold">Syncing live Supabase schema and rows...</p>
           </div>
@@ -1493,7 +1493,7 @@ export default function PublicSandboxPage() {
 
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <Smartphone className="h-4 w-4 text-[#524CF2]" />
+                    <Smartphone className="h-4 w-4 text-[#EA580C]" />
                     <h2 className="text-sm font-bold text-[#0A0D27] uppercase tracking-wider">Balances</h2>
                   </div>
                   <AccountBalanceCards accounts={activeAccounts as any} />
@@ -1534,24 +1534,24 @@ export default function PublicSandboxPage() {
             {activeTab === "transactions" && (
               <div className="space-y-4">
                 {/* Filter and Trigger Bar */}
-                <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm p-4 space-y-3">
+                <div className="bg-white rounded-3xl border border-[#DCFCE7] shadow-sm p-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <ArrowLeftRight className="h-5 w-5 text-[#524CF2]" />
+                      <ArrowLeftRight className="h-5 w-5 text-[#EA580C]" />
                       <h3 className="font-extrabold text-[#0A0D27]">Simulated Transactions Ledger</h3>
-                      <span className="bg-[#F0F0FF] text-[#524CF2] text-xs font-semibold px-2.5 py-1 rounded-full">
+                      <span className="bg-[#FEF9C3] text-[#EA580C] text-xs font-semibold px-2.5 py-1 rounded-full">
                         {filteredTransactions.length}
                       </span>
                     </div>
                     <button
                       onClick={() => setIsTxnModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold transition-all shadow-md"
+                      className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition-all shadow-md"
                     >
                       <Plus className="h-4 w-4" /> Add Transaction
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-[#F0F0FF]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-[#FEF9C3]">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#33375C]/40" />
                       <input
@@ -1559,13 +1559,13 @@ export default function PublicSandboxPage() {
                         value={searchFilter}
                         onChange={(e) => setSearchFilter(e.target.value)}
                         placeholder="Search description..."
-                        className="w-full h-9 pl-9 pr-3 text-xs border border-[#E2E2FF] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                        className="w-full h-9 pl-9 pr-3 text-xs border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                       />
                     </div>
                     <select
                       value={accountFilter}
                       onChange={(e) => setAccountFilter(e.target.value)}
-                      className="h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white text-[#33375C]"
+                      className="h-9 px-3 text-xs border border-[#DCFCE7] rounded-lg bg-white text-[#33375C]"
                     >
                       <option value="">All Accounts</option>
                       {activeAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -1573,7 +1573,7 @@ export default function PublicSandboxPage() {
                     <select
                       value={categoryFilter}
                       onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white text-[#33375C]"
+                      className="h-9 px-3 text-xs border border-[#DCFCE7] rounded-lg bg-white text-[#33375C]"
                     >
                       <option value="">All Categories</option>
                       {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1581,7 +1581,7 @@ export default function PublicSandboxPage() {
                     <select
                       value={typeFilter}
                       onChange={(e) => setTypeFilter(e.target.value)}
-                      className="h-9 px-3 text-xs border border-[#E2E2FF] rounded-lg bg-white text-[#33375C]"
+                      className="h-9 px-3 text-xs border border-[#DCFCE7] rounded-lg bg-white text-[#33375C]"
                     >
                       <option value="">All Types</option>
                       <option value="income">Income</option>
@@ -1592,11 +1592,11 @@ export default function PublicSandboxPage() {
                 </div>
 
                 {/* Desktop Table View */}
-                <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+                <div className="bg-white rounded-3xl border border-[#DCFCE7] shadow-sm overflow-hidden">
                   {sortedDates.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                      <div className="h-12 w-12 rounded-full bg-[#F0F0FF] flex items-center justify-center mb-3">
-                        <Search className="h-6 w-6 text-[#524CF2]" />
+                      <div className="h-12 w-12 rounded-full bg-[#FEF9C3] flex items-center justify-center mb-3">
+                        <Search className="h-6 w-6 text-[#EA580C]" />
                       </div>
                       <p className="text-sm font-semibold text-[#0A0D27]">No transactions found</p>
                       <p className="text-xs mt-1 text-[#33375C]/60">Apply different filters or run SMS simulations above</p>
@@ -1605,7 +1605,7 @@ export default function PublicSandboxPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b border-[#E2E2FF] bg-[#F0F0FF]/30">
+                          <tr className="border-b border-[#DCFCE7] bg-[#FEF9C3]/30">
                             <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Account</th>
                             <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Description</th>
                             <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Category</th>
@@ -1613,11 +1613,11 @@ export default function PublicSandboxPage() {
                             <th className="text-right px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Amount</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#E2E2FF]">
+                        <tbody className="divide-y divide-[#DCFCE7]">
                           {sortedDates.map((dateStr) => (
                             <Fragment key={dateStr}>
-                              <tr className="bg-[#F0F0FF]/45 border-y border-[#E2E2FF] pointer-events-none select-none">
-                                <td colSpan={5} className="px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#33375C]/60 bg-[#F0F0FF]/15">
+                              <tr className="bg-[#FEF9C3]/45 border-y border-[#DCFCE7] pointer-events-none select-none">
+                                <td colSpan={5} className="px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#33375C]/60 bg-[#FEF9C3]/15">
                                   {dateStr}
                                 </td>
                               </tr>
@@ -1627,7 +1627,7 @@ export default function PublicSandboxPage() {
                                 const balanceAfter = meta?.balance_after as number | null;
 
                                 return (
-                                  <tr key={txn.id} className="hover:bg-[#F0F0FF]/30 transition-colors">
+                                  <tr key={txn.id} className="hover:bg-[#FEF9C3]/30 transition-colors">
                                     <td className="px-5 py-3.5 text-xs text-[#33375C]/70 whitespace-nowrap font-semibold">
                                       {txn.account?.name ?? "-"}
                                     </td>
@@ -1669,13 +1669,13 @@ export default function PublicSandboxPage() {
                                           ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                                           : txn.txn_type === "expense"
                                           ? "bg-rose-50 text-rose-700 border-rose-100"
-                                          : "bg-[#F0F0FF] text-[#524CF2] border-[#E2E2FF]"
+                                          : "bg-[#FEF9C3] text-[#EA580C] border-[#DCFCE7]"
                                       }`}>
                                         {txn.txn_type}
                                       </span>
                                     </td>
                                     <td className={`px-5 py-3.5 text-right font-bold text-xs whitespace-nowrap ${
-                                      txn.txn_type === "income" ? "text-emerald-600" : txn.txn_type === "expense" ? "text-rose-600" : "text-[#524CF2]"
+                                      txn.txn_type === "income" ? "text-emerald-600" : txn.txn_type === "expense" ? "text-rose-600" : "text-[#EA580C]"
                                     }`}>
                                       {txn.txn_type === "income" ? "+" : txn.txn_type === "expense" ? "−" : ""}
                                       {formatCurrency(txn.amount)}
@@ -1701,27 +1701,27 @@ export default function PublicSandboxPage() {
                 <div className="space-y-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-[#524CF2]" />
+                      <Target className="h-5 w-5 text-[#EA580C]" />
                       <h3 className="font-extrabold text-[#0A0D27]">Monthly Budgets Overview</h3>
                     </div>
                     <button
                       onClick={() => setIsBudgetModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold transition-all shadow-md"
+                      className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition-all shadow-md"
                     >
                       <Plus className="h-4 w-4" /> Add Budget
                     </button>
                   </div>
 
                   {activeBudgets.length === 0 ? (
-                    <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
-                      <Target className="h-10 w-10 text-[#524CF2] mb-3" />
+                    <div className="bg-white rounded-3xl border border-[#DCFCE7] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
+                      <Target className="h-10 w-10 text-[#EA580C] mb-3" />
                       <p className="text-sm font-semibold text-[#0A0D27]">No budgets found</p>
                       <p className="text-xs mt-1 text-[#33375C]/60">Create a budget manually or switch modes</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {activeBudgets.map((b) => (
-                        <div key={b.id} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 hover:border-[#524CF2]/30 transition-colors">
+                        <div key={b.id} className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 hover:border-[#EA580C]/30 transition-colors">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: b.category?.color ?? "#64748B" }} />
@@ -1738,7 +1738,7 @@ export default function PublicSandboxPage() {
                             </span>
                           </div>
                           
-                          <div className="h-2 w-full rounded-full bg-[#F0F0FF] overflow-hidden">
+                          <div className="h-2 w-full rounded-full bg-[#FEF9C3] overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all duration-300 ${
                                 b.status === "over" ? "bg-rose-500" : b.status === "warning" ? "bg-amber-500" : "bg-emerald-500"
@@ -1775,7 +1775,7 @@ export default function PublicSandboxPage() {
                 <div className="space-y-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <Landmark className="h-5 w-5 text-[#524CF2]" />
+                      <Landmark className="h-5 w-5 text-[#EA580C]" />
                       <h3 className="font-extrabold text-[#0A0D27]">Outstanding Debts &amp; Limits</h3>
                     </div>
                   </div>
@@ -1784,7 +1784,7 @@ export default function PublicSandboxPage() {
                     {activeDebts.map(d => {
                       const pct = d.credit_limit > 0 ? (d.current_balance / d.credit_limit) * 100 : 0;
                       return (
-                        <div key={d.id} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 space-y-4">
+                        <div key={d.id} className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 space-y-4">
                           <div className="flex justify-between items-start">
                             <div>
                               <h4 className="font-bold text-sm text-[#0A0D27]">{d.creditor}</h4>
@@ -1802,7 +1802,7 @@ export default function PublicSandboxPage() {
                               <span className="text-[#33375C]/60">Utilization</span>
                               <span className="text-[#0A0D27]">{pct.toFixed(0)}%</span>
                             </div>
-                            <div className="h-2 w-full rounded-full bg-[#F0F0FF] overflow-hidden">
+                            <div className="h-2 w-full rounded-full bg-[#FEF9C3] overflow-hidden">
                               <div
                                 className="h-full bg-rose-500 transition-all duration-300"
                                 style={{ width: `${Math.min(pct, 100)}%` }}
@@ -1810,7 +1810,7 @@ export default function PublicSandboxPage() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3 pt-2 text-xs border-t border-[#F0F0FF]">
+                          <div className="grid grid-cols-2 gap-3 pt-2 text-xs border-t border-[#FEF9C3]">
                             <div>
                               <span className="text-[9px] text-[#33375C]/50 font-bold uppercase">Balance</span>
                               <p className="font-bold text-rose-600 mt-0.5">{formatCurrency(d.current_balance)}</p>
@@ -1844,20 +1844,20 @@ export default function PublicSandboxPage() {
               <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <Crosshair className="h-5 w-5 text-[#524CF2]" />
+                    <Crosshair className="h-5 w-5 text-[#EA580C]" />
                     <h3 className="font-extrabold text-[#0A0D27]">Savings Goals &amp; Progress</h3>
                   </div>
                   <button
                     onClick={() => setIsGoalModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold transition-all shadow-md"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition-all shadow-md"
                   >
                     <Plus className="h-4 w-4" /> Add Goal
                   </button>
                 </div>
 
                 {activeSavingsGoals.length === 0 ? (
-                  <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
-                    <Crosshair className="h-10 w-10 text-[#524CF2] mb-3" />
+                  <div className="bg-white rounded-3xl border border-[#DCFCE7] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
+                    <Crosshair className="h-10 w-10 text-[#EA580C] mb-3" />
                     <p className="text-sm font-semibold text-[#0A0D27]">No goals set</p>
                     <p className="text-xs mt-1 text-[#33375C]/60">Create a savings goal manually or switch modes</p>
                   </div>
@@ -1866,7 +1866,7 @@ export default function PublicSandboxPage() {
                     {activeSavingsGoals.map(g => {
                       const pct = g.progress;
                       return (
-                        <div key={g.id} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 hover:border-[#524CF2]/30 transition-colors">
+                        <div key={g.id} className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 hover:border-[#EA580C]/30 transition-colors">
                           <div className="flex items-center justify-between mb-3">
                             <span className="font-semibold text-[#0A0D27] text-xs">{g.name}</span>
                             <div className="flex items-center gap-2">
@@ -1878,10 +1878,10 @@ export default function PublicSandboxPage() {
                             </div>
                           </div>
 
-                          <div className="h-2 w-full rounded-full bg-[#F0F0FF] overflow-hidden">
+                          <div className="h-2 w-full rounded-full bg-[#FEF9C3] overflow-hidden">
                             <div
                               className={`h-full transition-all duration-300 ${
-                                pct >= 100 ? "bg-emerald-500" : pct >= 70 ? "bg-amber-500" : "bg-[#524CF2]"
+                                pct >= 100 ? "bg-emerald-500" : pct >= 70 ? "bg-amber-500" : "bg-[#EA580C]"
                               }`}
                               style={{ width: `${Math.min(pct, 100)}%` }}
                             />
@@ -1898,14 +1898,14 @@ export default function PublicSandboxPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#F0F0FF]">
+                          <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#FEF9C3]">
                             <p className="text-[10px] text-[#33375C]/60 font-semibold">
                               {pct.toFixed(0)}% reached {g.target_date ? `· Due ${g.target_date}` : ""}
                             </p>
                             {pct < 100 && (
                               <button
                                 onClick={() => handleAddSavingsPayment(g.id)}
-                                className="text-xs font-bold text-[#524CF2] hover:underline"
+                                className="text-xs font-bold text-[#EA580C] hover:underline"
                               >
                                 + Add Savings
                               </button>
@@ -1928,20 +1928,20 @@ export default function PublicSandboxPage() {
               <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <Receipt className="h-5 w-5 text-[#524CF2]" />
+                    <Receipt className="h-5 w-5 text-[#EA580C]" />
                     <h3 className="font-extrabold text-[#0A0D27]">Recurring Bills &amp; Subscriptions</h3>
                   </div>
                   <button
                     onClick={() => setIsRecurringModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold transition-all shadow-md"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition-all shadow-md"
                   >
                     <Plus className="h-4 w-4" /> Add Obligation
                   </button>
                 </div>
 
                 {activeRecurring.length === 0 ? (
-                  <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
-                    <Receipt className="h-10 w-10 text-[#524CF2] mb-3" />
+                  <div className="bg-white rounded-3xl border border-[#DCFCE7] shadow-sm flex flex-col items-center justify-center py-16 px-6 text-center">
+                    <Receipt className="h-10 w-10 text-[#EA580C] mb-3" />
                     <p className="text-sm font-semibold text-[#0A0D27]">No recurring bills found</p>
                     <p className="text-xs mt-1 text-[#33375C]/60">Create a recurring obligation to test invoice webhook triggers</p>
                   </div>
@@ -1950,7 +1950,7 @@ export default function PublicSandboxPage() {
                     {activeRecurring.map(o => {
                       const overdue = o.due_in_days != null && o.due_in_days < 0;
                       return (
-                        <div key={o.id} className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 space-y-4">
+                        <div key={o.id} className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 space-y-4">
                           <div className="flex justify-between items-start">
                             <div>
                               <h4 className="font-bold text-sm text-[#0A0D27]">{o.name}</h4>
@@ -1978,7 +1978,7 @@ export default function PublicSandboxPage() {
                             <span className="text-xs text-[#33375C]/50 font-semibold ml-1">/ {o.recurrence}</span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 text-[11px] pt-3 border-t border-[#F0F0FF]">
+                          <div className="grid grid-cols-2 gap-2 text-[11px] pt-3 border-t border-[#FEF9C3]">
                             <div>
                               <span className="text-[#33375C]/50 font-semibold block">Source Account</span>
                               <span className="text-[#0A0D27] font-bold">{o.account?.name ?? "M-Pesa"}</span>
@@ -2001,14 +2001,14 @@ export default function PublicSandboxPage() {
             {activeTab === "webhook-logs" && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <Webhook className="h-5 w-5 text-[#524CF2]" />
+                  <Webhook className="h-5 w-5 text-[#EA580C]" />
                   <h3 className="font-extrabold text-[#0A0D27]">Webhook Execution Logs</h3>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+                <div className="bg-white rounded-3xl border border-[#DCFCE7] shadow-sm overflow-hidden">
                   {activeWebhookLogs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                      <Webhook className="h-10 w-10 text-[#524CF2] mb-3" />
+                      <Webhook className="h-10 w-10 text-[#EA580C] mb-3" />
                       <p className="text-sm font-semibold text-[#0A0D27]">No webhook logs found</p>
                       <p className="text-xs mt-1 text-[#33375C]/60">Invoke the simulation console to populate log history</p>
                     </div>
@@ -2016,7 +2016,7 @@ export default function PublicSandboxPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b border-[#E2E2FF] bg-[#F0F0FF]/30">
+                          <tr className="border-b border-[#DCFCE7] bg-[#FEF9C3]/30">
                             <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Timestamp</th>
                             <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">SMS Payload Text</th>
                             <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Content Type</th>
@@ -2024,11 +2024,11 @@ export default function PublicSandboxPage() {
                             <th className="text-right px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Action</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#E2E2FF] text-xs">
+                        <tbody className="divide-y divide-[#DCFCE7] text-xs">
                           {activeWebhookLogs.map((log) => {
                             const isSuccess = log.reason?.toLowerCase().includes("success");
                             return (
-                              <tr key={log.id} className="hover:bg-[#F0F0FF]/30 transition-colors">
+                              <tr key={log.id} className="hover:bg-[#FEF9C3]/30 transition-colors">
                                 <td className="px-5 py-3.5 text-[#33375C]/60 whitespace-nowrap font-medium">
                                   {new Date(log.created_at).toLocaleString("en-KE")}
                                 </td>
@@ -2094,8 +2094,8 @@ export default function PublicSandboxPage() {
       {/* --- ADD TRANSACTION DIALOG MODAL --- */}
       {isTxnModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleAddTransaction} className="bg-white rounded-3xl border border-[#E2E2FF] w-full max-w-md p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[#F0F0FF] pb-3">
+          <form onSubmit={handleAddTransaction} className="bg-white rounded-3xl border border-[#DCFCE7] w-full max-w-md p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#FEF9C3] pb-3">
               <h3 className="font-extrabold text-base text-[#0A0D27]">Add Manual Sandbox Transaction</h3>
               <button type="button" onClick={() => setIsTxnModalOpen(false)} className="text-[#33375C]/60 hover:text-rose-500"><X className="h-4.5 w-4.5" /></button>
             </div>
@@ -2103,14 +2103,14 @@ export default function PublicSandboxPage() {
             <div className="space-y-3.5">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-[#33375C]/60 block mb-1">Transaction Type</label>
-                <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-[#F0F0FF] border border-[#E2E2FF]">
+                <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-[#FEF9C3] border border-[#DCFCE7]">
                   {(["expense", "income", "transfer"] as const).map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => setTxnForm({ ...txnForm, txn_type: type })}
                       className={`py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
-                        txnForm.txn_type === type ? "bg-white text-[#524CF2] shadow-sm" : "text-[#33375C]/60"
+                        txnForm.txn_type === type ? "bg-white text-[#EA580C] shadow-sm" : "text-[#33375C]/60"
                       }`}
                     >
                       {type}
@@ -2127,7 +2127,7 @@ export default function PublicSandboxPage() {
                   value={txnForm.description}
                   onChange={(e) => setTxnForm({ ...txnForm, description: e.target.value })}
                   placeholder="e.g. Shopping payment"
-                  className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                  className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                 />
               </div>
 
@@ -2141,7 +2141,7 @@ export default function PublicSandboxPage() {
                     value={txnForm.amount}
                     onChange={(e) => setTxnForm({ ...txnForm, amount: e.target.value })}
                     placeholder="2500"
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                   />
                 </div>
                 <div>
@@ -2151,7 +2151,7 @@ export default function PublicSandboxPage() {
                     required
                     value={txnForm.occurred_on}
                     onChange={(e) => setTxnForm({ ...txnForm, occurred_on: e.target.value })}
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                   />
                 </div>
               </div>
@@ -2162,7 +2162,7 @@ export default function PublicSandboxPage() {
                   <select
                     value={txnForm.account_id}
                     onChange={(e) => setTxnForm({ ...txnForm, account_id: e.target.value })}
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                   >
                     {activeAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
@@ -2174,7 +2174,7 @@ export default function PublicSandboxPage() {
                     <select
                       value={txnForm.transfer_account_id}
                       onChange={(e) => setTxnForm({ ...txnForm, transfer_account_id: e.target.value })}
-                      className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                      className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                     >
                       {activeAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
@@ -2185,7 +2185,7 @@ export default function PublicSandboxPage() {
                     <select
                       value={txnForm.category_id}
                       onChange={(e) => setTxnForm({ ...txnForm, category_id: e.target.value })}
-                      className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                      className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                     >
                       {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -2194,11 +2194,11 @@ export default function PublicSandboxPage() {
               </div>
             </div>
 
-            <div className="flex gap-2.5 pt-3 border-t border-[#F0F0FF]">
-              <button type="submit" className="flex-1 h-10 bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold rounded-xl transition-all shadow-md">
+            <div className="flex gap-2.5 pt-3 border-t border-[#FEF9C3]">
+              <button type="submit" className="flex-1 h-10 bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold rounded-xl transition-all shadow-md">
                 Save Transaction
               </button>
-              <button type="button" onClick={() => setIsTxnModalOpen(false)} className="px-4 h-10 border border-[#E2E2FF] hover:bg-[#F0F0FF] rounded-xl text-xs font-bold text-[#33375C] transition-all">
+              <button type="button" onClick={() => setIsTxnModalOpen(false)} className="px-4 h-10 border border-[#DCFCE7] hover:bg-[#FEF9C3] rounded-xl text-xs font-bold text-[#33375C] transition-all">
                 Cancel
               </button>
             </div>
@@ -2209,8 +2209,8 @@ export default function PublicSandboxPage() {
       {/* --- ADD BUDGET DIALOG MODAL --- */}
       {isBudgetModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleAddBudget} className="bg-white rounded-3xl border border-[#E2E2FF] w-full max-w-sm p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[#F0F0FF] pb-3">
+          <form onSubmit={handleAddBudget} className="bg-white rounded-3xl border border-[#DCFCE7] w-full max-w-sm p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#FEF9C3] pb-3">
               <h3 className="font-extrabold text-base text-[#0A0D27]">Set Sandbox Budget</h3>
               <button type="button" onClick={() => setIsBudgetModalOpen(false)} className="text-[#33375C]/60 hover:text-rose-500"><X className="h-4.5 w-4.5" /></button>
             </div>
@@ -2221,7 +2221,7 @@ export default function PublicSandboxPage() {
                 <select
                   value={budgetForm.category_id}
                   onChange={(e) => setBudgetForm({ ...budgetForm, category_id: e.target.value })}
-                  className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                  className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                 >
                   {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -2233,7 +2233,7 @@ export default function PublicSandboxPage() {
                   <select
                     value={budgetForm.txn_type}
                     onChange={(e) => setBudgetForm({ ...budgetForm, txn_type: e.target.value })}
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                   >
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>
@@ -2247,7 +2247,7 @@ export default function PublicSandboxPage() {
                     value={budgetForm.amount}
                     onChange={(e) => setBudgetForm({ ...budgetForm, amount: e.target.value })}
                     placeholder="10000"
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                   />
                 </div>
               </div>
@@ -2260,16 +2260,16 @@ export default function PublicSandboxPage() {
                   value={budgetForm.alert_threshold_pct}
                   onChange={(e) => setBudgetForm({ ...budgetForm, alert_threshold_pct: e.target.value })}
                   placeholder="80"
-                  className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                  className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2.5 pt-3 border-t border-[#F0F0FF]">
-              <button type="submit" className="flex-1 h-10 bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold rounded-xl transition-all shadow-md">
+            <div className="flex gap-2.5 pt-3 border-t border-[#FEF9C3]">
+              <button type="submit" className="flex-1 h-10 bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold rounded-xl transition-all shadow-md">
                 Set Budget
               </button>
-              <button type="button" onClick={() => setIsBudgetModalOpen(false)} className="px-4 h-10 border border-[#E2E2FF] hover:bg-[#F0F0FF] rounded-xl text-xs font-bold text-[#33375C] transition-all">
+              <button type="button" onClick={() => setIsBudgetModalOpen(false)} className="px-4 h-10 border border-[#DCFCE7] hover:bg-[#FEF9C3] rounded-xl text-xs font-bold text-[#33375C] transition-all">
                 Cancel
               </button>
             </div>
@@ -2280,8 +2280,8 @@ export default function PublicSandboxPage() {
       {/* --- ADD SAVINGS GOAL DIALOG MODAL --- */}
       {isGoalModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleAddGoal} className="bg-white rounded-3xl border border-[#E2E2FF] w-full max-w-sm p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[#F0F0FF] pb-3">
+          <form onSubmit={handleAddGoal} className="bg-white rounded-3xl border border-[#DCFCE7] w-full max-w-sm p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#FEF9C3] pb-3">
               <h3 className="font-extrabold text-base text-[#0A0D27]">Set Savings Goal</h3>
               <button type="button" onClick={() => setIsGoalModalOpen(false)} className="text-[#33375C]/60 hover:text-rose-500"><X className="h-4.5 w-4.5" /></button>
             </div>
@@ -2295,7 +2295,7 @@ export default function PublicSandboxPage() {
                   value={goalForm.name}
                   onChange={(e) => setGoalForm({ ...goalForm, name: e.target.value })}
                   placeholder="e.g. Downpayment for house"
-                  className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                  className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                 />
               </div>
 
@@ -2308,7 +2308,7 @@ export default function PublicSandboxPage() {
                     value={goalForm.target_amount}
                     onChange={(e) => setGoalForm({ ...goalForm, target_amount: e.target.value })}
                     placeholder="100000"
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                   />
                 </div>
                 <div>
@@ -2319,7 +2319,7 @@ export default function PublicSandboxPage() {
                     value={goalForm.current_amount}
                     onChange={(e) => setGoalForm({ ...goalForm, current_amount: e.target.value })}
                     placeholder="0"
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                   />
                 </div>
               </div>
@@ -2330,16 +2330,16 @@ export default function PublicSandboxPage() {
                   type="date"
                   value={goalForm.target_date}
                   onChange={(e) => setGoalForm({ ...goalForm, target_date: e.target.value })}
-                  className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                  className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2.5 pt-3 border-t border-[#F0F0FF]">
-              <button type="submit" className="flex-1 h-10 bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold rounded-xl transition-all shadow-md">
+            <div className="flex gap-2.5 pt-3 border-t border-[#FEF9C3]">
+              <button type="submit" className="flex-1 h-10 bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold rounded-xl transition-all shadow-md">
                 Create Goal
               </button>
-              <button type="button" onClick={() => setIsGoalModalOpen(false)} className="px-4 h-10 border border-[#E2E2FF] hover:bg-[#F0F0FF] rounded-xl text-xs font-bold text-[#33375C] transition-all">
+              <button type="button" onClick={() => setIsGoalModalOpen(false)} className="px-4 h-10 border border-[#DCFCE7] hover:bg-[#FEF9C3] rounded-xl text-xs font-bold text-[#33375C] transition-all">
                 Cancel
               </button>
             </div>
@@ -2350,8 +2350,8 @@ export default function PublicSandboxPage() {
       {/* --- ADD RECURRING DIALOG MODAL --- */}
       {isRecurringModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleAddRecurring} className="bg-white rounded-3xl border border-[#E2E2FF] w-full max-w-md p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[#F0F0FF] pb-3">
+          <form onSubmit={handleAddRecurring} className="bg-white rounded-3xl border border-[#DCFCE7] w-full max-w-md p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#FEF9C3] pb-3">
               <h3 className="font-extrabold text-base text-[#0A0D27]">Add Recurring Bill / Sub</h3>
               <button type="button" onClick={() => setIsRecurringModalOpen(false)} className="text-[#33375C]/60 hover:text-rose-500"><X className="h-4.5 w-4.5" /></button>
             </div>
@@ -2363,7 +2363,7 @@ export default function PublicSandboxPage() {
                   <select
                     value={recurringForm.obligation_type}
                     onChange={(e) => setRecurringForm({ ...recurringForm, obligation_type: e.target.value })}
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                   >
                     <option value="bill">Bill</option>
                     <option value="subscription">Subscription</option>
@@ -2374,7 +2374,7 @@ export default function PublicSandboxPage() {
                   <select
                     value={recurringForm.recurrence}
                     onChange={(e) => setRecurringForm({ ...recurringForm, recurrence: e.target.value })}
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                   >
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
@@ -2393,7 +2393,7 @@ export default function PublicSandboxPage() {
                     value={recurringForm.name}
                     onChange={(e) => setRecurringForm({ ...recurringForm, name: e.target.value })}
                     placeholder="Netflix Premium"
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                   />
                 </div>
                 <div>
@@ -2404,7 +2404,7 @@ export default function PublicSandboxPage() {
                     value={recurringForm.amount}
                     onChange={(e) => setRecurringForm({ ...recurringForm, amount: e.target.value })}
                     placeholder="1100"
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                   />
                 </div>
               </div>
@@ -2419,7 +2419,7 @@ export default function PublicSandboxPage() {
                     value={recurringForm.due_day_of_month}
                     onChange={(e) => setRecurringForm({ ...recurringForm, due_day_of_month: e.target.value })}
                     placeholder="28"
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                   />
                 </div>
                 <div>
@@ -2428,7 +2428,7 @@ export default function PublicSandboxPage() {
                     type="date"
                     value={recurringForm.next_due_date}
                     onChange={(e) => setRecurringForm({ ...recurringForm, next_due_date: e.target.value })}
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                   />
                 </div>
               </div>
@@ -2439,7 +2439,7 @@ export default function PublicSandboxPage() {
                   <select
                     value={recurringForm.account_id}
                     onChange={(e) => setRecurringForm({ ...recurringForm, account_id: e.target.value })}
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                   >
                     {activeAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
@@ -2449,7 +2449,7 @@ export default function PublicSandboxPage() {
                   <select
                     value={recurringForm.category_id}
                     onChange={(e) => setRecurringForm({ ...recurringForm, category_id: e.target.value })}
-                    className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30 text-[#33375C]"
+                    className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 text-[#33375C]"
                   >
                     {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -2463,16 +2463,16 @@ export default function PublicSandboxPage() {
                   value={recurringForm.match_keywords}
                   onChange={(e) => setRecurringForm({ ...recurringForm, match_keywords: e.target.value })}
                   placeholder="netflix, kplc (comma separated)"
-                  className="w-full h-10 px-3 text-xs border border-[#E2E2FF] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#524CF2]/30"
+                  className="w-full h-10 px-3 text-xs border border-[#DCFCE7] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2.5 pt-3 border-t border-[#F0F0FF]">
-              <button type="submit" className="flex-1 h-10 bg-[#524CF2] hover:bg-[#625DF1] text-white text-xs font-bold rounded-xl transition-all shadow-md">
+            <div className="flex gap-2.5 pt-3 border-t border-[#FEF9C3]">
+              <button type="submit" className="flex-1 h-10 bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold rounded-xl transition-all shadow-md">
                 Create Obligation
               </button>
-              <button type="button" onClick={() => setIsRecurringModalOpen(false)} className="px-4 h-10 border border-[#E2E2FF] hover:bg-[#F0F0FF] rounded-xl text-xs font-bold text-[#33375C] transition-all">
+              <button type="button" onClick={() => setIsRecurringModalOpen(false)} className="px-4 h-10 border border-[#DCFCE7] hover:bg-[#FEF9C3] rounded-xl text-xs font-bold text-[#33375C] transition-all">
                 Cancel
               </button>
             </div>

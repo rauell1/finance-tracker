@@ -47,7 +47,7 @@ export function NotificationCenter() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="relative h-9 w-9 rounded-xl flex items-center justify-center text-[#33375C]/70 hover:text-[#524CF2] hover:bg-[#F0F0FF] transition-colors"
+        className="relative h-9 w-9 rounded-xl flex items-center justify-center text-[#33375C]/70 hover:text-[#EA580C] hover:bg-[#FEF9C3] transition-colors"
         aria-label="Notifications"
       >
         <Bell className="h-5 w-5" />
@@ -62,10 +62,10 @@ export function NotificationCenter() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 w-80 sm:w-96 bg-white border border-[#E2E2FF] shadow-xl rounded-2xl z-50 max-h-[70vh] overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b border-[#E2E2FF] flex items-center justify-between">
+        <div className="absolute right-0 top-11 w-80 sm:w-96 bg-white border border-[#DCFCE7] shadow-xl rounded-2xl z-50 max-h-[70vh] overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-[#DCFCE7] flex items-center justify-between">
             <h3 className="font-semibold text-[#0A0D27] text-sm">Notifications</h3>
-            <button onClick={() => setOpen(false)} className="h-7 w-7 rounded-lg flex items-center justify-center text-[#33375C]/50 hover:bg-[#F0F0FF]">
+            <button onClick={() => setOpen(false)} className="h-7 w-7 rounded-lg flex items-center justify-center text-[#33375C]/50 hover:bg-[#FEF9C3]">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -76,12 +76,12 @@ export function NotificationCenter() {
                 <p className="text-sm text-[#33375C]/50">All caught up!</p>
               </div>
             ) : (
-              <div className="divide-y divide-[#E2E2FF]">
+              <div className="divide-y divide-[#DCFCE7]">
                 {notifications.map((n) => {
                   const cfg = severityConfig[n.severity];
                   const Icon = cfg.icon;
                   return (
-                    <div key={n.id} className={cn("flex items-start gap-3 px-4 py-3 hover:bg-[#F0F0FF]/20 transition-colors", cfg.bg + "/10")}>
+                    <div key={n.id} className={cn("flex items-start gap-3 px-4 py-3 hover:bg-[#FEF9C3]/20 transition-colors", cfg.bg + "/10")}>
                       <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5", cfg.bg, cfg.border, "border")}>
                         <Icon className={cn("h-4 w-4", cfg.color)} />
                       </div>

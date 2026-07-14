@@ -31,7 +31,7 @@ export function PeriodSelector({ variant = "default" }: PeriodSelectorProps) {
       "flex p-1 rounded-2xl shrink-0",
       isHero
         ? "bg-white/10 border border-white/15 backdrop-blur-sm"
-        : "bg-[#F0F0FF]/50 border border-[#E2E2FF]"
+        : "bg-[#FEF9C3]/50 border border-[#DCFCE7]"
     )}>
       {options.map((opt) => (
         <button
@@ -42,10 +42,10 @@ export function PeriodSelector({ variant = "default" }: PeriodSelectorProps) {
             currentPeriod === opt.value
               ? isHero
                 ? "bg-[#fff] text-[#4A44E0] shadow-sm"
-                : "bg-[#524CF2] text-white shadow-sm"
+                : "bg-[#EA580C] text-white shadow-sm"
               : isHero
                 ? "text-white/70 hover:text-white hover:bg-white/10"
-                : "text-[#33375C]/60 hover:text-[#524CF2] hover:bg-white/50"
+                : "text-[#33375C]/60 hover:text-[#EA580C] hover:bg-white/50"
           )}
         >
           {opt.label}

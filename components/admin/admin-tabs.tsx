@@ -78,7 +78,7 @@ export function AdminTabs({ accounts, fulizaDebt }: Props) {
   return (
     <div className="space-y-5">
       {/* Tab strip */}
-      <div className="flex gap-1 bg-[#F0F0FF]/60 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-[#FEF9C3]/60 rounded-xl p-1 w-fit">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -86,7 +86,7 @@ export function AdminTabs({ accounts, fulizaDebt }: Props) {
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-semibold transition-all",
               active === tab.id
-                ? "bg-white text-[#524CF2] shadow-sm shadow-[#524CF2]/10"
+                ? "bg-white text-[#EA580C] shadow-sm shadow-[#EA580C]/10"
                 : "text-[#33375C]/60 hover:text-[#33375C]"
             )}
           >
@@ -126,7 +126,7 @@ export function AdminTabs({ accounts, fulizaDebt }: Props) {
               <button
                 onClick={loadLogs}
                 disabled={loadingLogs}
-                className="h-8 px-3 rounded-lg border border-[#E2E2FF] hover:bg-[#F0F0FF] text-xs font-semibold flex items-center gap-1.5 transition-all text-[#33375C]"
+                className="h-8 px-3 rounded-lg border border-[#DCFCE7] hover:bg-[#FEF9C3] text-xs font-semibold flex items-center gap-1.5 transition-all text-[#33375C]"
               >
                 <RefreshCw className={cn("h-3.5 w-3.5", loadingLogs && "animate-spin")} />
                 Refresh
@@ -143,12 +143,12 @@ export function AdminTabs({ accounts, fulizaDebt }: Props) {
           </div>
 
           {loadingLogs ? (
-            <div className="bg-white rounded-2xl border border-[#E2E2FF] p-12 text-center text-sm text-[#33375C]/60 flex flex-col items-center justify-center gap-2">
-              <RefreshCw className="h-6 w-6 animate-spin text-[#524CF2]" />
+            <div className="bg-white rounded-2xl border border-[#DCFCE7] p-12 text-center text-sm text-[#33375C]/60 flex flex-col items-center justify-center gap-2">
+              <RefreshCw className="h-6 w-6 animate-spin text-[#EA580C]" />
               Loading system error logs...
             </div>
           ) : logs.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[#E2E2FF] p-12 text-center text-sm text-[#33375C]/60 flex flex-col items-center justify-center gap-3">
+            <div className="bg-white rounded-2xl border border-[#DCFCE7] p-12 text-center text-sm text-[#33375C]/60 flex flex-col items-center justify-center gap-3">
               <div className="h-12 w-12 rounded-full bg-emerald-50 flex items-center justify-center">
                 <ShieldCheck className="h-6 w-6 text-emerald-600" />
               </div>
@@ -158,11 +158,11 @@ export function AdminTabs({ accounts, fulizaDebt }: Props) {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-[#E2E2FF] overflow-hidden shadow-sm divide-y divide-[#E2E2FF]">
+            <div className="bg-white rounded-2xl border border-[#DCFCE7] overflow-hidden shadow-sm divide-y divide-[#DCFCE7]">
               {logs.map((log) => {
                 const isExpanded = expandedLogId === log.id;
                 return (
-                  <div key={log.id} className={cn("p-4 transition-colors", isExpanded ? "bg-[#F8F8FF]" : "hover:bg-[#F0F0FF]/15")}>
+                  <div key={log.id} className={cn("p-4 transition-colors", isExpanded ? "bg-[#F8F8FF]" : "hover:bg-[#FEF9C3]/15")}>
                     <div
                       className="flex items-start justify-between gap-4 cursor-pointer"
                       onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
@@ -175,30 +175,30 @@ export function AdminTabs({ accounts, fulizaDebt }: Props) {
                           <p className="font-semibold text-[#0A0D27] text-sm break-all">{log.error_message}</p>
                           <div className="flex items-center gap-4 text-xs text-[#33375C]/60 mt-1.5 flex-wrap">
                             <span className="flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5 text-[#524CF2]/75" />
+                              <Clock className="h-3.5 w-3.5 text-[#EA580C]/75" />
                               {new Date(log.created_at).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })} EAT
                             </span>
                             {log.path && (
-                              <span className="flex items-center gap-1 font-mono text-[11px] bg-[#F0F0FF] border border-[#E2E2FF] px-1.5 py-0.5 rounded text-[#33375C]">
+                              <span className="flex items-center gap-1 font-mono text-[11px] bg-[#FEF9C3] border border-[#DCFCE7] px-1.5 py-0.5 rounded text-[#33375C]">
                                 {log.path}
                               </span>
                             )}
                             {log.user_email && (
                               <span className="flex items-center gap-1">
-                                <User className="h-3.5 w-3.5 text-[#524CF2]/75" />
+                                <User className="h-3.5 w-3.5 text-[#EA580C]/75" />
                                 {log.user_email}
                               </span>
                             )}
                           </div>
                         </div>
                       </div>
-                      <button className="h-7 w-7 rounded-lg hover:bg-[#E2E2FF] flex items-center justify-center shrink-0 transition-colors">
+                      <button className="h-7 w-7 rounded-lg hover:bg-[#DCFCE7] flex items-center justify-center shrink-0 transition-colors">
                         {isExpanded ? <ChevronUp className="h-4 w-4 text-[#33375C]" /> : <ChevronDown className="h-4 w-4 text-[#33375C]" />}
                       </button>
                     </div>
 
                     {isExpanded && (
-                      <div className="mt-4 pt-4 border-t border-[#E2E2FF] space-y-3.5 text-xs text-[#33375C]">
+                      <div className="mt-4 pt-4 border-t border-[#DCFCE7] space-y-3.5 text-xs text-[#33375C]">
                         {log.stack_trace && (
                           <div className="space-y-1.5">
                             <span className="font-bold uppercase tracking-wider text-[10px] text-[#33375C]/70 block">Stack Trace</span>
@@ -211,7 +211,7 @@ export function AdminTabs({ accounts, fulizaDebt }: Props) {
                         {log.context && Object.keys(log.context).length > 0 && (
                           <div className="space-y-1.5">
                             <span className="font-bold uppercase tracking-wider text-[10px] text-[#33375C]/70 block">Context Parameters</span>
-                            <pre className="p-3 bg-[#F0F0FF] border border-[#E2E2FF] text-[#33375C] rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto">
+                            <pre className="p-3 bg-[#FEF9C3] border border-[#DCFCE7] text-[#33375C] rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto">
                               {JSON.stringify(log.context, null, 2)}
                             </pre>
                           </div>

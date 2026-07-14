@@ -22,20 +22,20 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-white text-[#0A0D27] antialiased overflow-x-hidden relative flex flex-col justify-between">
       {/* Decorative backgrounds */}
-      <div className="absolute top-[-5%] left-[-15%] w-[70vw] h-[70vw] rounded-full bg-[#524CF2]/[0.02] blur-[100px] pointer-events-none" aria-hidden="true" />
-      <div className="absolute bottom-[10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#524CF2]/[0.01] blur-[100px] pointer-events-none" aria-hidden="true" />
+      <div className="absolute top-[-5%] left-[-15%] w-[70vw] h-[70vw] rounded-full bg-[#EA580C]/[0.02] blur-[100px] pointer-events-none" aria-hidden="true" />
+      <div className="absolute bottom-[10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#EA580C]/[0.01] blur-[100px] pointer-events-none" aria-hidden="true" />
 
       {/* Nav */}
-      <nav className="sticky top-0 z-50 bg-white/95 border-b border-[#E2E2FF] backdrop-blur-md" aria-label="Main navigation">
+      <nav className="sticky top-0 z-50 bg-white/95 border-b border-[#DCFCE7] backdrop-blur-md" aria-label="Main navigation">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-            <div className="h-10 w-10 rounded-xl bg-[#524CF2] flex items-center justify-center shrink-0 shadow-lg shadow-[#524CF2]/25">
+            <div className="h-10 w-10 rounded-xl bg-[#EA580C] flex items-center justify-center shrink-0 shadow-lg shadow-[#EA580C]/25">
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <span className="font-extrabold text-xl tracking-tight text-[#0A0D27]">FinTrack</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm font-semibold text-[#33375C] hover:text-[#524CF2] transition-colors flex items-center gap-1">
+            <Link href="/" className="text-sm font-semibold text-[#33375C] hover:text-[#EA580C] transition-colors flex items-center gap-1">
               <ArrowLeft className="h-4 w-4" /> Back to Home
             </Link>
           </div>
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
       {/* Content */}
       <main className="max-w-4xl mx-auto px-6 py-12 sm:py-20 relative z-10 flex-grow">
         <div className="space-y-4 mb-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F0F0FF] border border-[#E2E2FF] text-[#524CF2] text-xs font-bold">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FEF9C3] border border-[#DCFCE7] text-[#EA580C] text-xs font-bold">
             <Shield className="h-3.5 w-3.5" /> Data Protection & Privacy
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-[#0A0D27] tracking-tight">Privacy Policy</h1>
@@ -65,11 +65,11 @@ export default function PrivacyPage() {
           {/* Section 1 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">1.</span> Overview & Global Compliance
+              <span className="text-[#EA580C]">1.</span> Overview & Global Compliance
             </h2>
             <p>
               Welcome to FinTrack (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;), operated by Rauell at{" "}
-              <Link href="https://rauell.systems" target="_blank" className="text-[#524CF2] hover:underline font-semibold">
+              <Link href="https://rauell.systems" target="_blank" className="text-[#EA580C] hover:underline font-semibold">
                 rauell.systems
               </Link>
               . FinTrack is a personal finance tracker designed to help you aggregate, categorize, and monitor your personal transactions.
@@ -87,22 +87,22 @@ export default function PrivacyPage() {
           {/* Section 2 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">2.</span> Information We Collect
+              <span className="text-[#EA580C]">2.</span> Information We Collect
             </h2>
             <p>
               We collect information that you directly provide to us, as well as transactions and SMS alerts that you route to the application.
             </p>
 
-            <div className="overflow-x-auto my-6 border border-[#E2E2FF] rounded-xl">
+            <div className="overflow-x-auto my-6 border border-[#DCFCE7] rounded-xl">
               <table className="w-full text-left text-sm border-collapse">
                 <thead>
-                  <tr className="bg-[#F0F0FF]/30 border-b border-[#E2E2FF]">
+                  <tr className="bg-[#FEF9C3]/30 border-b border-[#DCFCE7]">
                     <th className="p-4 font-bold text-[#0A0D27]">Category</th>
                     <th className="p-4 font-bold text-[#0A0D27]">Specific Data Items</th>
                     <th className="p-4 font-bold text-[#0A0D27]">Purpose of Processing</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E2E2FF]">
+                <tbody className="divide-y divide-[#DCFCE7]">
                   <tr>
                     <td className="p-4 font-semibold text-[#0A0D27] whitespace-nowrap">Account Profile</td>
                     <td className="p-4">Email address, Full Name, Currency preference, Timezone.</td>
@@ -131,7 +131,7 @@ export default function PrivacyPage() {
           {/* Section 3 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">3.</span> Legal Bases for Processing (GDPR & Kenya DPA)
+              <span className="text-[#EA580C]">3.</span> Legal Bases for Processing (GDPR & Kenya DPA)
             </h2>
             <p>
               If you reside in the EEA, UK, or Kenya, we process your personal data under the following legal bases:
@@ -152,7 +152,7 @@ export default function PrivacyPage() {
           {/* Section 4 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">4.</span> Cross-Border Data Transfers
+              <span className="text-[#EA580C]">4.</span> Cross-Border Data Transfers
             </h2>
             <p>
               FinTrack is hosted on Supabase cloud infrastructure, with databases and servers located in regional data centers outside of Kenya and the EEA (such as the United States or Europe).
@@ -169,7 +169,7 @@ export default function PrivacyPage() {
           {/* Section 5 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">5.</span> Security & Row-Level Protection
+              <span className="text-[#EA580C]">5.</span> Security & Row-Level Protection
             </h2>
             <p>
               Your financial records are highly sensitive, and we employ robust security standards:
@@ -184,21 +184,21 @@ export default function PrivacyPage() {
           {/* Section 6 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">6.</span> Data Retention & Erasure
+              <span className="text-[#EA580C]">6.</span> Data Retention & Erasure
             </h2>
             <p>
               We retain your personal data only for as long as necessary to provide the services or until you request its deletion.
             </p>
-            <div className="bg-[#F0F0FF]/40 border border-[#E2E2FF] rounded-2xl p-5 text-sm space-y-2">
+            <div className="bg-[#FEF9C3]/40 border border-[#DCFCE7] rounded-2xl p-5 text-sm space-y-2">
               <p className="font-semibold text-[#0A0D27] flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-[#524CF2]" /> How to Delete Your Data:
+                <CheckCircle2 className="h-4 w-4 text-[#EA580C]" /> How to Delete Your Data:
               </p>
               <p>
                 You can delete individual accounts and all associated transactions at any time via the <strong>Linked Accounts</strong> table in the <strong>Settings</strong> page.
               </p>
               <p>
                 To delete your profile and account permanently from the database, please contact us at{" "}
-                <a href="mailto:privacy@rauell.systems" className="text-[#524CF2] hover:underline font-semibold">
+                <a href="mailto:privacy@rauell.systems" className="text-[#EA580C] hover:underline font-semibold">
                   privacy@rauell.systems
                 </a>
                 . All associated transactions, accounts, and profile info will be permanently purged within 30 days of request.
@@ -209,7 +209,7 @@ export default function PrivacyPage() {
           {/* Section 7 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">7.</span> Your Privacy Rights
+              <span className="text-[#EA580C]">7.</span> Your Privacy Rights
             </h2>
             <p>
               Depending on your jurisdiction (Kenya DPA, GDPR, CCPA/CPRA), you possess specific legal rights over your personal data:
@@ -224,7 +224,7 @@ export default function PrivacyPage() {
                 { title: "Right to Restrict or Object", desc: "You can object to the processing of your data. If you withdraw consent (e.g. disable SMS forwarding), we will stop collecting transactions." },
                 { title: "Non-Discrimination (CCPA)", desc: "We will not discriminate against you (such as charging different prices or denying service) for exercising your privacy rights." }
               ].map((r, idx) => (
-                <div key={idx} className="border border-[#E2E2FF] rounded-xl p-4 bg-white shadow-sm flex flex-col justify-between">
+                <div key={idx} className="border border-[#DCFCE7] rounded-xl p-4 bg-white shadow-sm flex flex-col justify-between">
                   <span className="font-bold text-[#0A0D27] text-sm block mb-1">{r.title}</span>
                   <p className="text-xs text-[#33375C] leading-relaxed">{r.desc}</p>
                 </div>
@@ -235,7 +235,7 @@ export default function PrivacyPage() {
           {/* Section 8 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">8.</span> Children's Privacy
+              <span className="text-[#EA580C]">8.</span> Children's Privacy
             </h2>
             <p>
               FinTrack is not intended for or directed toward individuals under the age of 18 (or the age of majority in your jurisdiction). We do not knowingly collect or solicit personal data from children. If we discover that we have inadvertently collected information from a child, we will delete it immediately.
@@ -245,31 +245,31 @@ export default function PrivacyPage() {
           {/* Section 9 */}
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-[#0A0D27] flex items-center gap-2">
-              <span className="text-[#524CF2]">9.</span> Contact Us
+              <span className="text-[#EA580C]">9.</span> Contact Us
             </h2>
             <p>
               If you have any questions about this Privacy Policy, your data, or want to submit a request to access, correct, or delete your information, please reach out to us:
             </p>
-            <div className="border border-[#E2E2FF] rounded-xl p-5 bg-[#F0F0FF]/10 text-sm space-y-1">
+            <div className="border border-[#DCFCE7] rounded-xl p-5 bg-[#FEF9C3]/10 text-sm space-y-1">
               <p><strong>Data Controller:</strong> Rauell (FinTrack Operator)</p>
-              <p><strong>Website:</strong> <Link href="https://rauell.systems" target="_blank" className="text-[#524CF2] hover:underline">rauell.systems</Link></p>
-              <p><strong>Privacy Email:</strong> <a href="mailto:privacy@rauell.systems" className="text-[#524CF2] hover:underline">privacy@rauell.systems</a></p>
+              <p><strong>Website:</strong> <Link href="https://rauell.systems" target="_blank" className="text-[#EA580C] hover:underline">rauell.systems</Link></p>
+              <p><strong>Privacy Email:</strong> <a href="mailto:privacy@rauell.systems" className="text-[#EA580C] hover:underline">privacy@rauell.systems</a></p>
             </div>
           </section>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[#E2E2FF] bg-white py-10 relative z-10 w-full mt-auto">
+      <footer className="border-t border-[#DCFCE7] bg-white py-10 relative z-10 w-full mt-auto">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-[#33375C]/80">
           <div className="flex items-center gap-2.5">
-            <TrendingUp className="h-5 w-5 text-[#524CF2]" aria-hidden="true" />
+            <TrendingUp className="h-5 w-5 text-[#EA580C]" aria-hidden="true" />
             <span>&copy; {new Date().getFullYear()} FinTrack by Rauell. Personal finance tracker for Kenya &amp; East Africa.</span>
           </div>
           <nav aria-label="Footer navigation" className="flex items-center gap-6 font-semibold">
-            <Link href="/privacy" className="text-[#524CF2] hover:text-[#524CF2]">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-[#524CF2]">Terms of Service</Link>
-            <Link href="https://rauell.systems" target="_blank" rel="noopener noreferrer" className="hover:text-[#524CF2]">rauell.systems</Link>
+            <Link href="/privacy" className="text-[#EA580C] hover:text-[#EA580C]">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-[#EA580C]">Terms of Service</Link>
+            <Link href="https://rauell.systems" target="_blank" rel="noopener noreferrer" className="hover:text-[#EA580C]">rauell.systems</Link>
           </nav>
         </div>
       </footer>

@@ -26,7 +26,7 @@ function buildFilterUrl(params: Record<string, string>, overrides: Record<string
 const typeConfig: Record<string, string> = {
   income:   "bg-emerald-50 text-emerald-700 border-emerald-100",
   expense:  "bg-rose-50 text-rose-700 border-rose-100",
-  transfer: "bg-[#F0F0FF] text-[#524CF2] border-[#E2E2FF]",
+  transfer: "bg-[#FEF9C3] text-[#EA580C] border-[#DCFCE7]",
 };
 
 function formatDateHeader(dateStr: string) {
@@ -71,11 +71,11 @@ export function TransactionsClient({
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
         {transactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-            <div className="h-12 w-12 rounded-full bg-[#F0F0FF] flex items-center justify-center mb-3">
-              <Search className="h-6 w-6 text-[#524CF2]" />
+            <div className="h-12 w-12 rounded-full bg-[#FEF9C3] flex items-center justify-center mb-3">
+              <Search className="h-6 w-6 text-[#EA580C]" />
             </div>
             <p className="text-sm font-semibold text-[#0A0D27]">No transactions found</p>
             <p className="text-xs mt-1 text-[#33375C]/60 max-w-xs">Try adjusting your filters or add a new transaction using the button in the topbar.</p>
@@ -83,13 +83,13 @@ export function TransactionsClient({
         ) : (
           <>
             {/* Mobile card list grouped by date */}
-            <div className="md:hidden divide-y divide-[#E2E2FF]">
+            <div className="md:hidden divide-y divide-[#DCFCE7]">
               {sortedDates.map((dateStr) => (
                 <div key={dateStr} className="space-y-0">
-                  <div className="bg-[#F0F0FF]/50 dark:bg-[#161A3E]/30 px-4 py-2 text-xs font-bold text-[#33375C]/70 border-b border-[#E2E2FF]">
+                  <div className="bg-[#FEF9C3]/50 dark:bg-[#161A3E]/30 px-4 py-2 text-xs font-bold text-[#33375C]/70 border-b border-[#DCFCE7]">
                     {formatDateHeader(dateStr)}
                   </div>
-                  <ul className="divide-y divide-[#E2E2FF]">
+                  <ul className="divide-y divide-[#DCFCE7]">
                     {groupedTransactions[dateStr].map((txn) => {
                       const meta = txn.metadata as Record<string, unknown>;
                       const isWebhook = meta?.source === "sms_webhook";
@@ -97,7 +97,7 @@ export function TransactionsClient({
                         <li
                           key={txn.id}
                           onClick={() => setSelected(txn)}
-                          className="px-4 py-3.5 active:bg-[#F0F0FF]/40 cursor-pointer"
+                          className="px-4 py-3.5 active:bg-[#FEF9C3]/40 cursor-pointer"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
@@ -118,7 +118,7 @@ export function TransactionsClient({
                             <div className="text-right shrink-0">
                               <p className={cn(
                                 "text-sm font-bold whitespace-nowrap",
-                                txn.txn_type === "income" ? "text-emerald-600" : txn.txn_type === "expense" ? "text-rose-600" : "text-[#524CF2]"
+                                txn.txn_type === "income" ? "text-emerald-600" : txn.txn_type === "expense" ? "text-rose-600" : "text-[#EA580C]"
                               )}>
                                 {txn.txn_type === "income" ? "+" : txn.txn_type === "expense" ? "−" : ""}{formatCurrency(txn.amount)}
                               </p>
@@ -136,7 +136,7 @@ export function TransactionsClient({
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[#E2E2FF] bg-[#F0F0FF]/30">
+                  <tr className="border-b border-[#DCFCE7] bg-[#FEF9C3]/30">
                     <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Account</th>
                     <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Description</th>
                     <th className="text-left px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Category</th>
@@ -144,11 +144,11 @@ export function TransactionsClient({
                     <th className="text-right px-5 py-3 text-[10px] font-bold text-[#33375C]/70 uppercase tracking-wider">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E2E2FF]">
+                <tbody className="divide-y divide-[#DCFCE7]">
                   {sortedDates.map((dateStr) => (
                     <Fragment key={dateStr}>
-                      <tr className="bg-[#F0F0FF]/45 border-y border-[#E2E2FF] pointer-events-none select-none">
-                        <td colSpan={5} className="px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#33375C]/60 bg-[#F0F0FF]/15">
+                      <tr className="bg-[#FEF9C3]/45 border-y border-[#DCFCE7] pointer-events-none select-none">
+                        <td colSpan={5} className="px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#33375C]/60 bg-[#FEF9C3]/15">
                           {formatDateHeader(dateStr)}
                         </td>
                       </tr>
@@ -161,7 +161,7 @@ export function TransactionsClient({
                           <tr
                             key={txn.id}
                             onClick={() => setSelected(txn)}
-                            className="hover:bg-[#F0F0FF]/30 transition-colors cursor-pointer group"
+                            className="hover:bg-[#FEF9C3]/30 transition-colors cursor-pointer group"
                           >
                             <td className="px-5 py-3.5 text-sm text-[#33375C]/70 whitespace-nowrap font-semibold">
                               {txn.account?.name ?? "-"}
@@ -174,7 +174,7 @@ export function TransactionsClient({
                                   </span>
                                 )}
                                 <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-[#0A0D27] truncate max-w-[340px] group-hover:text-[#524CF2] transition-colors">
+                                  <p className="text-sm font-semibold text-[#0A0D27] truncate max-w-[340px] group-hover:text-[#EA580C] transition-colors">
                                     {txn.description ?? "-"}
                                   </p>
                                   {balanceAfter != null && (
@@ -208,7 +208,7 @@ export function TransactionsClient({
                             </td>
                             <td className={cn(
                               "px-5 py-3.5 text-right font-bold text-sm whitespace-nowrap",
-                              txn.txn_type === "income" ? "text-emerald-600" : txn.txn_type === "expense" ? "text-rose-600" : "text-[#524CF2]"
+                              txn.txn_type === "income" ? "text-emerald-600" : txn.txn_type === "expense" ? "text-rose-600" : "text-[#EA580C]"
                             )}>
                               {txn.txn_type === "income" ? "+" : txn.txn_type === "expense" ? "−" : ""}
                               {formatCurrency(txn.amount)}
@@ -226,7 +226,7 @@ export function TransactionsClient({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t border-[#E2E2FF] bg-[#F0F0FF]/20">
+          <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t border-[#DCFCE7] bg-[#FEF9C3]/20">
             <span className="text-xs sm:text-sm text-[#33375C]/70">
               Page {page} of {totalPages} · {total} total
             </span>
@@ -234,7 +234,7 @@ export function TransactionsClient({
               {page > 1 && (
                 <a
                   href={filterUrl({ page: String(page - 1) })}
-                  className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-[#33375C] border border-[#E2E2FF] rounded-lg hover:bg-white transition-colors"
+                  className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-[#33375C] border border-[#DCFCE7] rounded-lg hover:bg-white transition-colors"
                 >
                   ← Prev
                 </a>
@@ -242,7 +242,7 @@ export function TransactionsClient({
               {page < totalPages && (
                 <a
                   href={filterUrl({ page: String(page + 1) })}
-                  className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-[#524CF2] border border-[#E2E2FF] bg-white rounded-lg hover:bg-[#F0F0FF] transition-colors"
+                  className="px-3 py-1.5 text-xs sm:text-sm font-semibold text-[#EA580C] border border-[#DCFCE7] bg-white rounded-lg hover:bg-[#FEF9C3] transition-colors"
                 >
                   Next →
                 </a>

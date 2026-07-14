@@ -98,7 +98,7 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
           {/* Quick add */}
           <button
             onClick={() => setQuickAddOpen(true)}
-            className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-xl bg-gradient-to-b from-[#625DF1] to-[#4A44E0] text-white text-xs sm:text-sm font-semibold hover:from-[#6B66F5] hover:to-[#524CF2] transition-all shadow-md shadow-[#524CF2]/15 active:scale-[0.97]"
+            className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-xl bg-gradient-to-b from-[#C2410C] to-[#4A44E0] text-white text-xs sm:text-sm font-semibold hover:from-[#6B66F5] hover:to-[#EA580C] transition-all shadow-md shadow-[#EA580C]/15 active:scale-[0.97]"
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Add</span>
@@ -110,7 +110,7 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="h-9 w-9 rounded-full bg-gradient-to-br from-[#625DF1] to-[#3B35C4] text-white text-xs font-bold flex items-center justify-center shadow-md shadow-[#524CF2]/15 hover:scale-105 transition-transform focus:outline-none ring-2 ring-background"
+              className="h-9 w-9 rounded-full bg-gradient-to-br from-[#C2410C] to-[#3B35C4] text-white text-xs font-bold flex items-center justify-center shadow-md shadow-[#EA580C]/15 hover:scale-105 transition-transform focus:outline-none ring-2 ring-background"
               aria-label="User menu"
             >
               {initials}

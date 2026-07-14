@@ -37,7 +37,7 @@ export default function LoginPage() {
   return (
     <div className="w-full">
       <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
-        <div className="h-10 w-10 rounded-xl bg-[#524CF2] flex items-center justify-center shadow-md shadow-[#524CF2]/20">
+        <div className="h-10 w-10 rounded-xl bg-[#EA580C] flex items-center justify-center shadow-md shadow-[#EA580C]/20">
           <TrendingUp className="h-5 w-5 text-white" />
         </div>
         <span className="font-extrabold text-xl tracking-tight text-[#0A0D27]">FinTrack</span>

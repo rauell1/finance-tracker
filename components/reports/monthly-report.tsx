@@ -117,17 +117,17 @@ export function MonthlyReport({ month }: { month: string }) {
 
       {/* Actions */}
       <div className="flex gap-2 print:hidden">
-        <button onClick={handlePrint} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-[#E2E2FF] text-[#33375C] hover:bg-[#F0F0FF] transition-colors">
+        <button onClick={handlePrint} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-[#DCFCE7] text-[#33375C] hover:bg-[#FEF9C3] transition-colors">
           <Download className="h-4 w-4" /> Download PDF Report
         </button>
-        <button onClick={handleCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-[#E2E2FF] text-[#33375C] hover:bg-[#F0F0FF] transition-colors">
+        <button onClick={handleCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-[#DCFCE7] text-[#33375C] hover:bg-[#FEF9C3] transition-colors">
           <Download className="h-4 w-4" /> Download CSV
         </button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="h-4 w-4 text-emerald-500" />
             <p className="text-[10px] uppercase font-bold tracking-wider text-[#33375C]/60">Income</p>
@@ -135,7 +135,7 @@ export function MonthlyReport({ month }: { month: string }) {
           <p className="text-xl font-bold text-emerald-600">{formatCurrency(report.income.total)}</p>
           <p className="text-xs text-[#33375C]/50 mt-1">{report.income.count} transactions</p>
         </div>
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown className="h-4 w-4 text-rose-500" />
             <p className="text-[10px] uppercase font-bold tracking-wider text-[#33375C]/60">Expenses</p>
@@ -143,9 +143,9 @@ export function MonthlyReport({ month }: { month: string }) {
           <p className="text-xl font-bold text-rose-600">{formatCurrency(report.expense.total)}</p>
           <p className="text-xs text-[#33375C]/50 mt-1">{report.expense.count} transactions</p>
         </div>
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5">
           <div className="flex items-center gap-2 mb-2">
-            <Wallet className="h-4 w-4 text-[#524CF2]" />
+            <Wallet className="h-4 w-4 text-[#EA580C]" />
             <p className="text-[10px] uppercase font-bold tracking-wider text-[#33375C]/60">Net</p>
           </div>
           <p className={cn("text-xl font-bold", report.net >= 0 ? "text-emerald-600" : "text-rose-600")}>{report.net >= 0 ? "+" : "-"}{formatCurrency(Math.abs(report.net))}</p>
@@ -156,39 +156,39 @@ export function MonthlyReport({ month }: { month: string }) {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 print:grid-cols-2 print:gap-4">
         {/* Daily Spending Trend Chart */}
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 flex flex-col h-[280px]">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 flex flex-col h-[280px]">
           <h4 className="font-semibold text-[#0A0D27] text-xs uppercase tracking-wider text-[#33375C]/60 mb-4">Daily Spending Trend</h4>
           <div className="flex-1 w-full min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dailySpend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="printSpendGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#524CF2" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#524CF2" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#EA580C" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#EA580C" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F0F0FF" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#FEF9C3" vertical={false} />
                 <XAxis dataKey="day" stroke="#94A3B8" fontSize={9} tickLine={false} />
                 <YAxis stroke="#94A3B8" fontSize={9} tickLine={false} />
                 <RechartsTooltip 
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     return (
-                      <div className="bg-white border border-[#E2E2FF] rounded-lg shadow-md p-2 text-[10px] text-[#0A0D27]">
+                      <div className="bg-white border border-[#DCFCE7] rounded-lg shadow-md p-2 text-[10px] text-[#0A0D27]">
                         <p className="font-bold">Day {payload[0].payload.day}</p>
                         <p className="text-rose-600 font-semibold">{formatCurrency(payload[0].value as number)}</p>
                       </div>
                     );
                   }}
                 />
-                <Area type="monotone" dataKey="amount" stroke="#524CF2" strokeWidth={2} fillOpacity={1} fill="url(#printSpendGrad)" />
+                <Area type="monotone" dataKey="amount" stroke="#EA580C" strokeWidth={2} fillOpacity={1} fill="url(#printSpendGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Category Breakdown Donut Chart */}
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm p-5 flex flex-col h-[280px]">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm p-5 flex flex-col h-[280px]">
           <h4 className="font-semibold text-[#0A0D27] text-xs uppercase tracking-wider text-[#33375C]/60 mb-4">Category Distribution</h4>
           {breakdownData.length > 0 ? (
             <div className="flex-1 flex items-center justify-between min-h-0">
@@ -213,7 +213,7 @@ export function MonthlyReport({ month }: { month: string }) {
                         if (!active || !payload?.length) return null;
                         const data = payload[0].payload;
                         return (
-                          <div className="bg-white border border-[#E2E2FF] rounded-lg shadow-md p-2 text-[10px] text-[#0A0D27]">
+                          <div className="bg-white border border-[#DCFCE7] rounded-lg shadow-md p-2 text-[10px] text-[#0A0D27]">
                             <p className="font-bold">{data.name}</p>
                             <p className="text-rose-600 font-semibold">{formatCurrency(data.amount)} ({data.percentage.toFixed(1)}%)</p>
                           </div>
@@ -248,11 +248,11 @@ export function MonthlyReport({ month }: { month: string }) {
 
       {/* Expense by Category */}
       {report.expense.byCategory.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20">
             <h3 className="font-semibold text-[#0A0D27] text-sm">Expenses by Category</h3>
           </div>
-          <div className="divide-y divide-[#E2E2FF]">
+          <div className="divide-y divide-[#DCFCE7]">
             {report.expense.byCategory.map((c, i) => (
               <div key={i} className="flex items-center justify-between px-5 py-3">
                 <div className="flex items-center gap-2">
@@ -268,11 +268,11 @@ export function MonthlyReport({ month }: { month: string }) {
 
       {/* Top Merchants */}
       {report.topMerchants.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20">
             <h3 className="font-semibold text-[#0A0D27] text-sm">Top Merchants</h3>
           </div>
-          <div className="divide-y divide-[#E2E2FF]">
+          <div className="divide-y divide-[#DCFCE7]">
             {report.topMerchants.map((m, i) => (
               <div key={i} className="flex items-center justify-between px-5 py-3">
                 <span className="text-sm text-[#0A0D27]">{m.name}</span>
@@ -285,11 +285,11 @@ export function MonthlyReport({ month }: { month: string }) {
 
       {/* Budget Performance */}
       {report.budgetPerformance.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden print-break">
-          <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden print-break">
+          <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20">
             <h3 className="font-semibold text-[#0A0D27] text-sm">Budget Performance</h3>
           </div>
-          <div className="divide-y divide-[#E2E2FF]">
+          <div className="divide-y divide-[#DCFCE7]">
             {report.budgetPerformance.map((b, i) => (
               <div key={i} className="flex items-center justify-between px-5 py-3">
                 <span className="text-sm text-[#0A0D27]">{b.category}</span>
@@ -305,11 +305,11 @@ export function MonthlyReport({ month }: { month: string }) {
 
       {/* Savings Goals */}
       {report.savingsGoals.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E2E2FF] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#E2E2FF] bg-[#F0F0FF]/20">
+        <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#DCFCE7] bg-[#FEF9C3]/20">
             <h3 className="font-semibold text-[#0A0D27] text-sm">Savings Goals Progress</h3>
           </div>
-          <div className="divide-y divide-[#E2E2FF]">
+          <div className="divide-y divide-[#DCFCE7]">
             {report.savingsGoals.map((g, i) => (
               <div key={i} className="flex items-center justify-between px-5 py-3">
                 <span className="text-sm text-[#0A0D27]">{g.name}</span>
@@ -359,7 +359,7 @@ function AIInsightsCard({ month }: { month: string }) {
         {content && !isLoading && (
           <button 
             onClick={() => refetch()} 
-            className="text-[10px] text-[#33375C]/60 hover:text-indigo-600 font-semibold px-2 py-1 border border-[#E2E2FF] rounded-md bg-white hover:bg-[#F0F0FF] transition-colors"
+            className="text-[10px] text-[#33375C]/60 hover:text-indigo-600 font-semibold px-2 py-1 border border-[#DCFCE7] rounded-md bg-white hover:bg-[#FEF9C3] transition-colors"
           >
             Regenerate
           </button>

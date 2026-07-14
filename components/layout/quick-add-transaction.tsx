@@ -56,7 +56,7 @@ export function QuickAddTransaction({ open, onOpenChange }: QuickAddTransactionP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl border-[#E2E2FF] max-w-md">
+      <DialogContent className="rounded-2xl border-[#DCFCE7] max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[#0A0D27]">Quick Add Transaction</DialogTitle>
           <DialogDescription>Log income or expense in seconds.</DialogDescription>
