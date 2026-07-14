@@ -1,7 +1,7 @@
 "use client";
 import { Menu, LogOut, TrendingUp, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
@@ -32,9 +32,34 @@ interface TopbarProps {
 export function Topbar({ onMobileMenuClick }: TopbarProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [initials, setInitials] = useState("DM");
   const pathname = usePathname();
   const router = useRouter();
   const pageTitle = getPageTitle(pathname);
+
+  useEffect(() => {
+    async function loadUser() {
+      if (pathname.startsWith("/sandbox") || pathname.startsWith("/demo")) {
+        setInitials("DM");
+        return;
+      }
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const fullName = user.user_metadata?.full_name || "Roy Okola";
+          const parts = fullName.split(" ");
+          const init = parts.map((p: string) => p[0]).join("").substring(0, 2).toUpperCase();
+          setInitials(init || "RO");
+        } else {
+          setInitials("DM");
+        }
+      } catch (err) {
+        setInitials("RO");
+      }
+    }
+    loadUser();
+  }, [pathname]);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -88,7 +113,7 @@ export function Topbar({ onMobileMenuClick }: TopbarProps) {
               className="h-9 w-9 rounded-full bg-gradient-to-br from-[#625DF1] to-[#3B35C4] text-white text-xs font-bold flex items-center justify-center shadow-md shadow-[#524CF2]/15 hover:scale-105 transition-transform focus:outline-none ring-2 ring-background"
               aria-label="User menu"
             >
-              RO
+              {initials}
             </button>
             {userMenuOpen && (
               <>

@@ -5,7 +5,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 const BOT_PATTERN = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|twitterbot|linkedinbot/i;
 
 // Public paths — never redirect
-const PUBLIC_PATHS = ['/', '/login', '/register', '/privacy', '/terms'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/privacy', '/terms', '/sandbox'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

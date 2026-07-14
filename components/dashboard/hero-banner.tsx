@@ -6,6 +6,7 @@ import { ShieldCheck, ShieldAlert } from "lucide-react";
 interface HeroBannerProps {
   totalBalance: number;
   debts: Debt[];
+  userName?: string;
 }
 
 function greeting(): string {
@@ -17,7 +18,7 @@ function greeting(): string {
   return "Good evening";
 }
 
-export function HeroBanner({ totalBalance, debts }: HeroBannerProps) {
+export function HeroBanner({ totalBalance, debts, userName = "Roy" }: HeroBannerProps) {
   const fuliza = debts.find((d) => d.source_identifier === "fuliza");
   const fulizaOwed = fuliza ? Number(fuliza.current_balance) : 0;
   const balanceStr = formatCurrency(totalBalance);
@@ -33,7 +34,7 @@ export function HeroBanner({ totalBalance, debts }: HeroBannerProps) {
       <div className="relative p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div>
-            <p className="text-xs font-bold text-white/60 tracking-wide">{greeting()}, Roy</p>
+            <p className="text-xs font-bold text-white/60 tracking-wide">{greeting()}, {userName}</p>
             <p className="text-[10px] font-bold text-white/40 mt-3 uppercase tracking-wider">Net Worth Today</p>
             <p className="mt-1 flex items-baseline gap-1.5 animate-rise">
               {currency && (
