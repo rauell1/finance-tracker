@@ -2,14 +2,19 @@
 
 import { useState, useEffect, Fragment } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Play, RotateCcw, MessageSquare, ArrowRight, ShieldAlert, Sparkles,
   LayoutDashboard, ArrowLeftRight, Target, Landmark, Crosshair, Receipt,
   Webhook, Settings, Plus, Search, Calendar, CheckCircle2, Pencil, Trash2,
   AlertCircle, SlidersHorizontal, ArrowUpDown, ChevronLeft, ChevronRight,
-  Eye, RefreshCw, Smartphone, Info, User, Check, X, ShieldCheck, Loader2
+  Eye, RefreshCw, Smartphone, Info, User, Check, X, ShieldCheck, Loader2,
+  TrendingUp, LogOut
 } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
+import { Topbar } from "@/components/layout/topbar";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { HeroBanner } from "@/components/dashboard/hero-banner";
 import { AccountBalanceCards } from "@/components/dashboard/account-balance-cards";
 import { KPICards } from "@/components/dashboard/kpi-cards";
@@ -21,7 +26,7 @@ import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
 import { DebtSummary } from "@/components/dashboard/debt-summary";
 import { SavingsProgress } from "@/components/dashboard/savings-progress";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 import { DebtsClient } from "@/components/forms/debts-client";
 import { RecurringClient } from "@/components/forms/recurring-client";
@@ -300,6 +305,8 @@ const TEMPLATES = [
 ];
 
 export default function PublicSandboxPage() {
+  const router = useRouter();
+
   // Mode state
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [liveUser, setLiveUser] = useState<any>(null);
@@ -309,8 +316,9 @@ export default function PublicSandboxPage() {
   // Tab navigation state
   const [activeTab, setActiveTab] = useState<"dashboard" | "transactions" | "budgets" | "debts" | "goals" | "recurring" | "webhook-logs">("dashboard");
 
-  // Console visibility
+  // Console + mobile nav visibility
   const [consoleExpanded, setConsoleExpanded] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // --- CLIENT SIDE SIMULATION STATE ---
   const [accounts, setAccounts] = useState<any[]>(INITIAL_ACCOUNTS);
@@ -1207,8 +1215,110 @@ export default function PublicSandboxPage() {
 
   const sortedDates = Object.keys(groupedTransactions).sort((a, b) => b.localeCompare(a));
 
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  // Shared sidebar content - used for both desktop and mobile drawer
+  const sidebarContent = (onClose?: () => void) => {
+    const navBtn = (id: typeof activeTab, label: string, Icon: React.ComponentType<{ className?: string }>) => {
+      const active = activeTab === id;
+      return (
+        <button key={id} onClick={() => { setActiveTab(id); onClose?.(); }}
+          className={cn(
+            "group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 relative w-full text-left",
+            active ? "bg-secondary text-primary shadow-sm" : "text-muted-foreground hover:bg-secondary/40 hover:text-primary hover:translate-x-0.5"
+          )}
+        >
+          {active && <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-md bg-primary" />}
+          <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-primary" : "text-muted-foreground/60 group-hover:text-primary")} />
+          {label}
+        </button>
+      );
+    };
+    return (
+      <>
+        <div className="flex items-center justify-between gap-3 px-5 py-5">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#625DF1] to-[#4038C7] flex items-center justify-center shrink-0 shadow-lg shadow-[#524CF2]/15">
+              <TrendingUp className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-lg text-foreground tracking-tight leading-none">FinTrack</span>
+              <span className="text-[10px] text-muted-foreground font-semibold tracking-wide mt-1">Personal Wealth</span>
+            </div>
+          </div>
+          {onClose && (
+            <button onClick={onClose} className="lg:hidden h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary" aria-label="Close menu">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <nav className="flex-1 px-3 pb-4 space-y-5 overflow-y-auto">
+          <div>
+            <p className="px-3.5 mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/50 select-none">Overview</p>
+            <div className="space-y-0.5">
+              {navBtn("dashboard", "Dashboard", LayoutDashboard)}
+              {navBtn("transactions", "Transactions", ArrowLeftRight)}
+            </div>
+          </div>
+          <div>
+            <p className="px-3.5 mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/50 select-none">Planning</p>
+            <div className="space-y-0.5">
+              {navBtn("budgets", "Budgets", Target)}
+              {navBtn("recurring", "Bills & Subs", Receipt)}
+              {navBtn("debts", "Debts", Landmark)}
+              {navBtn("goals", "Goals", Crosshair)}
+            </div>
+          </div>
+          <div>
+            <p className="px-3.5 mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/50 select-none">System</p>
+            <div className="space-y-0.5">
+              {navBtn("webhook-logs", "Webhook Logs", Webhook)}
+              <Link href="/settings" onClick={onClose} className="group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-secondary/40 hover:text-primary hover:translate-x-0.5 transition-all duration-150">
+                <Settings className="h-4 w-4 shrink-0 text-muted-foreground/60 group-hover:text-primary" />
+                Settings
+              </Link>
+            </div>
+          </div>
+        </nav>
+
+        <div className="p-3 border-t border-border/50 space-y-1">
+          <ThemeToggle />
+          <button onClick={handleSignOut} className="group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive w-full transition-colors">
+            <LogOut className="h-4 w-4 shrink-0" />
+            Sign Out
+          </button>
+        </div>
+      </>
+    );
+  };
+
   return (
-    <AppShell>
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-64 bg-card/85 backdrop-blur-xl border-r border-border/40 h-screen sticky top-0 shrink-0">
+        {sidebarContent()}
+      </aside>
+
+      {/* Mobile Drawer */}
+      {mobileNavOpen && (
+        <>
+          <div className="fixed inset-0 bg-background/40 backdrop-blur-sm z-50 lg:hidden" onClick={() => setMobileNavOpen(false)} />
+          <aside className="fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-card border-r border-border/80 lg:hidden animate-in slide-in-from-left duration-200">
+            {sidebarContent(() => setMobileNavOpen(false))}
+          </aside>
+        </>
+      )}
+
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+        <Topbar onMobileMenuClick={() => setMobileNavOpen(true)} />
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-20 lg:pb-6">
+          <div className="max-w-7xl mx-auto w-full">
       <div className="space-y-6">
         
         {/* TOP STATUS AND MODE BAR */}
@@ -1356,81 +1466,7 @@ export default function PublicSandboxPage() {
           )}
         </div>
 
-        {/* NAVIGATION SUB-TABS */}
-        <div className="border-b border-[#E2E2FF] overflow-x-auto">
-          <div className="flex gap-2 min-w-max pb-1">
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-bold text-sm transition-all ${
-                activeTab === "dashboard"
-                  ? "border-[#524CF2] text-[#524CF2]"
-                  : "border-transparent text-[#33375C]/60 hover:text-[#524CF2]"
-              }`}
-            >
-              <LayoutDashboard className="h-4 w-4" /> Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab("transactions")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-bold text-sm transition-all ${
-                activeTab === "transactions"
-                  ? "border-[#524CF2] text-[#524CF2]"
-                  : "border-transparent text-[#33375C]/60 hover:text-[#524CF2]"
-              }`}
-            >
-              <ArrowLeftRight className="h-4 w-4" /> Transactions
-            </button>
-            <button
-              onClick={() => setActiveTab("budgets")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-bold text-sm transition-all ${
-                activeTab === "budgets"
-                  ? "border-[#524CF2] text-[#524CF2]"
-                  : "border-transparent text-[#33375C]/60 hover:text-[#524CF2]"
-              }`}
-            >
-              <Target className="h-4 w-4" /> Budgets
-            </button>
-            <button
-              onClick={() => setActiveTab("debts")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-bold text-sm transition-all ${
-                activeTab === "debts"
-                  ? "border-[#524CF2] text-[#524CF2]"
-                  : "border-transparent text-[#33375C]/60 hover:text-[#524CF2]"
-              }`}
-            >
-              <Landmark className="h-4 w-4" /> Debts
-            </button>
-            <button
-              onClick={() => setActiveTab("goals")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-bold text-sm transition-all ${
-                activeTab === "goals"
-                  ? "border-[#524CF2] text-[#524CF2]"
-                  : "border-transparent text-[#33375C]/60 hover:text-[#524CF2]"
-              }`}
-            >
-              <Crosshair className="h-4 w-4" /> Goals
-            </button>
-            <button
-              onClick={() => setActiveTab("recurring")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-bold text-sm transition-all ${
-                activeTab === "recurring"
-                  ? "border-[#524CF2] text-[#524CF2]"
-                  : "border-transparent text-[#33375C]/60 hover:text-[#524CF2]"
-              }`}
-            >
-              <Receipt className="h-4 w-4" /> Bills &amp; Subs
-            </button>
-            <button
-              onClick={() => setActiveTab("webhook-logs")}
-              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-bold text-sm transition-all ${
-                activeTab === "webhook-logs"
-                  ? "border-[#524CF2] text-[#524CF2]"
-                  : "border-transparent text-[#33375C]/60 hover:text-[#524CF2]"
-              }`}
-            >
-              <Webhook className="h-4 w-4" /> Webhook Logs
-            </button>
-          </div>
-        </div>
+
 
         {/* LOADING INDICATOR FOR LIVE DATA */}
         {loadingLive && (
@@ -2423,6 +2459,10 @@ export default function PublicSandboxPage() {
           </form>
         </div>
       )}
-    </AppShell>
-  );
-}
+            </div>
+          </main>
+        </div>
+        <BottomNav onMoreClick={() => setMobileNavOpen(true)} />
+      </div>
+    );
+  }
