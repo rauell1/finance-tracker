@@ -145,7 +145,7 @@
     line-height: 1.45 !important;
   }
 
-  .no-print, nav, aside, header, button, .no-print *, [role="banner"] {
+  .no-print, .print\:hidden, nav, aside, header, button, .no-print *, .print\:hidden *, [role="banner"] {
     display: none !important;
   }
 

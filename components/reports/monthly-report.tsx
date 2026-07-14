@@ -70,7 +70,7 @@ export function MonthlyReport({ month }: { month: string }) {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 no-print">
+      <div className="flex gap-2 print:hidden">
         <button onClick={handlePrint} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-[#E2E2FF] text-[#33375C] hover:bg-[#F0F0FF] transition-colors">
           <Download className="h-4 w-4" /> Download PDF Report
         </button>
