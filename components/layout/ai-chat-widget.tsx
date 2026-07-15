@@ -79,7 +79,7 @@ export function AIChatWidget({ sandboxContext }: AIChatWidgetProps = {}) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] font-sans">
+    <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-[9999] font-sans lg:bottom-6 lg:right-6">
       {/* Floating Action Button */}
       {!isOpen && (
         <button
@@ -93,7 +93,7 @@ export function AIChatWidget({ sandboxContext }: AIChatWidgetProps = {}) {
 
       {/* Chat Window Panel */}
       {isOpen && (
-        <div className="w-[360px] sm:w-[380px] h-[500px] bg-white rounded-3xl border border-[#DCFCE7] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+        <div className="h-[min(500px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-[380px] bg-white rounded-3xl border border-[#DCFCE7] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
           
           {/* Header */}
           <div className="bg-[#EA580C] p-4 text-white flex items-center justify-between shadow-md">
