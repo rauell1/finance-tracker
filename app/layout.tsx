@@ -7,6 +7,7 @@ import { ServiceWorkerRegistrar } from "@/components/layout/sw-registrar";
 import { ThemeScript } from "@/components/layout/theme-script";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Analytics } from '@vercel/analytics/next';
+import { CookieConsentBanner } from "@/components/layout/cookie-consent-banner";
 
 const figtree = Figtree({ subsets: ["latin"], display: "swap" });
 
@@ -109,6 +110,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </QueryProvider>
         <ServiceWorkerRegistrar />
         <Analytics />
+        <CookieConsentBanner />
       </body>
     </html>
   );

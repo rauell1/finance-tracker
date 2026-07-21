@@ -27,7 +27,7 @@ export const P = {
   mshwariBal:   /(?:new\s+)?m-?shwari[^.]*?balance\s*(?:is|:)?\s*(?:ksh\s*)?([\d,]+\.?\d*)/i,
   txnCost:      /transaction cost[,\s]+ksh([\d,]+\.?\d*)/i,
   anyAmount:    /ksh\s?([\d,]+\.?\d*)/i,
-  sbmCard:         /(?:online purchase|Retail transaction) of KES\s*([\d,]+\.?\d*) has been made on your card \d+\*+(\d+) at ([^.]+?) on (\d{4}-\d{2}-\d{2})/i,
+  sbmCard:         /(?:online purchase|retail transaction) of\s+([A-Z]{3})\s*([\d,]+\.?\d*) has been made on your card\s+\d+\*+(\d+)\s+at\s+(.+?)\s+on\s+(\d{4}-\d{2}-\d{2})(?:\s+\d{2}:\d{2}:\d{2})?/i,
   sbmPesalink:     /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s+Incoming Pesalink\s*,\s*has been credited to account ending (\d+) on (\d{1,2}-\d{1,2}-\d{4})/i,
   sbmEft:          /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s+Inward Clg EFT has been deposited to account ending with (\d+) on (\d{1,2}-\d{1,2}-\d{4})/i,
   sbmMobileCredit: /Dear ROY\s*:\s*KES\s*([\d,]+\.?\d*)\s*,\s*has been credited to account ending (\d+) through MPESA Mobile Banking Terminal on (\d{1,2}-\d{1,2}-\d{4})/i,
@@ -43,7 +43,7 @@ export const P = {
   imPesalinkReceive: /You have received KES\s*([\d,]+\.?\d*) via PesaLink into Acc\s*(\S+)\s+Tran Ref\s*(\d+)/i,
   imToMpesa: /(?:Bank to )?M-?PESA transfer of KES\s*([\d,]+\.?\d*) to\s*([^.]+?)\s+successfully processed\.\s+Transaction Ref ID:\s*(\w+)\.\s+M-?PESA Ref ID:\s*\b([A-Z0-9]{10})\b/i,
   imReceivedMpesa: /You have received KES\s*([\d,]+\.?\d*) from\s+([^.]+?)\.\s+Transaction Ref ID:\s*(\w+)\.\s+Mpesa Ref ID:\s*\b([A-Z0-9]{10})\b/i,
-  imPesalinkSend: /Pesalink transfer of KES\s*([\d,]+\.?\d*) to\s+(\S+) on (\d{1,2}\/\d{1,2}\/\d{2,4})\s+.*?processed successfully\.\s+Transaction Ref ID:\s*(\d+)/i,
+  imPesalinkSend: /Pesalink transfer of\s+([A-Z]{3})\s*([\d,]+\.?\d*)\s+to\s+(.+?)\s+on\s+(\d{1,2}\/\d{1,2}\/\d{2,4})(?:\s+\d{1,2}:\d{2})?\s+processed successfully\.\s+Transaction Ref ID:\s*(\d+)/i,
   imPaidMerchant: /KES\s*([\d,]+\.?\d*) paid to ([^.]+?)(?:\s+\(Acc \d+\))? on (\d{1,2}\/\d{1,2}\/\d{2,4}) at [^.]+? Ref:\s*\b([A-Z0-9]{10,})\b/i,
 };
 
@@ -259,6 +259,9 @@ export interface ParsedSbm {
   description: string;
   counterparty: string;
   occurredOn: string;
+  currencyCode?: string;
+  fromAccountCode?: string;
+  toAccountCode?: string;
   isMobileBankingAlert?: boolean;
 }
 
@@ -267,13 +270,14 @@ export function parseSbmSMS(text: string): ParsedSbm | null {
 
   const card = text.match(P.sbmCard);
   if (card) {
-    const amount = num(card[1]);
-    const merchant = cleanName(card[3]);
-    const date = parseSbmDate(card[4]);
+    const amount = num(card[2]);
+    const merchant = cleanName(card[4]);
+    const date = parseSbmDate(card[5]);
     return {
       kind: "expense",
-      receipt: `SBM-CARD-${card[2]}-${date.replace(/-/g, "")}-${hashString(text)}`,
+      receipt: `SBM-CARD-${card[3]}-${date.replace(/-/g, "")}-${hashString(text)}`,
       amount,
+      currencyCode: card[1].toUpperCase(),
       description: `Card purchase at ${merchant}`,
       counterparty: merchant,
       occurredOn: date,
@@ -562,18 +566,30 @@ export function parseImSMS(text: string): ParsedSbm | null {
 
   const pesalinkSend = text.match(P.imPesalinkSend);
   if (pesalinkSend) {
-    const amount = num(pesalinkSend[1]);
-    const recipient = pesalinkSend[2];
-    const date = parseDate(pesalinkSend[3]);
-    const ref = pesalinkSend[4];
+    const currencyCode = pesalinkSend[1].toUpperCase();
+    const amount = num(pesalinkSend[2]);
+    const recipient = cleanName(pesalinkSend[3]);
+    const date = parseDate(pesalinkSend[4]);
+    const ref = pesalinkSend[5];
     const isUser = /0726683835|254726683835/i.test(recipient);
+    const destinationCode = /SBM\s*BANK/i.test(recipient)
+      ? "bank_c"
+      : /DTB|DIAMOND TRUST/i.test(recipient)
+        ? "bank_a"
+        : /I\s*&\s*M|IANDM/i.test(recipient)
+          ? "bank_b"
+          : null;
+    const isInternalTransfer = isUser || destinationCode !== null;
     return {
-      kind: isUser ? "transfer" : "expense",
+      kind: isInternalTransfer ? "transfer" : "expense",
       receipt: ref,
       amount,
+      currencyCode,
       description: isUser ? "PesaLink Transfer to M-Pesa" : `PesaLink Transfer to ${recipient}`,
       counterparty: isUser ? "M-Pesa" : recipient,
       occurredOn: date,
+      fromAccountCode: isInternalTransfer ? "bank_b" : undefined,
+      toAccountCode: isUser ? "main" : destinationCode ?? undefined,
     };
   }
 
@@ -617,6 +633,7 @@ export interface ParsedBankResult {
   type?: "income" | "expense" | "transfer";
   accountNo?: string;
   occurredOn?: string;
+  currency?: string;
   fromAccountCode?: string;
   toAccountCode?: string;
   isMobileBankingAlert?: boolean;
@@ -644,7 +661,7 @@ export function parseBankSms(message: string, sender?: string): ParsedBankResult
   }
 
   if (!bankName) {
-    if (/SBM\s*Bank|SBMBANK/i.test(text)) bankName = "SBMBANK";
+    if (!/^Pesalink transfer\b/i.test(text) && /SBM\s*Bank|SBMBANK/i.test(text)) bankName = "SBMBANK";
     else if (/I&M\s*Bank|IANDMBANK|IM\s*Bank/i.test(text)) bankName = "IANDMBANK";
     else if (/DTB/i.test(text)) bankName = "DTB";
   }
@@ -676,6 +693,7 @@ export function parseBankSms(message: string, sender?: string): ParsedBankResult
         type: parsedSbm.kind,
         accountNo: parsedSbm.receipt.includes("SBM-CARD") ? parsedSbm.receipt.split("-")[2] : "",
         occurredOn: parsedSbm.occurredOn,
+        currency: parsedSbm.currencyCode ?? "KES",
         fromAccountCode: parsedSbm.kind === "transfer" ? (isToMpesa ? "bank_c" : "main") : undefined,
         toAccountCode: parsedSbm.kind === "transfer" ? (isToMpesa ? "main" : "bank_c") : undefined,
       };
@@ -711,8 +729,9 @@ export function parseBankSms(message: string, sender?: string): ParsedBankResult
         type: parsedIm.kind,
         accountNo: "",
         occurredOn: parsedIm.occurredOn,
-        fromAccountCode: parsedIm.kind === "transfer" ? (isOutflow ? "bank_b" : "main") : undefined,
-        toAccountCode: parsedIm.kind === "transfer" ? (isOutflow ? "main" : "bank_b") : undefined,
+        currency: parsedIm.currencyCode ?? "KES",
+        fromAccountCode: parsedIm.kind === "transfer" ? (parsedIm.fromAccountCode ?? (isOutflow ? "bank_b" : "main")) : undefined,
+        toAccountCode: parsedIm.kind === "transfer" ? (parsedIm.toAccountCode ?? (isOutflow ? "main" : "bank_b")) : undefined,
       };
     }
   }
@@ -1080,7 +1099,11 @@ Rules:
 1. Respond ONLY with a valid JSON block.
 2. If the text does not contain a financial transaction, set "is_transaction" to false.
 3. Be highly accurate with figures and names.
-4. For mobile money transfers to/from savings accounts (e.g. KCB M-PESA or M-Shwari), extract the main account balance into "stated_balance" and the savings account balance into "savings_balance" (e.g. "new KCB M-PESA Saving account balance is Ksh120.00" -> 120.00).`;
+4. For mobile money transfers to/from savings accounts (e.g. KCB M-PESA or M-Shwari), extract the main account balance into "stated_balance" and the savings account balance into "savings_balance" (e.g. "new KCB M-PESA Saving account balance is Ksh120.00" -> 120.00).
+5. A transfer between two accounts owned by the user is type "transfer", never "expense" or "overdraft". Map M-PESA to "main", DTB to "bank_a", I&M to "bank_b", SBM Bank to "bank_c", KCB M-PESA to "kcb_mpesa", and M-Shwari to "mshwari".
+6. "Pesalink transfer ... to SBM BANK ... A/c ..." means money moved into SBM: use from_account_code for the sending bank and to_account_code "bank_c". "Incoming Pesalink ... credited" is income unless its matching outbound transfer is known.
+7. Preserve the currency explicitly stated in the SMS. A USD card purchase must return currency "USD", not KES.
+8. Do not infer an overdraft unless the SMS explicitly says overdraft, loan, Fuliza, or a negative balance.`;
 
   try {
     const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -1235,6 +1258,64 @@ export async function processSingleBankSms(
       return { status: "failed", error: `Transfer accounts not found for ${parsedResult.fromAccountCode} -> ${parsedResult.toAccountCode}` };
     }
 
+    // A destination bank may send its credit notification before the sending
+    // bank's transfer notification. Convert that provisional income row into
+    // the cross-account transfer instead of counting the same money twice.
+    if (toAcc.account_code !== "main") {
+      const { data: matchingCredit } = await supabase
+        .from("transactions")
+        .select("id, metadata")
+        .eq("user_id", userId)
+        .eq("account_id", toAcc.id)
+        .eq("txn_type", "income")
+        .eq("amount", amount)
+        .eq("currency_code", parsedResult.currency || "KES")
+        .eq("occurred_on", occurredOn)
+        .ilike("description", "%Pesalink%")
+        .limit(1)
+        .maybeSingle();
+
+      if (matchingCredit) {
+        if (reference) {
+          const { data: duplicateSourceRows } = await supabase
+            .from("transactions")
+            .select("id")
+            .eq("user_id", userId)
+            .neq("id", matchingCredit.id)
+            .or(`metadata->>reference.eq.${reference},metadata->>im_receipt.eq.${reference}`);
+          for (const duplicate of duplicateSourceRows ?? []) {
+            await supabase.from("transactions").delete().eq("id", duplicate.id);
+          }
+        }
+
+        const { data: reconciled, error: reconcileError } = await supabase
+          .from("transactions")
+          .update({
+            account_id: fromAcc.id,
+            transfer_account_id: toAcc.id,
+            category_id: null,
+            txn_type: "transfer",
+            description: `Transfer: ${fromAcc.name ?? parsedResult.fromAccountCode} to ${toAcc.name ?? parsedResult.toAccountCode}`,
+            metadata: {
+              ...((matchingCredit.metadata as Record<string, unknown>) ?? {}),
+              source: "bank_sms",
+              reference,
+              counterparty,
+              raw_sms: scrubSensitiveData(smsText),
+              from_account_code: parsedResult.fromAccountCode,
+              to_account_code: parsedResult.toAccountCode,
+              reconciled_from_credit: true,
+            },
+          })
+          .eq("id", matchingCredit.id)
+          .select("id")
+          .single();
+
+        if (reconcileError) return { status: "failed", error: reconcileError.message };
+        return { status: "reconciled", kind: "transfer", amount, reference, transaction_id: reconciled.id };
+      }
+    }
+
     const recResult = await reconcileLinkedTransaction(
       supabase,
       reference!,
@@ -1301,7 +1382,7 @@ export async function processSingleBankSms(
     category_id: category.id,
     txn_type: type,
     amount: amount,
-    currency_code: (parsedResult as any).currency || "KES",
+    currency_code: parsedResult.currency || "KES",
     occurred_on: occurredOn,
     description: isLlmParsed ? `${(parsedResult as any).bank} transaction: ${counterparty}` : `${bank} transaction: ${counterparty}`,
     metadata: {
@@ -1930,6 +2011,23 @@ export async function processSingleSms(
 
     const occurredOn = timestamp ? parseMacroDroidTimestamp(timestamp) : sbm.occurredOn;
 
+    if (sbm.kind === "income" && /Pesalink/i.test(sbm.description)) {
+      const { data: existingTransfer } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("transfer_account_id", sbmAccount.id)
+        .eq("txn_type", "transfer")
+        .eq("amount", sbm.amount)
+        .eq("currency_code", sbm.currencyCode ?? "KES")
+        .eq("occurred_on", occurredOn)
+        .limit(1)
+        .maybeSingle();
+      if (existingTransfer) {
+        return { status: "ignored", reason: "matching_cross_bank_transfer", transaction_id: existingTransfer.id };
+      }
+    }
+
     if (sbm.kind === "transfer") {
       const mpesa = (accts ?? []).find((a: any) => a.account_code === "main");
       if (!mpesa) return { status: "failed", error: "MPESA account not found" };
@@ -1950,7 +2048,7 @@ export async function processSingleSms(
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: sbmAccount.id, category_id: category.id,
-      txn_type: sbm.kind, amount: sbm.amount, currency_code: "KES", occurred_on: occurredOn,
+      txn_type: sbm.kind, amount: sbm.amount, currency_code: sbm.currencyCode ?? "KES", occurred_on: occurredOn,
       description: sbm.description,
       metadata: { source: "sbm_webhook", sbm_receipt: sbm.receipt, counterparty: sbm.counterparty, raw_sms: smsText },
     }).select("id").single();
@@ -2043,13 +2141,21 @@ export async function processSingleSms(
       const mpesa = (accts ?? []).find((a: any) => a.account_code === "main");
       if (!mpesa) return { status: "failed", error: "MPESA account not found" };
 
+      const fromAccount = im.fromAccountCode
+        ? (accts ?? []).find((a: any) => a.account_code === im.fromAccountCode)
+        : null;
+      const toAccount = im.toAccountCode
+        ? (accts ?? []).find((a: any) => a.account_code === im.toAccountCode)
+        : null;
       const isOutflow = im.description.toLowerCase().includes("transfer to");
-      const fromId = isOutflow ? imAccount.id : mpesa.id;
-      const toId   = isOutflow ? mpesa.id : imAccount.id;
+      const fromId = fromAccount?.id ?? (isOutflow ? imAccount.id : mpesa.id);
+      const toId = toAccount?.id ?? (isOutflow ? mpesa.id : imAccount.id);
+
+      if (!fromId || !toId) return { status: "failed", error: "Transfer account mapping is incomplete" };
 
       const { data: txn, error } = await supabase.from("transactions").insert({
         user_id: userId, account_id: fromId, transfer_account_id: toId, category_id: null,
-        txn_type: "transfer", amount: im.amount, currency_code: "KES", occurred_on: occurredOn,
+        txn_type: "transfer", amount: im.amount, currency_code: im.currencyCode ?? "KES", occurred_on: occurredOn,
         description: im.description,
         metadata: { source: "im_webhook", im_receipt: im.receipt, counterparty: im.counterparty, raw_sms: smsText },
       }).select("id").single();
@@ -2063,7 +2169,7 @@ export async function processSingleSms(
 
     const { data: txn, error } = await supabase.from("transactions").insert({
       user_id: userId, account_id: imAccount.id, category_id: category.id,
-      txn_type: im.kind, amount: im.amount, currency_code: "KES", occurred_on: occurredOn,
+      txn_type: im.kind, amount: im.amount, currency_code: im.currencyCode ?? "KES", occurred_on: occurredOn,
       description: im.description,
       metadata: { source: "im_webhook", im_receipt: im.receipt, counterparty: im.counterparty, raw_sms: smsText },
     }).select("id").single();
