@@ -13,6 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Account } from "@/types/domain";
 import type { ParsedRow } from "@/app/api/import/route";
 
+interface IngestSmsResultItem {
+  text: string;
+  status: "success" | "ignored" | "failed";
+  error?: string;
+  reason?: string;
+}
+
 interface ImportFormProps {
   accounts: Account[];
   open: boolean;
@@ -36,8 +43,10 @@ interface ResultData {
 
 export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportFormProps) {
   const [step, setStep] = useState<Step>("upload");
+  const [importType, setImportType] = useState<"file" | "sms">("file");
   const [accountId, setAccountId] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
+  const [smsText, setSmsText] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [result, setResult] = useState<ResultData | null>(null);
@@ -46,7 +55,9 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
 
   function reset() {
     setStep("upload");
+    setImportType("file");
     setFile(null);
+    setSmsText("");
     setAccountId("");
     setPreview(null);
     setResult(null);
@@ -76,6 +87,38 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
       setStep("preview");
     } catch {
       setError("Network error during upload");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSmsIngest() {
+    if (!smsText.trim()) { setError("Please paste some transaction SMS text"); return; }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/transactions/import-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: smsText }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "SMS Ingestion failed"); return; }
+
+      setResult({
+        imported: data.imported,
+        skipped: data.skipped,
+        errors: (data.results || [])
+          .filter((r: IngestSmsResultItem) => r.status === "failed" || r.status === "ignored")
+          .map((r: IngestSmsResultItem) => {
+            const shortText = r.text.length > 30 ? `${r.text.substring(0, 30)}...` : r.text;
+            return `[${r.status.toUpperCase()}] "${shortText}" - ${r.error || r.reason || "Skipped"}`;
+          }),
+      });
+      setStep("result");
+      onImported?.();
+    } catch {
+      setError("Network error during SMS ingestion");
     } finally {
       setLoading(false);
     }
@@ -114,7 +157,9 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import Transactions from CSV or PDF</DialogTitle>
+          <DialogTitle>
+            {importType === "sms" ? "Ingest Raw SMS Notifications" : "Import Transactions from CSV or PDF"}
+          </DialogTitle>
         </DialogHeader>
 
         <Progress value={progress} className="h-1.5 mb-4" />
@@ -122,29 +167,73 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
         {/* ── Step 1: Upload ── */}
         {step === "upload" && (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Account</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                <SelectContent>
-                  {accounts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Tab selector */}
+            <div className="flex gap-2 border-b border-border/40 pb-2 mb-2">
+              <Button
+                type="button"
+                variant={importType === "file" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => { setImportType("file"); setError(null); }}
+                className="text-xs font-bold"
+              >
+                Upload Statement File
+              </Button>
+              <Button
+                type="button"
+                variant={importType === "sms" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => { setImportType("sms"); setError(null); }}
+                className="text-xs font-bold"
+              >
+                Paste SMS Alerts
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label>CSV or PDF Statement File</Label>
-              <Input
-                ref={fileRef}
-                type="file"
-                accept=".csv,.pdf"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Supports M-Pesa CSVs, and SBM / DTB / I&M Bank CSV or PDF statements (max 500 rows)
-              </p>
-            </div>
+
+            {importType === "file" ? (
+              <>
+                <div className="space-y-2">
+                  <Label>Account</Label>
+                  <Select value={accountId} onValueChange={setAccountId}>
+                    <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>CSV or PDF Statement File</Label>
+                  <Input
+                    ref={fileRef}
+                    type="file"
+                    accept=".csv,.pdf"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Supports M-Pesa CSVs, and SBM / DTB / I&M Bank CSV or PDF statements (max 500 rows)
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Label>Paste Raw SMS Transaction Text</Label>
+                <textarea
+                  value={smsText}
+                  onChange={(e) => setSmsText(e.target.value)}
+                  placeholder={`Paste raw M-Pesa or bank transaction SMS alerts here. Separate multiple messages by double newlines. E.g.
+
+KCB: Sent KES 1,000 to John on 12/05/26...
+
+MPESA: QAB12C34D5 Confirmed. KES 500 sent to Naivas...`}
+                  rows={8}
+                  className="w-full p-3 bg-secondary/50 rounded-xl border border-border/80 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary leading-normal resize-none font-mono"
+                />
+                <p className="text-[11px] text-muted-foreground leading-normal">
+                  The parsing engine automatically matches transaction patterns (M-Pesa, KCB, DTB, SBM, I&M) and registers them to their respective accounts. General texts or OTP codes are skipped.
+                </p>
+              </div>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         )}
@@ -209,18 +298,24 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
 
         {/* ── Step 3: Result ── */}
         {step === "result" && result && (
-          <div className="py-4 space-y-3 text-center">
-            <div className="text-4xl">✓</div>
-            <p className="text-lg font-semibold">Import complete</p>
-            <div className="flex justify-center gap-4 text-sm">
-              <span className="text-green-600 font-medium">{result.imported} imported</span>
-              {result.skipped > 0 && <span className="text-amber-600">{result.skipped} skipped</span>}
-              {result.errors.length > 0 && <span className="text-destructive">{result.errors.length} errors</span>}
+          <div className="py-4 space-y-4 text-center">
+            <div className="text-4xl text-emerald-500 font-bold select-none">✓</div>
+            <div>
+              <p className="text-lg font-black tracking-tight text-foreground">Ingestion Complete</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Transactions have been logged successfully.</p>
+            </div>
+            <div className="flex justify-center gap-4 text-xs font-bold border-y border-border/40 py-3">
+              <span className="text-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-1 rounded-full border border-emerald-100/50">{result.imported} imported</span>
+              {result.skipped > 0 && <span className="text-amber-600 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-1 rounded-full border border-amber-100/50">{result.skipped} skipped</span>}
+              {result.errors.length > 0 && <span className="text-rose-600 bg-rose-50/50 dark:bg-rose-950/20 px-3 py-1 rounded-full border border-rose-100/50">{result.errors.length} unresolved</span>}
             </div>
             {result.errors.length > 0 && (
-              <ul className="text-xs text-destructive text-left max-h-32 overflow-y-auto border rounded p-2 space-y-0.5">
-                {result.errors.map((e, i) => <li key={i}>{e}</li>)}
-              </ul>
+              <div className="text-left max-w-md mx-auto space-y-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Warnings & Skips Details</span>
+                <ul className="text-[10px] text-muted-foreground font-mono leading-relaxed max-h-32 overflow-y-auto border border-border bg-secondary/20 rounded-xl p-3 space-y-1">
+                  {result.errors.map((e, i) => <li key={i} className="truncate">{e}</li>)}
+                </ul>
+              </div>
             )}
           </div>
         )}
@@ -229,9 +324,15 @@ export function ImportForm({ accounts, open, onOpenChange, onImported }: ImportF
           {step === "upload" && (
             <>
               <Button variant="outline" onClick={handleClose}>Cancel</Button>
-              <Button onClick={handleUpload} disabled={loading}>
-                {loading ? "Parsing…" : "Next: Preview"}
-              </Button>
+              {importType === "file" ? (
+                <Button onClick={handleUpload} disabled={loading}>
+                  {loading ? "Parsing…" : "Next: Preview"}
+                </Button>
+              ) : (
+                <Button onClick={handleSmsIngest} disabled={loading || !smsText.trim()}>
+                  {loading ? "Ingesting…" : "Parse & Ingest SMS"}
+                </Button>
+              )}
             </>
           )}
           {step === "preview" && (
