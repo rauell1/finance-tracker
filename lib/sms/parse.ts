@@ -1627,8 +1627,6 @@ export async function setBalance(supabase: AdminClient, accountId: string, state
   }
 
   const openingBalance = Number(acc.opening_balance);
-  const userId = acc.user_id;
-  const currencyCode = acc.currency_code;
 
   let txns: any[] = [];
   let page = 0;
@@ -1666,42 +1664,29 @@ export async function setBalance(supabase: AdminClient, accountId: string, state
   const diff = stated - computedBalance;
 
   if (Math.abs(diff) < 0.01) {
-    return;
+    return; // already accurate — nothing to do
   }
 
-  // If this is the main M-PESA account and the stated balance is 0
-  // and the computed balance is negative, do NOT create a reconciliation adjustment.
-  // The negative balance represents an active Fuliza overdraft.
+  // If this is the main M-PESA account and the stated balance is 0 while the
+  // computed balance is negative, leave it alone: the negative balance is an
+  // active Fuliza overdraft, not a discrepancy to reconcile away.
   if (acc.account_code === "main" && stated === 0 && computedBalance < 0) {
-    console.log(`[setBalance] Skipping reconciliation for main M-PESA account because stated balance is 0 and computed balance is negative (${computedBalance})`);
     return;
   }
 
-  const txnType = diff > 0 ? "income" : "expense";
-  const category = await getOrCreateCategory(supabase, userId, "Balance Adjustment", txnType);
-  const occurredOn = new Date().toISOString().split("T")[0];
+  // Re-anchor the account's opening_balance so its computed balance equals the
+  // SMS-stated balance. This is authoritative and idempotent: it creates NO
+  // transaction, so corrections can never compound and reporting (income /
+  // expense / category totals) is never polluted. The most recent SMS always
+  // wins, and the balance self-heals to the truth on the next message.
+  const newOpening = stated - net;
+  const { error: updErr } = await supabase
+    .from("accounts")
+    .update({ opening_balance: newOpening })
+    .eq("id", accountId);
 
-  const { error: insertErr } = await supabase.from("transactions").insert({
-    user_id: userId,
-    account_id: accountId,
-    category_id: category.id,
-    txn_type: txnType,
-    amount: Math.abs(diff),
-    currency_code: currencyCode,
-    occurred_on: occurredOn,
-    description: "Reconciliation Adjustment (Stated balance sync)",
-    metadata: {
-      source: "reconciliation_sync",
-      stated_balance: stated,
-      computed_balance: computedBalance,
-      original_net: net,
-      is_reconciliation: true,
-      mpesa_receipt: `ADJ-${Date.now()}-${Math.abs(Math.round(diff * 100))}`
-    }
-  });
-
-  if (insertErr) {
-    throw insertErr;
+  if (updErr) {
+    throw updErr;
   }
 }
 

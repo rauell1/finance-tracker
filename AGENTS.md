@@ -33,7 +33,8 @@ To reach the production DB without the MCP, use the secret-protected admin endpo
 ## Balance rules
 - Bank accounts (`bank_a`, `bank_b`, `bank_c`, `kcb_mpesa`, `mshwari`): **cannot go negative**
 - M-PESA (`main`): **can go negative up to −KES 1,500** (Safaricom Fuliza overdraft)
-- SMS-stated balances are authoritative: the webhook's `setBalance()` recalibrates `opening_balance` so computed balance = stated balance. Backfilling a missed historical transaction therefore requires balance-neutral opening adjustments on both legs.
+- SMS-stated balances are authoritative: the webhook's `setBalance()` (in `lib/sms/parse.ts`) recalibrates `opening_balance` so computed balance = stated balance. Backfilling a missed historical transaction therefore requires balance-neutral opening adjustments on both legs.
+- **DO NOT** make `setBalance()` inject a "Reconciliation Adjustment" / "Balance Adjustment" transaction for the mismatch. That compounds on missing/out-of-order SMS and pollutes income/expense/category reporting. Keep it to clean `opening_balance` re-anchoring only.
 
 ## Fuliza logic
 - Fuliza outstanding is tracked in the `debts` table with `source_identifier = 'fuliza'`
