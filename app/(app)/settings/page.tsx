@@ -672,20 +672,30 @@ export default function SettingsPage() {
                               step="any"
                               min="0"
                               value={account.fuliza_limit ?? 1900}
-                              onChange={async (e) => {
-                                const val = parseFloat(e.target.value) || 0;
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
                                 setAccounts((prev) =>
                                   prev.map((a) =>
-                                    a.id === account.id ? { ...a, fuliza_limit: val } : a
+                                    a.id === account.id ? { ...a, fuliza_limit: isNaN(val) ? null : val } : a
                                   )
                                 );
+                              }}
+                              onBlur={async (e) => {
+                                const val = parseFloat(e.target.value) || 0;
                                 try {
-                                  await fetch(`/api/settings/accounts?id=${account.id}`, {
+                                  const res = await fetch(`/api/settings/accounts?id=${account.id}`, {
                                     method: "PATCH",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ fuliza_limit: val })
                                   });
-                                } catch { /* non-fatal */ }
+                                  if (!res.ok) {
+                                    const j = await res.json().catch(() => ({}));
+                                    throw new Error(j.error ?? "Save failed");
+                                  }
+                                  toast.success(`Fuliza limit saved: KES ${val.toLocaleString()}`);
+                                } catch (err) {
+                                  toast.error(`Could not save Fuliza limit: ${String(err)}`);
+                                }
                               }}
                               className="h-8 w-24 px-2 text-xs border border-[#DCFCE7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                               title="Your Fuliza overdraft limit. M-PESA balance can go negative up to this amount."

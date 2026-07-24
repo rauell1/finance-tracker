@@ -8,10 +8,44 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/browser";
+import { CookiePreferences } from "@/components/cookie/cookie-preferences";
 import {
-  ResponsiveContainer, PieChart, Pie, Cell, 
+  ResponsiveContainer, PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, Tooltip
 } from "recharts";
+
+const ADMIN_EMAILS = ["royokola3@gmail.com", "info@rauell.systems"];
+
+// Route entry point: admins get the full Cookie Consent Control Center;
+// everyone else gets a simple cookie-preferences panel.
+export default function CookieManagerPage() {
+  const [status, setStatus] = useState<"loading" | "admin" | "user">("loading");
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const isAdmin = !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+        if (active) setStatus(isAdmin ? "admin" : "user");
+      } catch {
+        if (active) setStatus("user");
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  if (status === "loading") {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <RefreshCw className="h-6 w-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+  return status === "admin" ? <CookieControlCenter /> : <CookiePreferences />;
+}
 
 type TabType = "dashboard" | "customizer" | "scanner" | "policies" | "logs";
 
@@ -62,7 +96,7 @@ const defaultCookies = [
   { name: "fintrack_consent_preferences", category: "necessary", domain: "finance.rauell.systems", expires: "Persistent", desc: "Saves visitor cookie consent selections." }
 ];
 
-export default function CookieManagerPage() {
+function CookieControlCenter() {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [stats, setStats] = useState<ConsentStats | null>(null);
   const [loading, setLoading] = useState(true);

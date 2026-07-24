@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -83,17 +84,24 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid fuliza_limit" }, { status: 400 });
     }
 
-    const { error } = await supabase
+    // Perform the write with the admin client (bypasses RLS). Ownership was
+    // already verified above via the user session, so this is safe. Using the
+    // session client here would silently no-op if the accounts table lacks an
+    // UPDATE policy for authenticated users.
+    const admin = createAdminClient();
+    const { data: updated, error } = await admin
       .from("accounts")
       .update({ fuliza_limit: val })
       .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id, fuliza_limit")
+      .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, fuliza_limit: val });
+    return NextResponse.json({ success: true, fuliza_limit: Number(updated.fuliza_limit) });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
