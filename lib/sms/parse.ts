@@ -652,6 +652,17 @@ export function parseBankSms(message: string, sender?: string): ParsedBankResult
     return { isIgnored: true, reason: "non_transactional" };
   }
 
+  // I&M sends its own "You have received KES X ... Ni Sare Kabisa with I&M Bank"
+  // confirmation for every Bank->M-PESA transfer. That money's M-PESA credit is
+  // already booked from the Safaricom M-PESA SMS, and the I&M debit from the
+  // matching "Bank to M-PESA transfer ... successfully processed" SMS. Without
+  // this guard the confirmation matches no pattern, falls through to the LLM
+  // fallback, and gets mis-booked as +income to I&M (double-counting the
+  // withdrawal). It carries no separate account movement, so ignore it.
+  if (/Ni Sare Kabisa with I&M Bank/i.test(text)) {
+    return { isIgnored: true, reason: "im_mpesa_receipt_duplicate" };
+  }
+
   let bankName = "";
   if (sender) {
     const s = sender.toUpperCase();
