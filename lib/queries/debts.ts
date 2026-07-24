@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Debt, DebtType } from "@/types/domain";
 
 export async function getDebts(includeInactive = false): Promise<Debt[]> {
@@ -89,22 +90,61 @@ export async function recordPayment(
 
   const occurred = occurredOn ?? new Date().toISOString().split("T")[0];
 
-  const { data: txn, error: txnErr } = await supabase
+  // Prefer matching an existing same-amount expense you already made (e.g. the
+  // real M-Pesa SMS transaction) rather than creating a duplicate. Match on the
+  // exact amount + account, within the last 5 days, and only transactions not
+  // already tied to a debt/obligation.
+  const windowStart = new Date(occurred + "T00:00:00");
+  windowStart.setDate(windowStart.getDate() - 5);
+  const windowStartStr = windowStart.toISOString().split("T")[0];
+
+  const { data: candidates } = await supabase
     .from("transactions")
-    .insert({
-      user_id: user.id,
-      account_id: accountId,
-      category_id: categoryId,
-      txn_type: "expense",
-      amount,
-      currency_code: debt.currency_code,
-      occurred_on: occurred,
-      description: `Debt payment: ${debt.creditor}`,
-      metadata: { source: "debt_payment", debt_id: id },
-    })
-    .select("id")
-    .single();
-  if (txnErr) throw txnErr;
+    .select("id, metadata")
+    .eq("user_id", user.id)
+    .eq("account_id", accountId)
+    .eq("txn_type", "expense")
+    .eq("amount", amount)
+    .gte("occurred_on", windowStartStr)
+    .lte("occurred_on", occurred)
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const match = (candidates ?? []).find(
+    (c: any) => !c.metadata?.debt_id && !c.metadata?.obligation_id && c.metadata?.source !== "debt_payment"
+  );
+
+  let transactionId: string;
+  if (match) {
+    // Link the existing transaction to this debt payment instead of duplicating.
+    const admin = createAdminClient();
+    const newMeta = { ...(match.metadata ?? {}), debt_id: id, matched_debt: true };
+    const { error: linkErr } = await admin
+      .from("transactions")
+      .update({ category_id: categoryId, description: `Debt payment: ${debt.creditor}`, metadata: newMeta })
+      .eq("id", match.id)
+      .eq("user_id", user.id);
+    if (linkErr) throw linkErr;
+    transactionId = match.id;
+  } else {
+    const { data: txn, error: txnErr } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: user.id,
+        account_id: accountId,
+        category_id: categoryId,
+        txn_type: "expense",
+        amount,
+        currency_code: debt.currency_code,
+        occurred_on: occurred,
+        description: `Debt payment: ${debt.creditor}`,
+        metadata: { source: "debt_payment", debt_id: id },
+      })
+      .select("id")
+      .single();
+    if (txnErr) throw txnErr;
+    transactionId = txn.id;
+  }
 
   const newBalance = Math.max(0, Number(debt.current_balance) - amount);
   const updates: Record<string, unknown> = { current_balance: newBalance };
@@ -113,5 +153,5 @@ export async function recordPayment(
   const { error: updErr } = await supabase.from("debts").update(updates).eq("id", id);
   if (updErr) throw updErr;
 
-  return { debt_id: id, transaction_id: txn.id, new_balance: newBalance };
+  return { debt_id: id, transaction_id: transactionId, new_balance: newBalance };
 }

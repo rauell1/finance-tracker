@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { RecurringObligation, ObligationType, Recurrence } from "@/types/domain";
 
 const SELECT =
@@ -151,22 +152,60 @@ export async function markAsPaid(
 
   const occurredOn = opts.occurred_on ?? new Date().toISOString().split("T")[0];
 
-  const { data: txn, error: txnErr } = await supabase
+  // Prefer matching an existing same-amount expense you already made (e.g. the
+  // real M-Pesa SMS transaction for this bill) rather than creating a duplicate.
+  // Match on exact amount + account, within the last 5 days, only transactions
+  // not already tied to a debt/obligation.
+  const windowStart = new Date(occurredOn + "T00:00:00");
+  windowStart.setDate(windowStart.getDate() - 5);
+  const windowStartStr = windowStart.toISOString().split("T")[0];
+
+  const { data: candidates } = await supabase
     .from("transactions")
-    .insert({
-      user_id: user.id,
-      account_id: finalAccountId,
-      category_id: categoryId,
-      txn_type: "expense",
-      amount: obl.amount,
-      currency_code: obl.currency_code,
-      occurred_on: occurredOn,
-      description: `${obl.name} (${obl.obligation_type})`,
-      metadata: { source: "recurring", obligation_id: id },
-    })
-    .select("id")
-    .single();
-  if (txnErr) throw txnErr;
+    .select("id, metadata")
+    .eq("user_id", user.id)
+    .eq("account_id", finalAccountId)
+    .eq("txn_type", "expense")
+    .eq("amount", obl.amount)
+    .gte("occurred_on", windowStartStr)
+    .lte("occurred_on", occurredOn)
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const match = (candidates ?? []).find(
+    (c: any) => !c.metadata?.debt_id && !c.metadata?.obligation_id && c.metadata?.source !== "recurring"
+  );
+
+  let transactionId: string;
+  if (match) {
+    const admin = createAdminClient();
+    const newMeta = { ...(match.metadata ?? {}), obligation_id: id, matched_obligation: true };
+    const { error: linkErr } = await admin
+      .from("transactions")
+      .update({ category_id: categoryId, description: `${obl.name} (${obl.obligation_type})`, metadata: newMeta })
+      .eq("id", match.id)
+      .eq("user_id", user.id);
+    if (linkErr) throw linkErr;
+    transactionId = match.id;
+  } else {
+    const { data: txn, error: txnErr } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: user.id,
+        account_id: finalAccountId,
+        category_id: categoryId,
+        txn_type: "expense",
+        amount: obl.amount,
+        currency_code: obl.currency_code,
+        occurred_on: occurredOn,
+        description: `${obl.name} (${obl.obligation_type})`,
+        metadata: { source: "recurring", obligation_id: id },
+      })
+      .select("id")
+      .single();
+    if (txnErr) throw txnErr;
+    transactionId = txn.id;
+  }
 
   // Compute next due date
   const fromDate = obl.next_due_date ?? occurredOn;
@@ -176,11 +215,11 @@ export async function markAsPaid(
     .from("recurring_obligations")
     .update({
       last_paid_date: occurredOn,
-      last_transaction_id: txn.id,
+      last_transaction_id: transactionId,
       next_due_date: nextDue,
     })
     .eq("id", id);
   if (updErr) throw updErr;
 
-  return { obligation_id: id, transaction_id: txn.id, next_due_date: nextDue };
+  return { obligation_id: id, transaction_id: transactionId, next_due_date: nextDue };
 }
