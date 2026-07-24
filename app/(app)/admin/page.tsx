@@ -22,6 +22,12 @@ export default async function AdminPage() {
     getFulizaDebt(),
   ]);
 
+  // Single source of truth for the overdraft ceiling: the M-PESA account's
+  // editable fuliza_limit (fall back to 1900 if unset).
+  const rawFulizaLimit = Number(accounts.find((a) => a.account_code === "main")?.fuliza_limit);
+  const fulizaLimit = rawFulizaLimit > 0 ? rawFulizaLimit : 1900;
+  const fulizaLimitLabel = new Intl.NumberFormat("en-KE").format(fulizaLimit);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -45,7 +51,7 @@ export default async function AdminPage() {
           Transaction history is never changed.
           &nbsp;·&nbsp;
           <strong>Fuliza</strong> - sets the outstanding Fuliza overdraft, which syncs to the Debts tracker.
-          Only M-PESA can carry a negative balance (up to -KES 1,900).
+          Only M-PESA can carry a negative balance (up to -KES {fulizaLimitLabel}).
         </p>
       </div>
 
