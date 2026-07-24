@@ -5,9 +5,10 @@ import type { Debt } from "@/types/domain";
 
 interface Props {
   debts: Debt[];
+  fulizaLimit?: number;
 }
 
-export function DebtSummary({ debts }: Props) {
+export function DebtSummary({ debts, fulizaLimit }: Props) {
   const total = debts.reduce((s, d) => s + Number(d.current_balance), 0);
   const displayed = debts.slice(0, 5);
 
@@ -42,7 +43,12 @@ export function DebtSummary({ debts }: Props) {
         <div className="divide-y divide-border/50">
           {displayed.map((d) => {
             const owed = Number(d.current_balance);
-            const limit = Number(d.principal);
+            // For the Fuliza line, prefer the account's editable fuliza_limit
+            // (the single source of truth the user sets in Settings) over the
+            // debt's stored principal.
+            const limit = d.source_identifier === "fuliza" && fulizaLimit && fulizaLimit > 0
+              ? fulizaLimit
+              : Number(d.principal);
             const isCreditLine = ["fuliza", "overdraft", "kcb_overdraft", "credit_card"].includes(d.debt_type);
             const available = isCreditLine ? Math.max(0, limit - owed) : null;
             return (

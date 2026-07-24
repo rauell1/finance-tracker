@@ -7,6 +7,7 @@ interface HeroBannerProps {
   totalBalance: number;
   debts: Debt[];
   userName?: string;
+  fulizaLimit?: number;
 }
 
 function greeting(): string {
@@ -18,9 +19,10 @@ function greeting(): string {
   return "Good evening";
 }
 
-export function HeroBanner({ totalBalance, debts, userName = "Roy" }: HeroBannerProps) {
+export function HeroBanner({ totalBalance, debts, userName = "Roy", fulizaLimit = 1900 }: HeroBannerProps) {
   const fuliza = debts.find((d) => d.source_identifier === "fuliza");
   const fulizaOwed = fuliza ? Number(fuliza.current_balance) : 0;
+  const fulizaAvailable = Math.max(0, fulizaLimit - fulizaOwed);
   const balanceStr = formatCurrency(totalBalance);
   const parts = balanceStr.split(" ");
   const currency = parts.length > 1 ? parts[0] : "";
@@ -53,7 +55,7 @@ export function HeroBanner({ totalBalance, debts, userName = "Roy" }: HeroBanner
                 {fulizaOwed > 0 ? <ShieldAlert className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                 {fulizaOwed > 0
                   ? `Fuliza: ${formatCurrency(fulizaOwed)} owed`
-                  : "Fuliza clear · KES 1,900 available"}
+                  : `Fuliza clear · ${formatCurrency(fulizaAvailable)} available`}
               </span>
             </div>
           </div>

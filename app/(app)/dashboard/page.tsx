@@ -39,12 +39,20 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     getSavingsGoals().catch(() => []),
   ]);
 
+  // The M-PESA account's fuliza_limit is the single source of truth for the
+  // overdraft ceiling (editable in Settings); fall back to 1900 if unset.
+  const mpesaAccount = accountComparison.find((a) => a.account_code === "main");
+  const fulizaLimit = mpesaAccount?.fuliza_limit && mpesaAccount.fuliza_limit > 0
+    ? mpesaAccount.fuliza_limit
+    : 1900;
+
   return (
     <div className="space-y-6 sm:space-y-7">
       {/* Hero: greeting + net worth + Fuliza status */}
       <HeroBanner
         totalBalance={kpi.totalBalance}
         debts={debts}
+        fulizaLimit={fulizaLimit}
       />
 
       {/* Account balances */}
@@ -82,7 +90,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       {/* Upcoming bills + Debts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
         <UpcomingBills obligations={upcoming} />
-        <DebtSummary debts={debts} />
+        <DebtSummary debts={debts} fulizaLimit={fulizaLimit} />
       </div>
 
       {/* Savings Goals */}

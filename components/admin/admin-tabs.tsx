@@ -109,7 +109,10 @@ export function AdminTabs({ accounts, fulizaDebt }: Props) {
           <p className="text-xs text-[#33375C]/60 mb-4">
             Set the exact amount currently owed to Safaricom Fuliza. This updates your Debts tracker in real time.
           </p>
-          <FulizaCard initialDebt={fulizaDebt} />
+          <FulizaCard
+            initialDebt={fulizaDebt}
+            fulizaLimit={Number(accounts.find((a) => a.account_code === "main")?.fuliza_limit) || 1900}
+          />
         </div>
       )}
 

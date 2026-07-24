@@ -6,17 +6,18 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Debt } from "@/types/domain";
 
-const FULIZA_MAX = 1900;
-
 function fmt(n: number) {
   return new Intl.NumberFormat("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
 interface Props {
   initialDebt: Debt | null;
+  fulizaLimit?: number;
 }
 
-export function FulizaCard({ initialDebt }: Props) {
+export function FulizaCard({ initialDebt, fulizaLimit = 1900 }: Props) {
+  // Overdraft ceiling comes from the M-PESA account's editable fuliza_limit.
+  const FULIZA_MAX = fulizaLimit > 0 ? fulizaLimit : 1900;
   const [debt, setDebt] = useState<Debt | null>(initialDebt);
   const outstanding = debt ? Number(debt.current_balance) : 0;
 
