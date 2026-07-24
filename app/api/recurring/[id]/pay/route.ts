@@ -12,6 +12,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const result = await markAsPaid(id, {
       account_id: body.account_id ?? null,
       occurred_on: body.occurred_on,
+      force: body.force === true,
     });
     return NextResponse.json(result);
   } catch (err) {

@@ -9,7 +9,7 @@ import {
   reconcileLinkedTransaction,
   processSingleSms, processSingleBankSms,
   setBalance, getLastMpesaBalance, inferFulizaRepayment, upsertAutoDebt,
-  extractSmsText, logWebhook, isPlaceholder, parseMacroDroidTimestamp, captureDebug,
+  extractSmsText, logWebhook, describeWebhookOutcome, isPlaceholder, parseMacroDroidTimestamp, captureDebug,
   DTB_HISTORICAL_DATES, IM_HISTORICAL_DATES,
   Parsed, ParsedSbm, ParsedBankResult, NvidiaParsedResult,
 } from "@/lib/sms/parse";
@@ -171,9 +171,7 @@ export async function POST(request: NextRequest) {
         try {
           const res = await processSingleBankSms(supabase, lineSmsText, targetUserId, lineTimestamp);
           results.push({ line, ...res });
-          if (res.status === "failed") {
-            await logWebhook(supabase, line, contentType, lineSmsText, `failed (batch): ${res.error ?? "unknown"}`, targetUserId);
-          }
+          await logWebhook(supabase, line, contentType, lineSmsText, `bank-batch · ${describeWebhookOutcome(res)}`, targetUserId);
         } catch (err: any) {
           console.error(`[bank-sms webhook] Error processing batch line: ${line}`, err);
           results.push({ line, status: "failed", error: err.message });
@@ -214,11 +212,7 @@ export async function POST(request: NextRequest) {
       }
 
       const res = await processSingleBankSms(supabase, lineSmsText, targetUserId, lineTimestamp, sender);
-      if (res.status === "failed") {
-        await logWebhook(supabase, rawBody, contentType, lineSmsText, `failed: ${res.error ?? "unknown"}`, targetUserId);
-      } else if (res.status === "ignored" && res.reason === "not_bank_sms") {
-        await logWebhook(supabase, rawBody, contentType, lineSmsText, "not_bank_sms", targetUserId);
-      }
+      await logWebhook(supabase, rawBody, contentType, lineSmsText, `bank · ${describeWebhookOutcome(res)}`, targetUserId);
       return {
         ...res,
         received_payload: payload
@@ -257,9 +251,7 @@ export async function POST(request: NextRequest) {
             }
           }
           results.push({ line, ...res });
-          if (res.status === "failed") {
-            await logWebhook(supabase, line, contentType, lineSmsText, `failed (batch): ${res.error ?? "unknown"}`, targetUserId);
-          }
+          await logWebhook(supabase, line, contentType, lineSmsText, `batch · ${describeWebhookOutcome(res)}`, targetUserId);
         } catch (err: any) {
           console.error(`[mpesa-sms webhook] Error processing batch line: ${line}`, err);
           results.push({ line, status: "failed", error: err.message });
@@ -293,11 +285,9 @@ export async function POST(request: NextRequest) {
         res = bankRes;
       }
     }
-    if (res.status === "failed") {
-      await logWebhook(supabase, rawBody, contentType, smsText, `failed: ${res.error ?? "unknown"}`, targetUserId);
-    } else if (res.status === "ignored" && res.reason === "not_mpesa") {
-      await logWebhook(supabase, rawBody, contentType, smsText, "not_mpesa", targetUserId);
-    }
+    // Log EVERY incoming SMS with its outcome (created / ignored / failed),
+    // not just failures - this is the incoming-SMS troubleshooting log.
+    await logWebhook(supabase, rawBody, contentType, smsText, describeWebhookOutcome(res), targetUserId);
     return {
       ...res,
       received_payload: payload || rawBody

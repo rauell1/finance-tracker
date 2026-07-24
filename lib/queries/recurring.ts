@@ -42,6 +42,20 @@ function advance(dateStr: string, recurrence: Recurrence): string {
   return d.toISOString().split("T")[0];
 }
 
+// Start of the current billing cycle for a recurrence - used to detect whether
+// a bill/subscription has already been paid this cycle.
+function cycleStart(recurrence: Recurrence, today: Date): string {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  switch (recurrence) {
+    case "weekly":    d.setDate(d.getDate() - 7); break;
+    case "monthly":   d.setDate(1); break;
+    case "quarterly": d.setMonth(d.getMonth() - 3); break;
+    case "yearly":    d.setMonth(0); d.setDate(1); break;
+    default:          d.setDate(1);
+  }
+  return d.toISOString().split("T")[0];
+}
+
 function attachDueInDays(rows: Record<string, unknown>[]): RecurringObligation[] {
   return rows.map((r) => ({
     ...(r as unknown as RecurringObligation),
@@ -114,7 +128,7 @@ export async function deleteObligation(id: string): Promise<void> {
 
 export async function markAsPaid(
   id: string,
-  opts: { account_id?: string | null; occurred_on?: string } = {}
+  opts: { account_id?: string | null; occurred_on?: string; force?: boolean } = {}
 ): Promise<{ obligation_id: string; transaction_id: string; next_due_date: string | null }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -126,6 +140,15 @@ export async function markAsPaid(
     .eq("id", id)
     .single();
   if (oblErr || !obl) throw oblErr ?? new Error("Not found");
+
+  // Guard against accidentally paying the same bill/subscription twice in one
+  // cycle (e.g. a double-click). Pass force:true to override intentionally.
+  if (!opts.force && obl.last_paid_date) {
+    const start = cycleStart(obl.recurrence as Recurrence, new Date());
+    if (obl.last_paid_date >= start) {
+      throw new Error(`ALREADY_PAID:${obl.name} was already paid this ${obl.recurrence} cycle (on ${obl.last_paid_date}).`);
+    }
+  }
 
   const accountId = opts.account_id ?? obl.account_id;
   if (!accountId) {

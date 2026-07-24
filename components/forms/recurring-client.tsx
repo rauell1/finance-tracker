@@ -149,19 +149,28 @@ export function RecurringClient({ initialObligations, accounts, categories }: Pr
     }
   }
 
-  async function handlePay(id: string) {
+  async function handlePay(id: string, force = false) {
     const res = await fetch(`/api/recurring/${id}/pay`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify(force ? { force: true } : {}),
     });
     if (res.ok) {
       toast.success("Marked as paid");
       await refetch();
-    } else {
-      const j = await res.json().catch(() => ({}));
-      toast.error(j.error ?? "Failed to mark as paid");
+      return;
     }
+    const j = await res.json().catch(() => ({}));
+    const err = String(j.error ?? "");
+    if (err.startsWith("ALREADY_PAID:")) {
+      // Already paid this cycle - confirm before recording another payment.
+      const msg = err.replace("ALREADY_PAID:", "");
+      if (window.confirm(`${msg}\n\nRecord another payment anyway?`)) {
+        await handlePay(id, true);
+      }
+      return;
+    }
+    toast.error(j.error ?? "Failed to mark as paid");
   }
 
   return (

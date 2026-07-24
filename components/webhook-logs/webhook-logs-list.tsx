@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -16,12 +16,19 @@ export interface WebhookLog {
   replay_result: Record<string, unknown> | null;
 }
 
-const reasonStyle = (reason: string) => {
-  if (reason.startsWith("failed") || reason.startsWith("exception"))
-    return "bg-rose-50 text-rose-700 border-rose-200";
-  if (reason === "not_mpesa")
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  return "bg-[#FEF9C3] text-[#EA580C] border-[#DCFCE7]";
+type Outcome = "recorded" | "ignored" | "failed";
+
+function categorize(reason: string): Outcome {
+  const r = reason.toLowerCase();
+  if (r.includes("fail") || r.includes("exception")) return "failed";
+  if (r.includes("created") || r.includes("reconciled") || r.includes("updated")) return "recorded";
+  return "ignored";
+}
+
+const outcomeStyle: Record<Outcome, string> = {
+  recorded: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  ignored: "bg-amber-50 text-amber-700 border-amber-200",
+  failed: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
 function formatWhen(iso: string) {
@@ -34,6 +41,7 @@ function LogRow({ log }: { log: WebhookLog }) {
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<"replay" | "delete" | null>(null);
   const [open, setOpen] = useState(false);
+  const outcome = categorize(log.reason);
 
   async function handleReplay() {
     setBusy("replay");
@@ -79,9 +87,10 @@ function LogRow({ log }: { log: WebhookLog }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className={cn("text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border", reasonStyle(log.reason))}>
-              {log.reason}
+            <span className={cn("text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border", outcomeStyle[outcome])}>
+              {outcome}
             </span>
+            <span className="text-[10px] font-semibold text-[#33375C]/70 truncate max-w-[220px]">{log.reason}</span>
             {log.replayed_at && (
               <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200 inline-flex items-center gap-0.5">
                 <CheckCircle2 className="h-2.5 w-2.5" /> Replayed
@@ -131,25 +140,64 @@ function LogRow({ log }: { log: WebhookLog }) {
   );
 }
 
+const FILTERS = [
+  { id: "all", label: "All" },
+  { id: "recorded", label: "Recorded" },
+  { id: "ignored", label: "Ignored" },
+  { id: "failed", label: "Failed" },
+] as const;
+type FilterId = typeof FILTERS[number]["id"];
+
 export function WebhookLogsList({ logs }: { logs: WebhookLog[] }) {
+  const [filter, setFilter] = useState<FilterId>("all");
+
+  const counts = useMemo(() => {
+    const c = { recorded: 0, ignored: 0, failed: 0 };
+    for (const l of logs) c[categorize(l.reason)]++;
+    return c;
+  }, [logs]);
+
+  const shown = useMemo(
+    () => (filter === "all" ? logs : logs.filter((l) => categorize(l.reason) === filter)),
+    [logs, filter]
+  );
+
   return (
     <div className="bg-white rounded-2xl border border-[#DCFCE7] shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[#DCFCE7]">
-        <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Unprocessed Deliveries</h2>
-        <span className="text-xs font-bold text-[#33375C]/50">{logs.length} log{logs.length === 1 ? "" : "s"}</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-5 border-b border-[#DCFCE7]">
+        <h2 className="font-bold text-[#0A0D27] tracking-tight text-base">Incoming Messages</h2>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {FILTERS.map((f) => {
+            const n = f.id === "all" ? logs.length : counts[f.id];
+            return (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-bold border transition-colors",
+                  filter === f.id
+                    ? "bg-[#EA580C] text-white border-[#EA580C]"
+                    : "bg-white text-[#33375C]/70 border-[#DCFCE7] hover:bg-[#FEF9C3]/40"
+                )}
+              >
+                {f.label} <span className="opacity-70">{n}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {logs.length === 0 ? (
+      {shown.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
           <div className="h-12 w-12 rounded-full bg-emerald-50 flex items-center justify-center mb-3">
             <Inbox className="h-6 w-6 text-emerald-600" />
           </div>
-          <p className="text-sm font-semibold text-[#0A0D27]">All clear</p>
-          <p className="text-xs mt-1 text-[#33375C]/60">Every webhook delivery has been processed into a transaction.</p>
+          <p className="text-sm font-semibold text-[#0A0D27]">Nothing here</p>
+          <p className="text-xs mt-1 text-[#33375C]/60">No messages match this filter.</p>
         </div>
       ) : (
         <div className="divide-y divide-[#DCFCE7]">
-          {logs.map((log) => (
+          {shown.map((log) => (
             <LogRow key={log.id} log={log} />
           ))}
         </div>

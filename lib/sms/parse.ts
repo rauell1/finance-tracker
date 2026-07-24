@@ -1675,7 +1675,7 @@ export async function setBalance(supabase: AdminClient, accountId: string, state
   const diff = stated - computedBalance;
 
   if (Math.abs(diff) < 0.01) {
-    return; // already accurate — nothing to do
+    return; // already accurate - nothing to do
   }
 
   // If this is the main M-PESA account and the stated balance is 0 while the
@@ -1886,6 +1886,22 @@ export async function captureDebug(rawBody: string, contentType: string, extract
   );
 }
 
+// Build a short, human-readable outcome string for the incoming-SMS log, so
+// every message shows what the webhook did with it (created/ignored/failed +
+// detail) at a glance.
+export function describeWebhookOutcome(res: {
+  status: string; reason?: string; error?: string;
+  kind?: string; amount?: number; counterparty?: string; category?: string;
+}): string {
+  if (res.status === "failed") return `failed: ${res.error ?? "unknown"}`;
+  if (res.status === "ignored") return `ignored: ${res.reason ?? "unknown"}`;
+  const parts: string[] = [res.status];
+  if (res.kind) parts.push(`(${res.kind})`);
+  if (res.amount != null) parts.push(`KES ${res.amount}`);
+  if (res.counterparty) parts.push(`→ ${res.counterparty}`);
+  return parts.join(" ");
+}
+
 export async function logWebhook(
   supabase: AdminClient,
   rawBody: string,
@@ -1914,6 +1930,13 @@ export async function logWebhook(
       user_id: targetUserId || null,
     });
     if (error) console.warn("[logWebhook] insert failed:", error.message);
+
+    // Retention: opportunistically purge logs older than 90 days so the table
+    // can't grow unbounded. Runs on ~2% of inserts to avoid overhead.
+    if (Math.random() < 0.02) {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from("webhook_logs").delete().lt("created_at", cutoff);
+    }
   } catch (err) {
     console.warn("[logWebhook] failed to persist webhook log:", err);
   }

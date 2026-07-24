@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { AdminClient } from "@/lib/sms/parse";
 import {
   processSingleSms, processSingleBankSms,
-  logWebhook, containsOtp, isPlaceholder, captureDebug, sanitizeJsonNewlines,
+  logWebhook, describeWebhookOutcome, containsOtp, isPlaceholder, captureDebug, sanitizeJsonNewlines,
 } from "@/lib/sms/parse";
 
 interface GatewayPayload {
@@ -100,11 +100,7 @@ export async function POST(request: NextRequest) {
         res = bankRes;
       }
     }
-    if (res.status === "failed") {
-      await logWebhook(supabase, rawBody, contentType, smsText, `failed: ${res.error ?? "unknown"}`, targetUserId);
-    } else if (res.status === "ignored" && res.reason === "not_mpesa") {
-      await logWebhook(supabase, rawBody, contentType, smsText, "not_mpesa", targetUserId);
-    }
+    await logWebhook(supabase, rawBody, contentType, smsText, `gateway · ${describeWebhookOutcome(res)}`, targetUserId);
     return { ...res, received_payload: gatewayPayload };
   };
 
