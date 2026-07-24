@@ -53,7 +53,7 @@ export function HeroBanner({ totalBalance, debts, userName = "Roy" }: HeroBanner
                 {fulizaOwed > 0 ? <ShieldAlert className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                 {fulizaOwed > 0
                   ? `Fuliza: ${formatCurrency(fulizaOwed)} owed`
-                  : "Fuliza clear · KES 1,500 available"}
+                  : "Fuliza clear · KES 1,900 available"}
               </span>
             </div>
           </div>

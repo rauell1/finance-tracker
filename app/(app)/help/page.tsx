@@ -38,7 +38,7 @@ const faqs: FAQItem[] = [
   },
   {
     q: "Why is my M-Pesa balance negative?",
-    a: "Under our system rules, M-Pesa (main) accounts are permitted to go negative up to -KES 1,500. This tracks Safaricom's Fuliza overdraft limits. When new funds arrive, Safaricom automatically deducts outstanding Fuliza amounts, which our system reconciles automatically via repayment logs."
+    a: "Under our system rules, M-Pesa (main) accounts are permitted to go negative up to -KES 1,900. This tracks Safaricom's Fuliza overdraft limits. When new funds arrive, Safaricom automatically deducts outstanding Fuliza amounts, which our system reconciles automatically via repayment logs."
   },
   {
     q: "How do I connect my bank accounts?",

@@ -32,7 +32,7 @@ To reach the production DB without the MCP, use the secret-protected admin endpo
 
 ## Balance rules
 - Bank accounts (`bank_a`, `bank_b`, `bank_c`, `kcb_mpesa`, `mshwari`): **cannot go negative**
-- M-PESA (`main`): **can go negative up to −KES 1,500** (Safaricom Fuliza overdraft)
+- M-PESA (`main`): **can go negative up to −KES 1,900** (Safaricom Fuliza overdraft; the ceiling is the per-account `accounts.fuliza_limit` field — currently 1900, bumped from 1500 on 2026-07-23)
 - SMS-stated balances are authoritative: the webhook's `setBalance()` (in `lib/sms/parse.ts`) recalibrates `opening_balance` so computed balance = stated balance. Backfilling a missed historical transaction therefore requires balance-neutral opening adjustments on both legs.
 - **DO NOT** make `setBalance()` inject a "Reconciliation Adjustment" / "Balance Adjustment" transaction for the mismatch (as commit `101f031` did). That approach compounds on missing/out-of-order SMS and pollutes income/expense/category reporting. It was reverted 2026-07-23 back to clean `opening_balance` re-anchoring. One-time cleanup of the phantom rows it created: `scripts/fix-balance-reconciliation.sql`.
 
@@ -40,8 +40,8 @@ To reach the production DB without the MCP, use the secret-protected admin endpo
 - Fuliza outstanding is tracked in the `debts` table with `source_identifier = 'fuliza'`
 - When money arrives in M-PESA and Fuliza is outstanding, Safaricom auto-deducts before crediting
 - The webhook handles this via a separate Fuliza repayment SMS (`P.fulizaRepay` pattern)
-- Partial repayment SMS: "available Fuliza M-PESA limit is Ksh X" → outstanding = 1500 − X
-- Full repayment SMS: "available Fuliza M-PESA limit is Ksh 1500.00" → outstanding = 0
+- Partial repayment SMS: "available Fuliza M-PESA limit is Ksh X" → outstanding = 1900 − X
+- Full repayment SMS: "available Fuliza M-PESA limit is Ksh 1900.00" → outstanding = 0
 - Any SMS stating M-PESA balance ≥ 1 → Fuliza outstanding = 0 (Safaricom auto-deducts first)
 
 ## Webhook logs

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Debt } from "@/types/domain";
 
-const FULIZA_MAX = 1500;
+const FULIZA_MAX = 1900;
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);

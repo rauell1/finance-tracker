@@ -45,7 +45,7 @@ export default async function AdminPage() {
           Transaction history is never changed.
           &nbsp;·&nbsp;
           <strong>Fuliza</strong> - sets the outstanding Fuliza overdraft, which syncs to the Debts tracker.
-          Only M-PESA can carry a negative balance (up to -KES 1,500).
+          Only M-PESA can carry a negative balance (up to -KES 1,900).
         </p>
       </div>
 

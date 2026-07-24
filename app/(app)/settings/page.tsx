@@ -671,7 +671,7 @@ export default function SettingsPage() {
                               type="number"
                               step="any"
                               min="0"
-                              value={account.fuliza_limit ?? 1500}
+                              value={account.fuliza_limit ?? 1900}
                               onChange={async (e) => {
                                 const val = parseFloat(e.target.value) || 0;
                                 setAccounts((prev) =>

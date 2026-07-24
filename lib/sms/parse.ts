@@ -1493,7 +1493,7 @@ export function parse(rawText: string): Parsed | null {
     if (remainingM) {
       remainingBal = num(remainingM[1]);
     } else if (availLimitM) {
-      remainingBal = Math.max(0, 1500 - num(availLimitM[1]));
+      remainingBal = Math.max(0, 1900 - num(availLimitM[1]));
     }
     return { ...base, kind: "expense", amount: num(fulizaRepay[1]), txnType: "expense", savingsBal: null, counterparty: "Fuliza M-Pesa", description: "Fuliza repayment", fulizaOutstanding: remainingBal };
   }

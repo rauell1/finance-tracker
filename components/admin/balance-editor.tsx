@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Account } from "@/types/domain";
 
-const FULIZA_MAX = 1500;
+const FULIZA_MAX = 1900;
 const MPESA_CODE = "main";
 
 const accountMeta: Record<string, { label: string; icon: typeof Wallet; accent: string; ring: string; bg: string }> = {
