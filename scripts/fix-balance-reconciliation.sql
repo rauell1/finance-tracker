@@ -93,8 +93,10 @@ WITH truth (account_code, true_balance) AS (
 ),
 net AS (
   SELECT
-    acc.id                AS account_id,
-    acc.account_code,
+    acc.id                     AS account_id,
+    -- account_code is a Postgres ENUM (account_code_enum); cast to text so it
+    -- can be compared against the plain text values in `truth` above.
+    acc.account_code::text     AS account_code,
     COALESCE(SUM(
       CASE
         WHEN t.txn_type = 'income'   AND t.account_id = acc.id          THEN  t.amount
@@ -103,7 +105,7 @@ net AS (
         WHEN t.txn_type = 'transfer' AND t.transfer_account_id = acc.id THEN  t.amount
         ELSE 0
       END
-    ), 0)                 AS net
+    ), 0)                      AS net
   FROM accounts acc
   LEFT JOIN transactions t
     ON (t.account_id = acc.id OR t.transfer_account_id = acc.id)
@@ -116,7 +118,7 @@ SET opening_balance = tr.true_balance - n.net,
     updated_at = now()
 FROM truth tr
 JOIN net n ON n.account_code = tr.account_code
-WHERE a.account_code = tr.account_code
+WHERE a.id = n.account_id
   AND a.user_id = '4a49b47d-7020-4752-9daa-616da026d3f7';
 
 
